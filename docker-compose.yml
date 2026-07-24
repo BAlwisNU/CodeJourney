@@ -1,0 +1,40 @@
+# Logical separation, monolithic deployment. One API container holds feedback,
+# hints, grading and analytics as modules. The sandbox is the one genuinely
+# separate process -- it is built here but invoked per-submission by the API,
+# not long-running. See docs/architecture.md.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: codejourney
+      POSTGRES_PASSWORD: codejourney
+      POSTGRES_DB: codejourney
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codejourney"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://codejourney:codejourney@db:5432/codejourney
+      SECRET_KEY: dev-only-not-a-real-secret
+      ENVIRONMENT: development
+    ports: ["8000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+    volumes:
+      # The API shells out to `docker run` for the sandbox, so it needs the
+      # host's Docker socket. This is a real privilege -- it is effectively root
+      # on the host -- and it is acceptable in development only. Before any
+      # public deployment, move the sandbox behind its own runner service so the
+      # API never holds this socket. Documented rather than silently shipped.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  pgdata:

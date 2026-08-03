@@ -75,6 +75,15 @@ export type ConceptProgress = {
  * Both are Week 7 dependent variables, and showing a participant their own
  * values changes the behaviour being measured. See apps/api/app/routers/progress.py.
  */
+/** An AI-built practice exercise the student made off a lesson, tagged with the
+ *  lesson it branches from so the dashboard can draw it below that lesson. */
+export type DashboardBranch = {
+  parent_slug: string
+  slug: string
+  title: string
+  status: 'solved' | 'in_progress' | 'not_started'
+}
+
 export type Dashboard = {
   display_name: string
   role: 'student' | 'instructor'
@@ -84,6 +93,14 @@ export type Dashboard = {
   concepts: ConceptProgress[]
   continue_slug: string | null
   exercises: ExerciseProgress[]
+  branches: DashboardBranch[]
+}
+
+/** One AI-built branch off an exercise, for links on the parent's own page. */
+export type BranchLink = {
+  slug: string
+  title: string
+  status: 'solved' | 'in_progress' | 'not_started'
 }
 
 export type SubmitResponse = {
@@ -96,6 +113,14 @@ export type SubmitResponse = {
   attempt_number: number
 }
 
+/** A hint the student pulled on demand (the button), as opposed to one the
+ *  ladder pushed after a failed submit. `exhausted` marks the last rung. */
+export type HintResponse = {
+  level: number
+  hint: string | null
+  exhausted: boolean
+}
+
 export type Reflection = {
   id: string
   exercise_id: string | null
@@ -106,6 +131,31 @@ export type Reflection = {
   updated_at: string
 }
 
+// --- reflection tutor ---
+//
+// A SEPARATE feature from the journal above. The tutor talks about the lesson
+// and the student's code, gauges confidence, and can offer to build practice.
+// It never reads the journal -- see apps/api/app/routers/reflections.py.
+
+export type TutorMessage = { role: 'user' | 'assistant'; content: string }
+
+export type LessonProposal = {
+  scope: 'topic' | 'concept'
+  concept: string
+  focus: string
+  title: string
+  rationale: string
+}
+
+export type TutorChatResponse = {
+  reply: string
+  proposal: LessonProposal | null
+  /** false when no API key is configured; the UI shows a gentle note. */
+  configured: boolean
+}
+
+export type GeneratedLesson = { slug: string; title: string }
+
 export type Account = {
   id: string
   email: string
@@ -114,6 +164,58 @@ export type Account = {
   consented_at: string | null
   consent_withdrawn_at: string | null
   created_at: string
+  /** True for the throwaway accounts behind the landing page's demo buttons. */
+  is_demo: boolean
+}
+
+/**
+ * What the learner told us on the welcome step, as it comes back out.
+ *
+ * Only two of the four answers are here. How much programming they had done is
+ * collected to pitch the tutor correctly and is never returned by the API --
+ * see LearnerProfileOut in apps/api/app/schemas.py.
+ */
+export type LearnerProfile = {
+  goals: string
+  project_ideas: string
+  /** False until the welcome step has been submitted once, skipped or not. */
+  completed: boolean
+}
+
+export type LearnerProfileInput = {
+  goals: string
+  experience: string
+  experience_note: string
+  project_ideas: string
+}
+
+/** One idea the welcome chat suggested. */
+export type ProjectIdea = {
+  title: string
+  blurb: string
+  /** Concept keys, so each maps onto a topic the platform actually teaches. */
+  topics: string[]
+}
+
+/**
+ * What the welcome conversation concluded. Kept apart from LearnerProfile in
+ * the database on purpose: that is what the learner said in their own words,
+ * this is what a model made of it.
+ */
+export type OnboardingPlan = {
+  interests: string
+  topics: string[]
+  projects: ProjectIdea[]
+  /** False until the model has written anything down. */
+  recorded: boolean
+}
+
+export type WelcomeState = {
+  /** False when the server has no API key for the tutor. */
+  available: boolean
+  greeting: string
+  messages: { role: string; content: string }[]
+  plan: OnboardingPlan
 }
 
 export type Draft = {

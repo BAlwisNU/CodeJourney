@@ -1,16 +1,20 @@
 import Editor from '@monaco-editor/react'
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 
 import { FlowNav } from '../components/FlowNav'
 import { HintPanel } from '../components/HintPanel'
-import { Journal } from '../components/Journal'
 import { Markdown } from '../components/Markdown'
 import { TestResults } from '../components/TestResults'
 import { api } from '../lib/api'
 import { runInBrowser, warmUp } from '../lib/runner'
 import { useAutosave } from '../lib/useAutosave'
-import type { Exercise, HarnessResult, SubmitResponse } from '../lib/types'
+import type {
+  BranchLink,
+  Exercise,
+  HarnessResult,
+  SubmitResponse,
+} from '../lib/types'
 
 export function ExercisePage() {
   const { slug = '' } = useParams()
@@ -21,6 +25,30 @@ export function ExercisePage() {
   const [submitState, setSubmitState] = useState<SubmitResponse | null>(null)
   const [busy, setBusy] = useState<'run' | 'submit' | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // The "show me the answer" reveal. Deliberately separate from the hint ladder:
+  // the ladder stops short of the answer, and this is the student choosing to
+  // step past it. Fetched on demand and verified server-side before it arrives.
+  const [answer, setAnswer] = useState<string | null>(null)
+  const [answerBusy, setAnswerBusy] = useState(false)
+  const [answerError, setAnswerError] = useState<string | null>(null)
+  const answerRef = useRef<HTMLElement | null>(null)
+
+  // One hint display, fed by two sources: the ladder pushing one after a failed
+  // submit, and the student pulling one with the button. Whichever raised the
+  // level most recently wins; the ratchet means it only ever climbs.
+  const [hint, setHint] = useState<{
+    level: number
+    text: string | null
+    exhausted: boolean
+  } | null>(null)
+  const [hintBusy, setHintBusy] = useState(false)
+  const [hintError, setHintError] = useState<string | null>(null)
+
+  // Practice the tutor built off THIS lesson -- shown as links at the top and
+  // bottom-right so a learner can jump to a branch from its parent, not only
+  // from the chat where it was made.
+  const [branches, setBranches] = useState<BranchLink[]>([])
 
   // The last browser verdict, kept so Submit can send it for divergence
   // checking. Only valid for the exact code that produced it -- see below.
@@ -65,6 +93,21 @@ export function ExercisePage() {
     }
   }, [slug])
 
+  // Any practice already branched off this lesson, so the links can show on
+  // arrival -- not just after making a new one this session.
+  useEffect(() => {
+    let cancelled = false
+    api
+      .branches(slug)
+      .then((b) => !cancelled && setBranches(b))
+      .catch(() => {
+        /* links are a bonus; never block the exercise on them */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [slug])
+
   const autosave = useAutosave(
     (value: string) => api.saveDraft(slug, value),
     // Nothing to save against until the exercise has loaded.
@@ -74,6 +117,52 @@ export function ExercisePage() {
   function handleCodeChange(value: string) {
     setCode(value)
     autosave.schedule(value)
+  }
+
+  async function handleRequestHint() {
+    if (!sessionId || hintBusy) return
+    setHintBusy(true)
+    setHintError(null)
+    try {
+      const res = await api.requestHint(slug, sessionId)
+      setHint({ level: res.level, text: res.hint, exhausted: res.exhausted })
+    } catch (err) {
+      setHintError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setHintBusy(false)
+    }
+  }
+
+  async function handleShowAnswer() {
+    // A gentle speed bump, not a wall. Seeing the answer is allowed; a moment's
+    // pause just nudges them to try the hints first, which is where the learning
+    // actually happens.
+    const ok = window.confirm(
+      "This shows the full worked answer. You'll get more out of the exercise " +
+        'if you try the hints first — reveal it anyway?'
+    )
+    if (!ok) return
+    setAnswerBusy(true)
+    setAnswerError(null)
+    try {
+      const { solution } = await api.showAnswer(slug)
+      setAnswer(solution)
+      // The flow-nav shortcut lives at the top of the page; bring the reveal
+      // into view so the skip actually lands somewhere visible.
+      requestAnimationFrame(() =>
+        answerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      )
+    } catch (err) {
+      setAnswerError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setAnswerBusy(false)
+    }
+  }
+
+  function loadAnswerIntoEditor() {
+    if (answer == null) return
+    setCode(answer)
+    autosave.schedule(answer)
   }
 
   async function handleReset() {
@@ -139,6 +228,15 @@ export function ExercisePage() {
       })
       setSubmitState(response)
       setResult(response.test_results)
+      // The ladder may have pushed a hint. Fold it into the shared display, but
+      // never clear an existing one -- the ladder is a ratchet.
+      if (response.hint) {
+        setHint({
+          level: response.hint_level,
+          text: response.hint,
+          exhausted: response.hint_level >= 4,
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -151,7 +249,24 @@ export function ExercisePage() {
 
   return (
     <div className="exercise-page">
-      <FlowNav current={submitState?.passed ? 'reflect' : 'create'} slug={slug} />
+      <FlowNav current="create" slug={slug} />
+
+      {branches.length > 0 && (
+        <div className="branch-banner">
+          <span className="muted small">Practice you built from this lesson:</span>
+          {branches.map((b) => (
+            <Link key={b.slug} to={`/exercise/${b.slug}`} className="branch-chip">
+              {b.title}
+              {b.status === 'solved' && (
+                <span className="branch-done" aria-hidden>
+                  {' '}
+                  ✓
+                </span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="exercise">
       <section className="prompt">
@@ -222,8 +337,12 @@ export function ExercisePage() {
               {submitState.attempt_number === 1
                 ? 'First try. '
                 : `${submitState.attempt_number} attempts — every one of them counted. `}
-              Worth writing down what tripped you up while it&rsquo;s fresh.
+              Worth talking it through and noting what tripped you up while
+              it&rsquo;s fresh.
             </p>
+            <Link className="btn btn-primary" to={`/exercise/${slug}/reflect`}>
+              Reflect on this →
+            </Link>
           </div>
         )}
 
@@ -232,13 +351,79 @@ export function ExercisePage() {
           translatedError={submitState?.translated_error}
         />
 
-        {submitState && (
-          <HintPanel level={submitState.hint_level} hint={submitState.hint} />
+        {!submitState?.passed && (
+          <div className="hint-control">
+            <button
+              type="button"
+              onClick={handleRequestHint}
+              disabled={hintBusy || !sessionId || hint?.exhausted}
+            >
+              {hintBusy
+                ? 'Finding a hint…'
+                : hint
+                  ? 'Another hint'
+                  : 'Need a hint?'}
+            </button>
+            {hint?.exhausted && (
+              <span className="muted small">
+                That&rsquo;s the last hint — the worked answer is just below.
+              </span>
+            )}
+            {hintError && <p className="panel panel-error small">{hintError}</p>}
+          </div>
         )}
 
-        <Journal exerciseId={exercise.id} />
+        {hint && <HintPanel level={hint.level} hint={hint.text} />}
+
+        {!submitState?.passed && (
+          <div className="answer-control">
+            <button
+              type="button"
+              className="link"
+              onClick={handleShowAnswer}
+              disabled={answerBusy}
+            >
+              {answerBusy ? 'Writing it out…' : 'Stuck? Show me the answer'}
+            </button>
+            {answerError && <p className="panel panel-error small">{answerError}</p>}
+          </div>
+        )}
+
+        {answer != null && (
+          <aside className="panel answer-panel" ref={answerRef}>
+            <h3>
+              The worked answer
+              <span className="badge badge-quiet">checked against the tests</span>
+            </h3>
+            <pre className="answer-code">{answer}</pre>
+            <div className="actions">
+              <button type="button" className="primary" onClick={loadAnswerIntoEditor}>
+                Put it in my editor
+              </button>
+              <button type="button" className="link" onClick={() => setAnswer(null)}>
+                Hide
+              </button>
+            </div>
+            <p className="muted small">
+              Reading a worked answer is fine — the real learning is typing it out
+              and understanding each line. Try re-solving it from scratch after.
+            </p>
+          </aside>
+        )}
+
       </section>
       </div>
+
+      {branches.length > 0 && (
+        <Link
+          className="branch-fab"
+          to={`/exercise/${branches[branches.length - 1].slug}`}
+          title="Open the practice you built from this lesson"
+        >
+          <span className="branch-fab-label">Your practice</span>
+          <span aria-hidden>↗</span>
+        </Link>
+      )}
     </div>
   )
 }

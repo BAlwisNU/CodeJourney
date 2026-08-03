@@ -32,8 +32,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser
 from ..db import get_db
-from ..models import Exercise, RunMode, Submission
-from ..schemas import ConceptProgress, DashboardOut, ExerciseProgress
+from ..models import Exercise, ExerciseSession, RunMode, Submission
+from ..schemas import BranchOut, ConceptProgress, DashboardOut, ExerciseProgress
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 
@@ -42,8 +42,18 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 @router.get("", response_model=DashboardOut)
 def dashboard(user: CurrentUser, db: DbSession) -> DashboardOut:
+    # The taught curriculum (created_by is null) plus this student's own AI-built
+    # branches. Another student's branches are theirs alone -- excluded here so a
+    # generated lesson never clutters anyone else's dashboard.
     exercises = list(
-        db.scalars(select(Exercise).order_by(Exercise.order_index, Exercise.title))
+        db.scalars(
+            select(Exercise)
+            .where(
+                (Exercise.created_by_user_id.is_(None))
+                | (Exercise.created_by_user_id == user.id)
+            )
+            .order_by(Exercise.order_index, Exercise.title)
+        )
     )
 
     # Only graded attempts count toward progress. Runs are logged as behaviour
@@ -67,13 +77,30 @@ def dashboard(user: CurrentUser, db: DbSession) -> DashboardOut:
     for submission in submissions:
         by_exercise.setdefault(submission.exercise_id, []).append(submission)
 
+    # "In progress" starts the moment a lesson is OPENED, not just submitted.
+    # Opening the editor creates an ExerciseSession, so a student who dips into a
+    # lesson and leaves before finishing should see "in progress" -- which is
+    # what they asked for. Tracking the latest activity per exercise also gives
+    # a better "carry on where you left off" than submission time alone, since it
+    # counts opening the lesson as activity.
+    opened_at: dict[str, object] = {}
+    for sess in db.scalars(
+        select(ExerciseSession).where(ExerciseSession.user_id == user.id)
+    ):
+        prev = opened_at.get(sess.exercise_id)
+        if prev is None or sess.last_activity_at > prev:  # type: ignore[operator]
+            opened_at[sess.exercise_id] = sess.last_activity_at
+
     rows: list[ExerciseProgress] = []
     for exercise in exercises:
         attempts = by_exercise.get(exercise.id, [])
         solved = next((s for s in attempts if s.passed), None)
+        opened = exercise.id in opened_at
         if solved is not None:
             status = "solved"
-        elif attempts:
+        elif attempts or opened:
+            # Submitted-but-not-passed, or merely opened and left: both are work
+            # in progress from the student's point of view.
             status = "in_progress"
         else:
             status = "not_started"
@@ -110,13 +137,38 @@ def dashboard(user: CurrentUser, db: DbSession) -> DashboardOut:
     # Where to send them next: the unsolved exercise they touched most recently,
     # otherwise the first one they haven't started. Picking up where you left off
     # beats making someone re-find their place in a list.
-    in_progress = [r for r in rows if r.status == "in_progress"]
-    in_progress.sort(key=lambda r: r.last_attempt_at, reverse=True)
+    #
+    # Recency = latest activity, which for a session-only "in progress" exercise
+    # comes from the session, and otherwise from the last submission. Some rows
+    # have no submission timestamp, so `last_attempt_at` alone can't sort them.
+    def recency(row: ExerciseProgress):
+        return opened_at.get(row.id) or row.last_attempt_at
+
+    in_progress = [r for r in rows if r.status == "in_progress" and recency(r)]
+    in_progress.sort(key=recency, reverse=True)  # type: ignore[arg-type]
     if in_progress:
         continue_slug = in_progress[0].slug
     else:
         unstarted = [r for r in rows if r.status == "not_started"]
         continue_slug = unstarted[0].slug if unstarted else None
+
+    # The student's AI-built branches, each tagged with the lesson it hangs off
+    # so the dashboard can draw it below its parent. Status is already computed
+    # per exercise in `rows`; branches reuse it rather than recomputing.
+    slug_by_id = {ex.id: ex.slug for ex in exercises}
+    status_by_id = {row.id: row.status for row in rows}
+    branches = [
+        BranchOut(
+            parent_slug=slug_by_id[ex.parent_exercise_id],
+            slug=ex.slug,
+            title=ex.title,
+            status=status_by_id[ex.id],
+        )
+        for ex in exercises
+        if ex.created_by_user_id == user.id
+        and ex.parent_exercise_id
+        and ex.parent_exercise_id in slug_by_id
+    ]
 
     return DashboardOut(
         display_name=user.display_name,
@@ -127,4 +179,5 @@ def dashboard(user: CurrentUser, db: DbSession) -> DashboardOut:
         concepts=concepts,
         continue_slug=continue_slug,
         exercises=rows,
+        branches=branches,
     )

@@ -1,8 +1,14 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { ErrorDemo } from '../components/ErrorDemo'
-import { token } from '../lib/api'
+import { HeroDeck } from '../components/HeroDeck'
+import { Icon, type IconName } from '../components/Icon'
+import { ScrollWorld } from '../components/ScrollWorld'
+import { Tilt } from '../components/Tilt'
+import { TopicExplorer } from '../components/TopicExplorer'
+import { api, token } from '../lib/api'
+import { useRevealOnScroll } from '../lib/motion'
 
 /**
  * The public front door.
@@ -19,41 +25,41 @@ import { token } from '../lib/api'
  * it explains itself honestly.
  */
 
-const WORLDS = [
+// Languages, not topics-within-Python -- the marketing mirrors the app's own
+// top-level navigation. Only Python is live; the rest are honestly "soon",
+// because each needs its own executor, not just its own lessons.
+const LANGUAGES = [
   {
-    key: 'games',
-    icon: '🎮',
-    name: 'Games & quests',
-    shape: 'Records with state',
-    example: 'Which quests did you never finish before they expired?',
+    key: 'python',
+    short: 'Py',
+    name: 'Python',
+    shape: 'Available now',
+    example: 'The best first language. Runs right in your browser.',
+    soon: false,
   },
   {
-    key: 'sports',
-    icon: '🏆',
-    name: 'Sports & leagues',
-    shape: 'Grouping and totals',
-    example: 'Build the league table from a season of results.',
+    key: 'cpp',
+    short: 'C++',
+    name: 'C++',
+    shape: 'Coming soon',
+    example: 'Speed and control, closer to the machine.',
+    soon: true,
   },
   {
-    key: 'space',
-    icon: '🚀',
-    name: 'Space missions',
-    shape: 'Sequences and order',
-    example: 'Plan the fuel stops so the probe actually arrives.',
+    key: 'html',
+    short: '</>',
+    name: 'HTML & CSS',
+    shape: 'Coming soon',
+    example: 'Build things you can see, in the browser.',
+    soon: true,
   },
   {
-    key: 'music',
-    icon: '🎧',
-    name: 'Music & playlists',
-    shape: 'Pairings and patterns',
-    example: 'Find every track two playlists have in common.',
-  },
-  {
-    key: 'stories',
-    icon: '📖',
-    name: 'Stories & words',
-    shape: 'Making and changing text',
-    example: 'A generator that writes a different tale every run.',
+    key: 'sql',
+    short: 'SQL',
+    name: 'SQL',
+    shape: 'Coming soon',
+    example: 'Ask questions of data and get answers back.',
+    soon: true,
   },
 ]
 
@@ -67,19 +73,57 @@ const LADDER = [
   { tag: 'L5', when: 'Still stuck', title: 'An actual person', body: 'Your instructor gets told you could use a hand.' },
 ]
 
+const HERO_STATS = [
+  { value: '0', label: 'things to install' },
+  { value: '∞', label: 'tries per exercise' },
+  { value: '5', label: 'levels of help' },
+  { value: '0', label: 'times we show the answer' },
+]
+
 const FEATURES = [
-  { icon: '⚡', title: 'Runs as you type', body: 'Python runs inside the browser tab. Press Run and it answers immediately — nothing to install, nothing to wait for.' },
-  { icon: '🧩', title: 'Warm up first', body: 'Drag jumbled lines into the right order before facing an empty editor. Two of them don’t belong — spotting that is the puzzle.' },
-  { icon: '🔍', title: 'Watch it run', body: 'Step through your program line by line and see exactly what each one does to your data.' },
-  { icon: '📓', title: 'Keep the receipts', body: 'What you tried, where you got stuck, how you fixed it — building a portfolio that shows how far you came, not just your final answers.' },
+  { icon: 'bolt' as IconName, title: 'Runs as you type', body: 'Python runs inside the browser tab. Press Run and it answers immediately — nothing to install, nothing to wait for.' },
+  { icon: 'reorder' as IconName, title: 'Warm up first', body: 'Drag jumbled lines into the right order before facing an empty editor. Two of them don’t belong — spotting that is the puzzle.' },
+  { icon: 'watch' as IconName, title: 'Watch it run', body: 'Step through your program line by line and see exactly what each one does to your data.' },
+  { icon: 'journal' as IconName, title: 'Keep the receipts', body: 'What you tried, where you got stuck, how you fixed it — building a portfolio that shows how far you came, not just your final answers.' },
 ]
 
 export function LandingPage() {
+  const navigate = useNavigate()
   const signedIn = Boolean(token.get())
-  const [openWorld, setOpenWorld] = useState<string | null>('games')
+  const [openWorld, setOpenWorld] = useState<string | null>('python')
+  const [demoBusy, setDemoBusy] = useState<'lesson' | 'account' | null>(null)
+  const [demoError, setDemoError] = useState<string | null>(null)
+
+  useRevealOnScroll()
+
+  /**
+   * Try it without signing up.
+   *
+   * Both buttons mint a throwaway account server-side and then go somewhere
+   * worth looking at: straight into a real exercise, or into a dashboard that
+   * already has a few days of work in it. A demo of an empty dashboard shows
+   * nothing about what the product is for.
+   */
+  async function startDemo(kind: 'lesson' | 'account') {
+    if (demoBusy) return
+    setDemoBusy(kind)
+    setDemoError(null)
+    try {
+      const { access_token } = await api.startDemo(kind === 'account')
+      token.set(access_token)
+      navigate(kind === 'lesson' ? '/exercise/lists-make' : '/exercises')
+    } catch (err) {
+      setDemoError(err instanceof Error ? err.message : String(err))
+      setDemoBusy(null)
+    }
+  }
 
   return (
     <div className="landing">
+      {/* The world the page flies through. Fixed, behind everything, and
+          removed entirely under prefers-reduced-motion. */}
+      <ScrollWorld />
+
       <header className="landing-nav">
         <span className="wordmark">
           <span className="mark" aria-hidden>
@@ -94,6 +138,26 @@ export function LandingPage() {
             </Link>
           ) : (
             <>
+              {/* Try-before-signup, ahead of the account buttons: someone who
+                  is not yet convinced should meet the thing itself before they
+                  meet a form. */}
+              <button
+                type="button"
+                className="btn btn-ghost btn-demo"
+                onClick={() => void startDemo('lesson')}
+                disabled={demoBusy !== null}
+              >
+                {demoBusy === 'lesson' ? 'Opening…' : 'Try a lesson'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-demo"
+                onClick={() => void startDemo('account')}
+                disabled={demoBusy !== null}
+              >
+                {demoBusy === 'account' ? 'Setting up…' : 'Demo account'}
+              </button>
+              <span className="nav-divider" aria-hidden />
               <Link className="btn btn-ghost" to="/login">
                 Log in
               </Link>
@@ -105,92 +169,110 @@ export function LandingPage() {
         </nav>
       </header>
 
+      {demoError && (
+        <p className="panel panel-error small demo-error">{demoError}</p>
+      )}
+
       <section className="hero">
-        <p className="eyebrow">
-          <span className="pip" aria-hidden /> Python for absolute beginners
-        </p>
-        <h1>
-          Write real code.<br />
-          Break it. <span className="grad">Find out why.</span>
-        </h1>
-        <p className="lede">
-          Most people quit programming for the same two reasons: the exercises
-          are dull, and when the code breaks all you get is red text and the word{' '}
-          <em>wrong</em>. CodeJourney fixes both — you build things worth
-          building, and every failure comes with an explanation.
-        </p>
-        <div className="hero-cta">
-          <Link
-            className="btn btn-primary btn-lg"
-            to={signedIn ? '/exercises' : '/signup'}
-          >
-            {signedIn ? 'Keep going' : 'Start your first project'}
-          </Link>
-          <span className="muted small">
-            Free · nothing to install · runs in your browser
-          </span>
+        <div className="hero-grid">
+          <div className="hero-copy">
+            <h1>
+              Write real code.<br />
+              Break it. <span className="grad">Find out why.</span>
+            </h1>
+            <p className="lede">
+              Most people quit programming for the same two reasons: the
+              exercises are dull, and when the code breaks all you get is red
+              text and the word <em>wrong</em>. CodeJourney fixes both — you
+              build things worth building, and every failure comes with an
+              explanation.
+            </p>
+            <div className="hero-cta">
+              <Link
+                className="btn btn-primary btn-lg"
+                to={signedIn ? '/exercises' : '/signup'}
+              >
+                {signedIn ? 'Keep going' : 'Start your first project'}
+              </Link>
+              <span className="muted small">
+                Free · nothing to install · runs in your browser
+              </span>
+            </div>
+          </div>
+
+          {/* The pitch, as an object: code, the traceback, the translation --
+              stacked in depth and leaning toward wherever you point. */}
+          <HeroDeck />
         </div>
 
         <ul className="hero-stats">
-          <li>
-            <strong>0</strong>
-            <span>things to install</span>
-          </li>
-          <li>
-            <strong>∞</strong>
-            <span>tries per exercise</span>
-          </li>
-          <li>
-            <strong>5</strong>
-            <span>levels of help</span>
-          </li>
-          <li>
-            <strong>0</strong>
-            <span>times we show the answer</span>
-          </li>
+          {HERO_STATS.map((stat) => (
+            <Tilt as="li" key={stat.label} max={9} lift={10}>
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
+            </Tilt>
+          ))}
         </ul>
+
+        <p className="scroll-cue" aria-hidden>
+          <span className="scroll-cue-rail">
+            <span className="scroll-cue-dot" />
+          </span>
+          Scroll to fly through
+        </p>
       </section>
 
       {/* The proof, and the most persuasive thing on the page: press a button,
           watch a traceback become a sentence. */}
       <section className="band" aria-labelledby="demo-heading">
-        <h2 id="demo-heading">Try breaking something</h2>
-        <p className="section-lede">
+        <h2 id="demo-heading" data-reveal>Try breaking something</h2>
+        <p className="section-lede" data-reveal>
           Pick a mistake everyone makes in their first week, and press Run. This
           is the real translation, word for word.
         </p>
-        <ErrorDemo />
+        <div data-reveal>
+          <ErrorDemo />
+        </div>
       </section>
 
       <section className="band" aria-labelledby="worlds-heading">
-        <h2 id="worlds-heading">Pick a world to build in</h2>
-        <p className="section-lede">
-          Each one leads to a genuinely different kind of program — different
-          data, different shape, different part of Python. Not the same exercise
-          with the variables renamed.
+        <h2 id="worlds-heading" data-reveal>Start with Python. More on the way.</h2>
+        <p className="section-lede" data-reveal>
+          Python first, because it&rsquo;s the kindest place to begin. C++, HTML
+          &amp; CSS, and SQL are next — same layered feedback, same explain-it
+          -when-it-breaks approach.
         </p>
 
         <ul className="worlds">
-          {WORLDS.map((world) => (
+          {LANGUAGES.map((lang) => (
             <li
-              key={world.key}
-              className={openWorld === world.key ? 'world on' : 'world'}
+              key={lang.key}
+              className={openWorld === lang.key ? 'world on' : 'world'}
+              data-reveal
             >
               <button
                 type="button"
                 onClick={() =>
-                  setOpenWorld(openWorld === world.key ? null : world.key)
+                  setOpenWorld(openWorld === lang.key ? null : lang.key)
                 }
-                aria-expanded={openWorld === world.key}
+                aria-expanded={openWorld === lang.key}
               >
-                <span className="world-icon" aria-hidden>
-                  {world.icon}
+                <span className="lang-chip" aria-hidden>
+                  {lang.short}
                 </span>
-                <span className="world-name">{world.name}</span>
-                <span className="world-shape">{world.shape}</span>
+                <span className="world-name">{lang.name}</span>
+                <span className={lang.soon ? 'world-shape soon' : 'world-shape'}>
+                  {lang.shape}
+                </span>
               </button>
-              {openWorld === world.key && (
-                <p className="world-example">{world.example}</p>
+              {openWorld === lang.key && (
+                <div className="world-panel">
+                  <p className="world-example">{lang.example}</p>
+                  {/* Only the live language has a curriculum to show. The
+                      others get their one-line "coming soon" and nothing
+                      more, which is the honest shape of what exists. */}
+                  {!lang.soon && <TopicExplorer />}
+                </div>
               )}
             </li>
           ))}
@@ -198,15 +280,15 @@ export function LandingPage() {
       </section>
 
       <section className="band" aria-labelledby="ladder-heading">
-        <h2 id="ladder-heading">Stuck? Help arrives in steps</h2>
-        <p className="section-lede">
+        <h2 id="ladder-heading" data-reveal>Stuck? Help arrives in steps</h2>
+        <p className="section-lede" data-reveal>
           Each rung tells you a little more. Retrying costs you nothing, and the
           last step is a human being — never the answer.
         </p>
 
         <ol className="ladder">
           {LADDER.map((step) => (
-            <li key={step.tag}>
+            <li key={step.tag} data-reveal>
               <span className="rung">{step.tag}</span>
               <div className="rung-body">
                 <h3>
@@ -216,7 +298,7 @@ export function LandingPage() {
               </div>
             </li>
           ))}
-          <li className="never">
+          <li className="never" data-reveal>
             <span className="rung rung-never">✕</span>
             <div className="rung-body">
               <h3>The answer</h3>
@@ -230,21 +312,23 @@ export function LandingPage() {
       </section>
 
       <section className="band" aria-labelledby="features-heading">
-        <h2 id="features-heading">What you get</h2>
+        <h2 id="features-heading" data-reveal>What you get</h2>
         <div className="grid-2">
           {FEATURES.map((feature) => (
-            <article key={feature.title} className="card feature">
-              <span className="feature-icon" aria-hidden>
-                {feature.icon}
-              </span>
-              <h3>{feature.title}</h3>
-              <p>{feature.body}</p>
-            </article>
+            <Tilt key={feature.title} className="feature-tilt" max={6} lift={16}>
+              <article className="card feature" data-reveal>
+                <span className="feature-icon" aria-hidden>
+                  <Icon name={feature.icon} size={26} />
+                </span>
+                <h3>{feature.title}</h3>
+                <p>{feature.body}</p>
+              </article>
+            </Tilt>
           ))}
         </div>
       </section>
 
-      <section className="band cta-band">
+      <section className="band cta-band" data-reveal>
         <h2>Ready to break something?</h2>
         <Link
           className="btn btn-primary btn-lg"

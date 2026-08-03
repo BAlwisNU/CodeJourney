@@ -24,6 +24,7 @@ def ex(
     tests: list,
     hints: dict,
     order: int,
+    solution: str | None = None,
     pair_id: str | None = None,
     variant: ThemeVariant = ThemeVariant.THEMED,
 ) -> dict:
@@ -32,8 +33,14 @@ def ex(
     `pair_id` defaults to the slug, which keeps the UNIQUE(pair_id, variant)
     constraint satisfied for exercises that have no twin. Only study-set
     exercises share a pair_id with a real twin.
+
+    `solution` is a reference solution that must pass every test. It is stored
+    under the underscore-prefixed `_solution` key: `test_content.py` runs it
+    through the harness so a broken exercise fails CI rather than a student, and
+    `seed()` strips underscore keys before building the Exercise row so it never
+    reaches the database or the API.
     """
-    return dict(
+    row = dict(
         slug=slug,
         title=title,
         theme=theme,
@@ -48,6 +55,9 @@ def ex(
         hint_thresholds=T,
         order_index=order,
     )
+    if solution is not None:
+        row["_solution"] = solution
+    return row
 
 
 def t(name: str, args: list, expected, hidden: bool = False) -> dict:

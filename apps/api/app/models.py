@@ -150,6 +150,170 @@ class User(Base):
 
     submissions: Mapped[list["Submission"]] = relationship(back_populates="user")
     reflections: Mapped[list["Reflection"]] = relationship(back_populates="user")
+    oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    learner_profile: Mapped["LearnerProfile | None"] = relationship(
+        back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
+
+
+class LearnerProfile(Base):
+    """What the learner told us about themselves at signup.
+
+    Collected on the second step of signing up: what they want to be able to
+    do, how much programming they have done, and anything they already want to
+    build. All three are optional -- the step can be skipped, and a wall of
+    questions between someone and the thing they came for is a good way to lose
+    them before they have written a line of code.
+
+    **Who can read what.** `goals` and `project_ideas` come back to the learner
+    on their account page and are theirs to edit. `experience` and
+    `experience_note` are deliberately not returned by any endpoint; see
+    schemas.LearnerProfileOut. Nothing here is exposed to instructors, and
+    nothing here is part of the study dataset -- it exists to shape teaching,
+    not to be analysed.
+
+    **The tutor reads all of it.** That is the point of collecting it: see the
+    note on TutorContext.learner in services/tutor.py. It is a different thing
+    from the tried/stuck/fixed journal, which no model ever sees -- this is text
+    a learner wrote *in order to* be taught better, and the form says so where
+    they write it.
+
+    A separate table rather than columns on `users`, for the same reason as
+    OAuthAccount below: it is new, so create_all builds it, and nobody's
+    existing database has to be migrated.
+    """
+
+    __tablename__ = "learner_profiles"
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    #: "I want to be able to..." -- free text, in their own words.
+    goals: Mapped[str] = mapped_column(Text, default="")
+    #: One of ONBOARDING_EXPERIENCE below. Free text would be harder to use and
+    #: no more honest; the note beside it catches whatever the options miss.
+    experience: Mapped[str] = mapped_column(String(32), default="")
+    experience_note: Mapped[str] = mapped_column(Text, default="")
+    #: Anything they already want to build. The most useful single field for
+    #: making an exercise feel like it is theirs.
+    project_ideas: Mapped[str] = mapped_column(Text, default="")
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    user: Mapped["User"] = relationship(back_populates="learner_profile")
+
+
+class OnboardingMessage(Base):
+    """One turn of the welcome conversation -- step three of signing up.
+
+    A chat about what someone is interested in and what they might build, which
+    ends with a plan. Persisted so closing the tab mid-conversation doesn't
+    throw it away.
+
+    Kept apart from TutorChatMessage even though both are chats with the same
+    model: that one is scoped to a single exercise and belongs to the Reflect
+    stage, this one has no exercise at all and happens once. Sharing a table
+    would mean a nullable exercise_id and every query filtering on it.
+    """
+
+    __tablename__ = "onboarding_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    #: "user" or "assistant" -- the two roles the API accepts back as history.
+    role: Mapped[str] = mapped_column(String(16))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class OnboardingPlan(Base):
+    """What the welcome conversation concluded.
+
+    A separate table from LearnerProfile on purpose, and the distinction is
+    worth keeping: LearnerProfile is what the learner *said*, in their own
+    words. This is what a model *inferred* from talking to them. Merging the two
+    would make it impossible to tell a person's own words from a machine's
+    paraphrase of them -- which matters when the thing being stored is "what
+    this person wants from their education".
+
+    All of it is theirs to read on their account page, and all of it is offered
+    back to the tutor later so a conversation months from now still knows what
+    they came for.
+    """
+
+    __tablename__ = "onboarding_plans"
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    #: A sentence or two on what this person is into, in the model's words.
+    interests: Mapped[str] = mapped_column(Text, default="")
+    #: Concept keys from the Concept enum, so a suggestion maps onto a topic
+    #: that actually exists rather than something invented.
+    topics: Mapped[list] = mapped_column(JSON, default=list)
+    #: [{"title": str, "blurb": str, "topics": [concept keys]}]
+    projects: Mapped[list] = mapped_column(JSON, default=list)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+#: The experience options, in the order they are offered. Keys are stored;
+#: labels are what the form shows and what the tutor is told.
+ONBOARDING_EXPERIENCE: dict[str, str] = {
+    "none": "Never written code before",
+    "some_python": "Tried a bit of Python before",
+    "other_language": "Comfortable in another language, new to Python",
+    "rusty": "Learnt some once, but it's rusty",
+}
+
+
+class OAuthAccount(Base):
+    """A Google or Microsoft identity linked to a CodeJourney account.
+
+    A separate table rather than two columns on `users`, for two reasons. One
+    person can link both providers -- signing up with Google and later hitting
+    "Continue with Microsoft" on the same email should log them in, not fail or
+    silently overwrite. And because it is a NEW table, `create_all` builds it on
+    startup; adding columns to `users` would not have applied to anyone's
+    existing database, since this project has no migration tool yet (see the
+    note in main.py).
+
+    `subject` is the provider's own immutable user id -- Google's `sub`, not the
+    email. Emails get reassigned and renamed; the subject does not, and matching
+    on it is what stops a recycled address from inheriting someone's account.
+    """
+
+    __tablename__ = "oauth_accounts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    provider: Mapped[str] = mapped_column(String(32))
+    subject: Mapped[str] = mapped_column(String(255))
+    # The address the provider gave us at link time, kept for support questions
+    # ("which account did I sign up with?"). Never used to look anyone up.
+    email: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    user: Mapped["User"] = relationship(back_populates="oauth_accounts")
+
+    __table_args__ = (
+        # One provider identity maps to exactly one account, forever.
+        UniqueConstraint("provider", "subject", name="uq_oauth_provider_subject"),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +361,20 @@ class Exercise(Base):
 
     order_index: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    # Null for the taught curriculum, which everyone sees. Set for a practice
+    # exercise the AI tutor built for one student -- their own branch, visible
+    # only to them. This is what keeps a generated lesson from cluttering every
+    # other student's dashboard.
+    created_by_user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id"), index=True
+    )
+    # The exercise this one was branched from -- the lesson the student was on
+    # when they asked for more practice. Drives where the branch is drawn in the
+    # dashboard sequence: hanging off its parent.
+    parent_exercise_id: Mapped[str | None] = mapped_column(
+        ForeignKey("exercises.id"), index=True
+    )
 
     __table_args__ = (
         # A pair has at most one themed and one generic side.
@@ -497,6 +675,38 @@ class Reflection(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="reflections")
+
+
+class TutorChatMessage(Base):
+    """One saved turn of the reflection tutor conversation.
+
+    Persisted per (user, exercise) so the chat comes back exactly as the student
+    left it when they return to that lesson's Reflect page.
+
+    This is the TUTOR conversation, which already goes to an LLM by design. It is
+    a DIFFERENT thing from the private tried/stuck/fixed journal (`Reflection`),
+    which never touches an LLM and has no `sentiment`/`summary` columns. They live
+    in separate tables on purpose -- so the wall between "the AI may see this" and
+    "the AI never sees this" stays obvious in the schema itself. Nothing here is
+    read by any service other than the tutor rendering it back to its author.
+    """
+
+    __tablename__ = "tutor_chat_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    exercise_id: Mapped[str] = mapped_column(ForeignKey("exercises.id"), index=True)
+
+    # "user" | "assistant" -- the two roles the visible conversation has. The
+    # greeting is drawn client-side and never stored.
+    role: Mapped[str] = mapped_column(String(16))
+    content: Mapped[str] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (
+        Index("ix_tutor_chat_user_exercise_time", "user_id", "exercise_id", "created_at"),
+    )
 
 
 class Mastery(Base):

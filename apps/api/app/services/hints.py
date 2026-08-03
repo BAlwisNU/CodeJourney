@@ -19,7 +19,10 @@ student could peek, then reset, and the mastery score would be measuring
 nothing.
 """
 
-from ..models import Exercise
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from ..models import Exercise, HintEvent, Submission
 
 DEFAULT_THRESHOLDS = {
     "l2_after_failures": 2,
@@ -87,6 +90,62 @@ def hint_text(exercise: Exercise, level: int) -> str | None:
         if text:
             return text
     return None
+
+
+def consecutive_failures(db: Session, user_id: str, exercise_id: str) -> int:
+    """Failures since the last pass on this exercise.
+
+    Consecutive rather than total: a student who solved it, came back, and broke
+    it again should not be handed L4 on their first new attempt.
+    """
+    rows = db.scalars(
+        select(Submission)
+        .where(
+            Submission.user_id == user_id,
+            Submission.exercise_id == exercise_id,
+        )
+        .order_by(Submission.created_at.desc())
+    ).all()
+    count = 0
+    for row in rows:
+        if row.passed:
+            break
+        count += 1
+    return count
+
+
+def current_max_hint_level(db: Session, user_id: str, exercise_id: str) -> int:
+    """The highest hint level revealed so far -- the ratchet floor.
+
+    Reads BOTH submissions and hint events, so a hint the student *pulled* on
+    demand (a HintEvent with no matching submission) raises the floor exactly
+    like one the ladder pushed. In the pure-push flow the two agree, so this is a
+    no-op there; it only matters once requested hints exist.
+    """
+    sub_max = db.scalar(
+        select(func.max(Submission.max_hint_level)).where(
+            Submission.user_id == user_id,
+            Submission.exercise_id == exercise_id,
+        )
+    )
+    hint_max = db.scalar(
+        select(func.max(HintEvent.level)).where(
+            HintEvent.user_id == user_id,
+            HintEvent.exercise_id == exercise_id,
+        )
+    )
+    return max(sub_max or 0, hint_max or 0)
+
+
+def next_requested_level(current_max_level: int) -> int:
+    """The level a 'give me a hint' press should reveal next.
+
+    The first pull lands on L2 -- the first authored nudge -- because L0/L1 are
+    the automatic test output and translated error, which need no button. From
+    there it climbs one rung per press, and never past L4: the answer is a
+    separate, deliberate choice, not the top of the hint ladder.
+    """
+    return min(max(current_max_level, 1) + 1, MAX_AUTOMATIC_LEVEL)
 
 
 def should_flag_instructor(

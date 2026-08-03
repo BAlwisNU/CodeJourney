@@ -26,12 +26,38 @@ bearer = HTTPBearer(auto_error=False)
 ALGORITHM = "HS256"
 
 
+"""Marker stored in `password_hash` for accounts that have no password.
+
+Someone who signs up with "Continue with Google" never chooses one. The column
+is NOT NULL and this project has no migration tool yet, so relaxing it would
+break every existing database -- storing a value that cannot be a bcrypt hash
+achieves the same thing with no schema change. Django's `set_unusable_password`
+does exactly this, for the same reason.
+
+The safety of it rests entirely on `verify_password` below refusing anything
+that isn't a real bcrypt hash. A bcrypt hash always begins "$2"; this begins
+"!", so no password can ever verify against it.
+"""
+UNUSABLE_PASSWORD = "!oauth-only-no-password-set"
+
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    # Guard before passlib rather than after: handed a non-bcrypt string it
+    # raises UnknownHashError, which would surface as a 500 on the login route
+    # instead of the "invalid credentials" this is asking about. An
+    # OAuth-only account must fail password login as a plain wrong password.
+    if not hashed or not hashed.startswith("$"):
+        return False
+    try:
+        return pwd_context.verify(plain, hashed)
+    except ValueError:
+        # Malformed or unknown hash. Treated as "does not match", never as an
+        # error the caller has to handle.
+        return False
 
 
 def create_access_token(user: User) -> str:

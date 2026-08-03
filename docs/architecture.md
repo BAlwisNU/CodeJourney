@@ -229,6 +229,41 @@ in Week 1.
 
 ---
 
+## The reflection tutor is a separate feature, walled off from the journal
+
+The Reflect stage has two things on it, and confusing them would break the rule
+above:
+
+- **The journal** (`Reflection`, above) — private tried/stuck/fixed prose, never
+  machine-read.
+- **The tutor** (`services/tutor.py`, `routers/tutor.py`) — an opt-in
+  friendly-teacher chat the student *starts*, scoped to the lesson and their
+  code. It gauges how secure they feel and can offer to build extra practice.
+
+The tutor is the one place an LLM enters the platform, so the boundary is drawn
+sharply and structurally:
+
+- Everything the model is told is assembled server-side in `_build_context` from
+  the **exercise** and the student's **own submissions** (their code and how the
+  attempts went). The browser can send only the visible conversation, so a page
+  cannot inject instructions or smuggle other data in.
+- It **never reads `Reflection`**. The journal and the tutor share a screen and
+  nothing else; the tutor code has no access path to the journal to begin with.
+  `test_tutor.py::test_tutor_never_receives_the_private_journal` asserts a saved
+  journal entry cannot appear in the tutor prompt.
+- Any generated practice exercise is run through the **real harness** before it
+  is stored (`generate_exercise`), so a student who accepts an offer can always
+  finish what they open. A model that can't produce a solvable exercise yields a
+  gentle apology, never a broken lesson.
+- No `ANTHROPIC_API_KEY` ⇒ the tutor is off and its endpoints degrade to a
+  friendly "not switched on yet" note rather than a 500. The key is read from the
+  environment and never committed.
+
+Generated exercises are `theme=GENERIC`, `variant=GENERIC`, with an `ai-` slug
+prefix so they are distinguishable from the taught curriculum in the data.
+
+---
+
 ## The hint ladder
 
 ```

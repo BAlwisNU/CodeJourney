@@ -237,6 +237,88 @@ def test_exception_triggers_l1_immediately(client):
     assert body["test_results"]["tests"][0]["error"]["type"] == "IndexError"
 
 
+# --- requested hints: the pull button, in addition to the push ladder ------
+
+
+def request_hint(client, headers, exercise, session_id):
+    return client.post(
+        f"/exercises/{exercise['slug']}/hint",
+        headers=headers,
+        json={"session_id": session_id},
+    )
+
+
+def test_requested_hint_starts_at_l2_with_no_failures(client):
+    """The first pull lands on L2 -- the first authored nudge -- even with zero
+    failed submits, because L0/L1 are the test output and translated error."""
+    headers = login(client)
+    exercise, session_id = open_exercise(client, headers)
+
+    body = request_hint(client, headers, exercise, session_id).json()
+    assert body["level"] == 2
+    assert body["hint"]
+    assert body["exhausted"] is False
+
+
+def test_requested_hints_climb_one_rung_per_press_and_stop_at_l4(client):
+    headers = login(client)
+    exercise, session_id = open_exercise(client, headers)
+
+    levels = [request_hint(client, headers, exercise, session_id).json() for _ in range(4)]
+    assert [b["level"] for b in levels] == [2, 3, 4, 4]  # climbs, then holds at 4
+    assert levels[2]["exhausted"] is True  # the last rung points at the answer
+    # Pressing again past L4 never escalates further; the answer is separate.
+    assert levels[3]["level"] == 4
+
+
+def test_a_requested_hint_raises_the_ratchet_for_later_submissions(client):
+    """A hint you pulled counts like one the ladder pushed: the next submission's
+    recorded hint depth reflects it, even on an early attempt that alone wouldn't
+    earn it."""
+    headers = login(client)
+    exercise, session_id = open_exercise(client, headers)
+
+    request_hint(client, headers, exercise, session_id)  # L2
+    request_hint(client, headers, exercise, session_id)  # L3
+
+    first = submit(client, headers, exercise, session_id, WRONG).json()
+    # One failure alone would be L1 at most; the pulled hints hold the floor at 3.
+    assert first["hint_level"] >= 3
+
+
+def test_a_requested_hint_records_a_requested_event(client):
+    from app.models import HintEvent
+
+    headers = login(client)
+    exercise, session_id = open_exercise(client, headers)
+    request_hint(client, headers, exercise, session_id)
+
+    with client.session_factory() as db:
+        event = db.scalar(select(HintEvent).where(HintEvent.trigger == "requested"))
+    assert event is not None
+    assert event.level == 2
+
+
+def test_requested_hint_requires_auth(client):
+    assert (
+        client.post(
+            "/exercises/expired-quests/hint", json={"session_id": "x"}
+        ).status_code
+        == 401
+    )
+
+
+def test_requested_hint_rejects_a_foreign_session(client):
+    headers = login(client)
+    exercise, _ = open_exercise(client, headers)
+    res = client.post(
+        f"/exercises/{exercise['slug']}/hint",
+        headers=headers,
+        json={"session_id": "not-a-real-session"},
+    )
+    assert res.status_code == 404
+
+
 # --- the divergence rule ---------------------------------------------------
 
 

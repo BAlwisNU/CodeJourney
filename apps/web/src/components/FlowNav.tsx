@@ -41,7 +41,9 @@ export function FlowNav({
                 ? null
                 : stage.key === 'plan'
                   ? `/exercise/${slug}/plan`
-                  : `/exercise/${slug}`
+                  : stage.key === 'reflect'
+                    ? `/exercise/${slug}/reflect`
+                    : `/exercise/${slug}`
 
           const body = (
             <>

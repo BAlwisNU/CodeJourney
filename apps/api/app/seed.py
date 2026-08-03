@@ -28,6 +28,8 @@ from sqlalchemy.orm import Session
 
 from .auth import hash_password
 from .db import SessionLocal, engine
+from .content.games import GAMES as GAMES_LIBRARY
+from .content.lessons import LESSONS as LESSON_LIBRARY
 from .models import (
     Base,
     Concept,
@@ -438,6 +440,22 @@ def seed(db: Session) -> None:
         if db.scalar(select(Exercise).where(Exercise.slug == spec["slug"])) is None:
             db.add(Exercise(**spec))
 
+    # The rest of the Games world -- 5 more lessons across the other concepts.
+    # Skip the quest log: the inline pair above already seeds it as the study
+    # exercise, and re-adding it would collide on its unique slug.
+    for spec in GAMES_LIBRARY:
+        if spec["slug"] == "expired-quests":
+            continue
+        if db.scalar(select(Exercise).where(Exercise.slug == spec["slug"])) is None:
+            db.add(Exercise(**spec))
+
+    # The rest of the curriculum -- one focused lesson per remaining module.
+    # Strip underscore keys (e.g. _solution) that aren't columns on Exercise.
+    for spec in LESSON_LIBRARY:
+        if db.scalar(select(Exercise).where(Exercise.slug == spec["slug"])) is None:
+            row = {k: v for k, v in spec.items() if not k.startswith("_")}
+            db.add(Exercise(**row))
+
     db.commit()
 
     # --- the Plan stage ---------------------------------------------------
@@ -501,7 +519,8 @@ def main() -> None:
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
         seed(db)
-    print("seeded: 2 users, 1 exercise pair, 1 lesson + quiz, 2 Parsons problems")
+    from .content import ALL_EXERCISES
+    print(f"seeded: 2 users, {len(ALL_EXERCISES) + 1} exercises, 1 lesson + quiz, 2 Parsons")
 
 
 if __name__ == "__main__":

@@ -25,29 +25,6 @@ router = APIRouter(prefix="/submissions", tags=["submissions"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
-def _consecutive_failures(db: Session, user_id: str, exercise_id: str) -> int:
-    """Failures since the last pass on this exercise.
-
-    Consecutive rather than total: a student who solved it, came back, and broke
-    it again should not be handed L4 on their first new attempt.
-    """
-    rows = db.scalars(
-        select(Submission)
-        .where(
-            Submission.user_id == user_id,
-            Submission.exercise_id == exercise_id,
-        )
-        .order_by(Submission.created_at.desc())
-    ).all()
-
-    count = 0
-    for row in rows:
-        if row.passed:
-            break
-        count += 1
-    return count
-
-
 @router.post("", response_model=SubmitResponse)
 def submit(body: SubmitRequest, user: CurrentUser, db: DbSession) -> SubmitResponse:
     exercise = db.get(Exercise, body.exercise_id)
@@ -71,7 +48,7 @@ def submit(body: SubmitRequest, user: CurrentUser, db: DbSession) -> SubmitRespo
         last_activity = last_activity.replace(tzinfo=timezone.utc)
     idle_seconds = int((now - last_activity).total_seconds())
 
-    prior = _consecutive_failures(db, user.id, exercise.id)
+    prior = hints.consecutive_failures(db, user.id, exercise.id)
     attempt_number = (
         db.query(Submission)
         .filter(Submission.user_id == user.id, Submission.exercise_id == exercise.id)
@@ -125,13 +102,9 @@ def submit(body: SubmitRequest, user: CurrentUser, db: DbSession) -> SubmitRespo
         t.get("status") == "error" for t in results.get("tests", [])
     )
 
-    previous_max = (
-        db.query(Submission)
-        .filter(Submission.user_id == user.id, Submission.exercise_id == exercise.id)
-        .order_by(Submission.created_at.desc())
-        .first()
-    )
-    current_max_level = previous_max.max_hint_level if previous_max else 0
+    # The ratchet floor -- reads submissions AND pulled hints, so a hint the
+    # student requested on demand counts exactly like one the ladder pushed.
+    current_max_level = hints.current_max_hint_level(db, user.id, exercise.id)
 
     failures_now = prior if passed else prior + 1
     level = hints.level_for(

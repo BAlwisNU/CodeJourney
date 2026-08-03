@@ -173,7 +173,9 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 
 /* auth */
 .auth {
-  max-width: 360px;
+  /* Wide enough for three sign-in tiles across without their labels
+     truncating. Was 360px, before there were six providers to lay out. */
+  max-width: 460px;
   margin: 12vh auto;
   display: flex;
   flex-direction: column;
@@ -625,6 +627,258 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   padding-top: 16px;
 }
 
+/* --- the Reflect page ------------------------------------------------------ */
+.reflect-page { max-width: 780px; }
+.reflect-head { margin-bottom: 18px; display: flex; flex-direction: column; gap: 6px; }
+.reflect-head .eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  font-weight: 700;
+}
+.reflect-head h1 { margin: 0; }
+.reflect-head .link { align-self: flex-start; margin-top: 4px; }
+.reflect-page .tutor,
+.reflect-page .journal { margin-bottom: 16px; }
+
+/* --- AI-built practice branches in the sequence ---------------------------- */
+/* A column holds an episode and, hanging below it, any practice branched off
+   it. The branches are absolutely positioned so they never stretch the row. */
+.seq-col { position: relative; flex: 0 0 210px; display: flex; }
+.seq-branches {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* A short elbow from the parent episode down into its branches. */
+.seq-branches::before {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: -12px;
+  height: 12px;
+  width: 2px;
+  background: var(--accent-2);
+  opacity: 0.5;
+}
+.seq-branch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-2);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.seq-branch:hover { transform: translateX(2px); border-color: var(--accent); }
+.seq-branch.done { border-left-color: var(--pass); }
+.seq-branch-mark {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(167, 139, 250, 0.15);
+  border: 1px solid var(--accent-2);
+  color: var(--accent-2);
+  font-size: 0.8rem;
+}
+.seq-branch.done .seq-branch-mark {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: var(--pass);
+  color: var(--pass);
+}
+.seq-branch-body { display: flex; flex-direction: column; min-width: 0; }
+.seq-branch-title {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seq-branch-tag {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-2);
+}
+
+/* --- practice links on the parent lesson's own page ------------------------ */
+.branch-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-2) 12%, transparent);
+  border: 1px solid var(--accent-2);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.branch-chip:hover { background: color-mix(in srgb, var(--accent-2) 22%, transparent); }
+.branch-done { color: var(--pass); }
+.branch-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  color: #0b1020;
+  font-weight: 650;
+  text-decoration: none;
+  box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.8);
+}
+.branch-fab:hover { box-shadow: var(--glow); transform: translateY(-1px); }
+@media (max-width: 640px) {
+  .branch-fab-label { display: none; }
+}
+
+/* --- request a hint -------------------------------------------------------- */
+.hint-control { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hint-control button { white-space: nowrap; }
+
+/* --- show me the answer ---------------------------------------------------- */
+.answer-control { margin-top: 4px; }
+.answer-panel { display: flex; flex-direction: column; gap: 12px; }
+.answer-panel h3 { display: flex; align-items: center; gap: 10px; margin: 0; }
+.answer-code {
+  margin: 0;
+  padding: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+/* --- the reflection tutor -------------------------------------------------- */
+.tutor { padding: 0; margin-bottom: 14px; }
+.tutor-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 16px;
+  font-size: 0.95rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.tutor-toggle:hover { border: none; color: var(--accent); }
+.tutor-toggle > span:first-child {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+}
+.tutor-sub { font-weight: 400; }
+.tutor-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+.tutor-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.tutor-msg {
+  max-width: 88%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.tutor-msg p { margin: 0; }
+.tutor-msg p + p { margin-top: 8px; }
+.tutor-assistant {
+  align-self: flex-start;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.tutor-user {
+  align-self: flex-end;
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  color: #0b1020;
+  border-bottom-right-radius: 4px;
+}
+.tutor-user p { color: #0b1020; }
+.tutor-thinking { display: flex; gap: 5px; align-items: center; }
+.tutor-thinking .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted, #8a93a6);
+  animation: tutor-blink 1.2s infinite ease-in-out both;
+}
+.tutor-thinking .dot:nth-child(2) { animation-delay: 0.15s; }
+.tutor-thinking .dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes tutor-blink {
+  0%, 80%, 100% { opacity: 0.3; }
+  40% { opacity: 1; }
+}
+.tutor-offer, .tutor-built {
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tutor-offer-title { margin: 0; font-weight: 600; }
+.tutor-composer { display: flex; gap: 8px; align-items: flex-end; }
+.tutor-composer textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 42px;
+}
+.tutor-off { margin: 0; }
+.button-link {
+  display: inline-block;
+  text-decoration: none;
+  align-self: flex-start;
+  padding: 9px 16px;
+  border-radius: 10px;
+  background: var(--grad);
+  background-size: 200% auto;
+  color: #0a0d18;
+  font-weight: 650;
+}
+.button-link:hover { box-shadow: var(--glow); background-position: 100% center; }
+@media (prefers-reduced-motion: reduce) {
+  .tutor-thinking .dot { animation: none; opacity: 0.6; }
+}
+
 /* ==========================================================================
    The five-stage flow, Plan page, Parsons, portfolio, instructor
    ========================================================================== */
@@ -635,7 +889,7 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   list-style: none; margin: 0; padding: 0;
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
 }
-.flow-step a, .flow-step > span {
+.flow-step a, .flow-step > span, .flow-step > button {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 12px;
   background: var(--surface);
@@ -644,7 +898,16 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   text-decoration: none; color: var(--muted);
   height: 100%;
 }
-.flow-step a:hover { border-color: var(--accent); color: var(--text); }
+/* The 4th box, on the exercise page, is a skip-to-answer button. Reset the
+   button chrome so it sits flush with the sibling steps, then give it the same
+   hover affordance as a link. */
+.flow-step > button {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.flow-step a:hover, .flow-step > button:hover { border-color: var(--accent); color: var(--text); }
 .flow-step.on > span { border-color: var(--accent); background: var(--surface-2); color: var(--text); }
 .flow-n {
   flex: 0 0 auto;
@@ -923,7 +1186,7 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   background: none; border: none; padding: 15px 18px; text-align: left;
 }
 .world > button:hover { background: var(--surface-2); border: none; }
-.world-icon { font-size: 1.4rem; line-height: 1; }
+.world-icon { color: var(--accent); line-height: 0; display: inline-flex; }
 .world-name { font-weight: 600; flex: 1; }
 .world-shape { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); }
 @media (max-width: 560px) { .world-shape { display: none; } }
@@ -934,7 +1197,7 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 
 /* feature cards */
 .feature { display: flex; flex-direction: column; gap: 8px; }
-.feature-icon { font-size: 1.6rem; line-height: 1; }
+.feature-icon { color: var(--accent); line-height: 0; }
 
 .cta-band .btn { animation: pop 0.4s ease both; }
 .cta-band p { margin-top: 14px; }
@@ -952,3 +1215,1301 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 .confetti span:nth-child(3n) { background: var(--pass); }
 .confetti span:nth-child(3n+1) { background: var(--accent-2); }
 .confetti span:nth-child(4n) { background: var(--hint); }
+
+/* ==========================================================================
+   Home: page-flick nav, 3D world carousel, subviews
+   ========================================================================== */
+
+.home { max-width: 1100px; margin: 0 auto; padding: 20px 24px 80px; }
+.home-loading { text-align: center; padding: 20vh 0; }
+
+.home-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 8px; position: relative; z-index: 40;
+}
+
+/* the whole active view pops in when switched */
+.home-view { animation: pop 0.34s cubic-bezier(.2,.8,.3,1.1) both; }
+
+/* --- page flick ---------------------------------------------------------- */
+.flick { position: relative; }
+.flick-handle {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 999px; padding: 8px 14px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.flick.open .flick-handle,
+.flick-handle:hover { border-color: var(--border-lit); box-shadow: var(--glow); }
+.flick-icon { color: var(--accent); line-height: 0; display: inline-flex; }
+.flick-current { font-weight: 600; font-size: 0.9rem; }
+.flick-chev { color: var(--muted); line-height: 0; display: inline-flex; }
+
+.flick-panel {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 220px;
+  background: var(--surface); border: 1px solid var(--border-lit);
+  border-radius: var(--radius-lg); padding: 8px;
+  box-shadow: 0 20px 50px -18px rgba(0,0,0,0.85);
+  display: flex; flex-direction: column; gap: 2px;
+  transform-origin: top right;
+  opacity: 0; transform: scale(0.9) translateY(-6px); pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+/* A transparent bridge across the 8px gap between the handle and the panel.
+   Without it, moving the pointer from the handle down to a menu item leaves the
+   .flick box mid-way, fires mouseLeave, and closes the menu before the click
+   registers -- so choosing a page from the dropdown silently fails. The bridge
+   is a descendant of the panel (hence of .flick), so the pointer never leaves. */
+.flick-panel::before {
+  content: '';
+  position: absolute;
+  top: -10px; left: 0; right: 0; height: 10px;
+}
+.flick.open .flick-panel { opacity: 1; transform: none; pointer-events: auto; }
+.flick-tab {
+  display: flex; align-items: center; gap: 11px;
+  background: none; border: none; border-radius: 8px;
+  padding: 10px 12px; text-align: left; color: var(--text); font-size: 0.92rem;
+}
+.flick-tab:hover { background: var(--surface-2); border: none; }
+.flick-tab.on { background: var(--surface-3); }
+.flick-tab.on::after { content: '●'; margin-left: auto; color: var(--accent); font-size: 0.6rem; }
+.flick-tab-icon { width: 20px; display: inline-flex; justify-content: center; color: var(--muted); }
+.flick-tab.on .flick-tab-icon { color: var(--accent); }
+.flick-tab.quiet { color: var(--muted); }
+.flick-sep { height: 1px; background: var(--border); margin: 6px 4px; }
+
+/* --- carousel ------------------------------------------------------------ */
+.carousel-wrap { position: relative; margin: 8px 0 4px; overflow-x: clip; }
+.carousel {
+  perspective: 1400px;
+  height: 340px;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: pan-y;              /* let vertical scroll through; we own horizontal */
+  cursor: grab;
+  outline: none;
+  overflow-x: clip;                 /* clip tiles that rotate past the edge */
+}
+.carousel:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); border-radius: 22px; }
+.carousel:active { cursor: grabbing; }
+.carousel-stage {
+  position: relative; width: 300px; height: 300px;
+  transform-style: preserve-3d;
+}
+.tile {
+  position: absolute; inset: 0;
+  width: 300px; height: 300px;
+  border-radius: 22px;
+  border: 1px solid var(--border-lit);
+  background:
+    radial-gradient(120% 90% at 30% 15%, rgba(124,156,255,0.16), transparent 55%),
+    linear-gradient(160deg, var(--surface-2), var(--surface));
+  box-shadow: 0 30px 60px -24px rgba(0,0,0,0.9);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 22px; text-align: center;
+  transition: transform .5s cubic-bezier(.2,.7,.2,1), opacity .5s ease;
+  will-change: transform, opacity;
+  transform-style: preserve-3d;
+}
+.tile.front { border-color: var(--accent); cursor: pointer; }
+.tile.front:hover .tile-glow { opacity: 1; }
+.tile-glow {
+  position: absolute; inset: -1px; border-radius: 22px; opacity: 0;
+  background: linear-gradient(160deg, rgba(124,156,255,0.22), transparent 60%);
+  transition: opacity .3s ease; pointer-events: none;
+}
+.tile-icon { color: var(--accent); line-height: 0; filter: drop-shadow(0 6px 14px rgba(124,156,255,0.35)); }
+.tile-name { font-size: 1.25rem; font-weight: 700; }
+.tile-blurb { font-size: 0.82rem; color: var(--muted); max-width: 24ch; }
+
+.tile-ring { position: relative; width: 58px; height: 58px; margin-top: 4px; }
+.tile-ring svg { width: 58px; height: 58px; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(--border); stroke-width: 3; }
+.ring-fg { fill: none; stroke: url(#g); stroke: var(--accent); stroke-width: 3; stroke-linecap: round; transition: stroke-dasharray .6s ease; }
+.ring-label {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 0.72rem; font-weight: 700; color: var(--text);
+}
+.tile-cta {
+  margin-top: 6px; font-size: 0.85rem; font-weight: 650;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+.carousel-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 42px; height: 42px; border-radius: 50%; z-index: 20;
+  font-size: 1.5rem; line-height: 1; padding: 0;
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.carousel-arrow.left { left: 0; }
+.carousel-arrow.right { right: 0; }
+.carousel-arrow:disabled { opacity: 0.25; }
+
+.carousel-dots { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.dot {
+  width: 9px; height: 9px; border-radius: 50%; padding: 0;
+  background: var(--surface-3); border: 1px solid var(--border);
+}
+.dot.on { background: var(--grad); border-color: transparent; width: 24px; border-radius: 5px; }
+
+/* --- focused world's lessons -------------------------------------------- */
+.lessons { margin-top: 28px; animation: rise .3s ease both; }
+.lessons-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.lessons-head h2 { margin: 0; font-size: 1.15rem; display: inline-flex; align-items: center; gap: 8px; }
+.lessons-head h2 svg { color: var(--accent); }
+.lesson-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px;
+}
+.lesson-tile {
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; text-decoration: none; color: var(--text);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+  animation: rise .32s ease both;
+}
+.lesson-tile:hover { transform: translateY(-3px); border-color: var(--border-lit); box-shadow: 0 12px 30px -18px rgba(0,0,0,0.9); }
+.lesson-status { font-size: 1.1rem; line-height: 1; }
+.lesson-tile.is-solved .lesson-status { color: var(--pass); }
+.lesson-tile.is-in_progress .lesson-status { color: var(--accent); }
+.lesson-tile.is-not_started .lesson-status { color: var(--muted); }
+.lesson-title { font-weight: 600; }
+.lesson-meta { font-size: 0.78rem; color: var(--muted); }
+
+/* --- subviews (projects, progress) -------------------------------------- */
+.home-view .subview { display: flex; flex-direction: column; gap: 18px; }
+.subview h1 { margin: 6px 0 0; }
+.subview > section > h2 { font-size: 1.05rem; margin: 8px 0 12px; }
+.subview-foot { margin-top: 6px; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.project-card {
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--border); border-radius: var(--radius);
+  padding: 15px; text-decoration: none; color: var(--text);
+  transition: transform .16s ease, border-color .16s ease;
+}
+.project-card:hover { transform: translateY(-2px); border-color: var(--border-lit); }
+.project-card.wip { border-left-color: var(--accent); }
+.project-card.done { border-left-color: var(--pass); }
+.project-mark { font-size: 1.1rem; }
+.project-card.done .project-mark { color: var(--pass); }
+.project-card.wip .project-mark { color: var(--accent); }
+.project-title { font-weight: 600; }
+.bar.big { height: 12px; }
+
+@media (max-width: 620px) {
+  .flick-current { display: none; }         /* handle shrinks to an icon on phones */
+  .carousel { height: 300px; }
+  .carousel-stage, .tile { width: 250px; height: 260px; }
+  .tile-icon { font-size: 2.8rem; }
+}
+
+/* ==========================================================================
+   Language carousel: monogram badge, locked tiles, topic groups
+   ========================================================================== */
+
+/* the big monogram on a language tile, in place of the old emoji */
+.lang-badge {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 2.1rem; font-weight: 700; letter-spacing: -0.02em;
+  line-height: 1;
+  width: 92px; height: 92px;
+  display: grid; place-items: center;
+  border-radius: 20px;
+  color: var(--accent);
+  background: linear-gradient(160deg, rgba(124,156,255,0.16), rgba(167,139,250,0.10));
+  border: 1px solid var(--border-lit);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 20px -12px rgba(124,156,255,0.5);
+}
+
+/* locked (coming-soon) language tile */
+.tile.locked { border-color: var(--border); cursor: default; }
+.tile.locked .lang-badge { color: var(--muted); background: var(--surface-2); box-shadow: none; }
+.tile.locked .tile-name, .tile.locked .tile-blurb { opacity: 0.8; }
+.soon-pill {
+  margin-top: 8px;
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--border-lit); border-radius: 999px; padding: 4px 12px;
+}
+
+/* topic groups under the focused language */
+.topics { margin-top: 28px; animation: rise .3s ease both; }
+.topic-group { margin-bottom: 22px; }
+.topic-name {
+  font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted); margin: 0 0 10px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.coming-soon-panel {
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border-lit);
+  border-radius: var(--radius-lg);
+  padding: 32px 24px;
+  max-width: 620px; margin: 28px auto 0;
+}
+.coming-soon-panel h2 { margin: 0 0 10px; }
+.coming-soon-panel p { max-width: 52ch; margin: 0 auto 18px; }
+
+/* small language monogram chip on the landing "languages" list */
+.lang-chip {
+  font-family: ui-monospace, Menlo, monospace;
+  font-weight: 700; font-size: 0.9rem;
+  min-width: 46px; height: 32px; padding: 0 8px;
+  display: inline-grid; place-items: center;
+  border-radius: 8px; color: var(--accent);
+  background: rgba(124,156,255,0.12); border: 1px solid var(--border-lit);
+}
+.world-shape.soon { color: var(--muted); opacity: 0.8; }
+
+/* ==========================================================================
+   Topic cards (home) + module roadmap (topic page)
+   ========================================================================== */
+
+.topic-card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px;
+}
+.topic-card {
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; text-decoration: none; color: var(--text);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+  animation: rise .32s ease both;
+}
+.topic-card:hover { transform: translateY(-3px); border-color: var(--border-lit); box-shadow: 0 14px 32px -20px rgba(0,0,0,0.9); }
+.topic-card-name { font-size: 1.1rem; font-weight: 650; }
+.topic-card-meta { }
+.topic-card .bar-sm { margin: 2px 0 4px; }
+.topic-card-go {
+  font-size: 0.85rem; font-weight: 600;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* topic page / roadmap */
+.topic-page { max-width: 780px; }
+.topic-header { margin: 8px 0 26px; }
+.topic-header h1 { font-size: 1.9rem; }
+.topic-header .muted { max-width: 60ch; }
+.topic-stat { margin-top: 12px; font-size: 0.9rem; color: var(--muted); }
+.topic-stat strong { color: var(--text); }
+
+.roadmap { display: flex; flex-direction: column; gap: 30px; }
+.tier-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.tier-head h2 { margin: 0; font-size: 1.15rem; }
+
+.module-list { list-style: none; margin: 0; padding: 0; position: relative; }
+/* the connecting spine */
+.module-list::before {
+  content: ''; position: absolute; left: 15px; top: 6px; bottom: 6px; width: 2px;
+  background: var(--border);
+}
+.module { position: relative; }
+.mod-link {
+  display: flex; gap: 16px; align-items: flex-start;
+  padding: 12px 14px 12px 0; text-decoration: none; color: var(--text);
+  border-radius: var(--radius);
+}
+a.mod-link:hover { background: var(--surface); }
+.mod-dot {
+  position: relative; z-index: 1; flex: 0 0 auto;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 0.9rem; font-weight: 700;
+  background: var(--surface-2); border: 2px solid var(--border); color: var(--muted);
+}
+.module.done .mod-dot { background: rgba(52,211,153,0.14); border-color: var(--pass); color: var(--pass); }
+.module.available .mod-dot { background: rgba(124,156,255,0.14); border-color: var(--accent); color: var(--accent); }
+.module.planned .mod-dot { border-style: dashed; }
+
+.mod-body { display: flex; flex-direction: column; gap: 2px; }
+.mod-title { font-weight: 600; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.module.planned .mod-title { color: var(--muted); }
+.mod-blurb { font-size: 0.88rem; color: var(--muted); }
+.mod-tag {
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+}
+.mod-tag.now { color: var(--accent); border-color: var(--accent); }
+.mod-tag.done { color: var(--pass); border-color: var(--pass); }
+.mod-tag.soon { color: var(--muted); }
+.mod-link[aria-disabled] { cursor: default; }
+
+/* ==========================================================================
+   Horizontal skill-tree (topic page)
+   ========================================================================== */
+
+/* the tree wants room; widen the topic page beyond the reading column */
+.topic-page { max-width: 1160px; }
+.tree-hint { margin: 0 0 8px; }
+
+.tree {
+  overflow-x: auto;
+  padding-bottom: 10px;
+  /* fade the right edge to hint there's more to scroll to */
+  scrollbar-width: thin;
+}
+.tree-inner {
+  position: relative;
+  display: flex;
+  gap: 64px;
+  padding: 12px 6px 20px;
+  min-width: min-content;
+  align-items: stretch;
+}
+
+/* connector lines, behind the boxes */
+.tree-lines {
+  position: absolute; inset: 0;
+  overflow: visible; pointer-events: none; z-index: 0;
+}
+.tree-lines path {
+  fill: none;
+  stroke: var(--border-lit);
+  stroke-width: 2;
+}
+
+.tree-col {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  min-width: 210px; max-width: 230px;
+}
+.tree-col-head { margin-bottom: 16px; }
+.tree-col-head h3 { margin: 0; font-size: 0.95rem; }
+/* nodes centred vertically so the branches fan symmetrically from the bus */
+.tree-col-nodes {
+  display: flex; flex-direction: column; gap: 16px;
+  flex: 1; justify-content: center;
+}
+
+.tnode {
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  text-decoration: none; color: var(--text);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+a.tnode:hover { transform: translateY(-2px); border-color: var(--border-lit); box-shadow: 0 10px 24px -16px rgba(0,0,0,0.9); }
+.tnode.done { border-left-color: var(--pass); }
+.tnode.available { border-left-color: var(--accent); box-shadow: 0 0 0 1px rgba(124,156,255,0.25); }
+.tnode.planned { opacity: 0.72; border-style: dashed; }
+.tnode.planned .tnode-title { color: var(--muted); }
+
+.tnode-title { font-weight: 600; font-size: 0.92rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tnode-blurb { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+.tnode-tag {
+  font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+  padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor;
+}
+.tnode-tag.now { color: var(--accent); }
+.tnode-tag.done { color: var(--pass); border: none; font-size: 0.8rem; padding: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  a.tnode:hover { transform: none; }
+}
+
+/* stacked topic trees on the dashboard */
+.dash-topic {
+  margin-top: 34px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+}
+.dash-topic:first-of-type { border-top: none; }
+.dash-topic-head {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+}
+.dash-topic-head h3 { margin: 0; font-size: 1.25rem; }
+.dash-topic-intro { max-width: 66ch; margin: 4px 0 16px; }
+/* the home is a touch wider so 4 tree columns breathe */
+.home { max-width: 1160px; }
+
+/* ==========================================================================
+   Topic sequence: episodes one after another, joined by a line
+   ========================================================================== */
+
+.seq { overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
+.seq-track {
+  display: flex; align-items: stretch;
+  padding: 12px 4px; min-width: min-content;
+}
+
+/* the connecting line between adjacent items */
+.seq-link {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 30px; height: 2px;
+  background: var(--border-lit);
+}
+
+/* tier waypoint: a slim upright label on the line */
+.seq-tier {
+  flex: 0 0 auto;
+  align-self: stretch;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  display: grid; place-items: center;
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+  color: var(--muted);
+  padding: 6px 2px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+/* episode card */
+.seq-ep {
+  flex: 0 0 210px;
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  text-decoration: none; color: var(--text);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); box-shadow: 0 10px 24px -16px rgba(0,0,0,0.9); }
+.seq-ep.done { border-top-color: var(--pass); }
+.seq-ep.available { border-top-color: var(--accent); box-shadow: 0 0 0 1px rgba(124,156,255,0.25); }
+.seq-ep.planned { opacity: 0.72; border-style: dashed; }
+.seq-ep.planned .seq-title { color: var(--muted); }
+
+.seq-num {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 0.8rem; font-weight: 700;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+}
+.seq-ep.done .seq-num { background: rgba(52,211,153,0.15); border-color: var(--pass); color: var(--pass); }
+.seq-ep.available .seq-num { background: rgba(124,156,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+.seq-body { display: flex; flex-direction: column; gap: 3px; }
+.seq-title { font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.seq-blurb { font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+.seq-tag {
+  font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+  color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 7px;
+}
+
+@media (prefers-reduced-motion: reduce) { a.seq-ep:hover { transform: none; } }
+
+/* episode status label + in-progress state */
+.seq-ep.in_progress { border-top-color: var(--hint); box-shadow: 0 0 0 1px rgba(251,191,36,0.22); }
+.seq-ep.in_progress .seq-num { background: rgba(251,191,36,0.15); border-color: var(--hint); color: var(--hint); }
+
+.seq-status {
+  margin-top: 2px;
+  align-self: flex-start;
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.seq-status.done { color: var(--pass); }
+.seq-status.in_progress { color: var(--hint); }
+.seq-status.available { color: var(--accent); }
+.seq-status.planned { color: var(--muted); border-color: var(--border); }
+
+/* ==========================================================================
+   Landing: the fly-through
+   --------------------------------------------------------------------------
+   The landing page sits in front of a 3D world (components/ScrollWorld.tsx)
+   that the camera flies through as you scroll. Everything below either builds
+   that illusion of depth or protects legibility from it -- content wins over
+   spectacle every time, which is why the surfaces get a translucent-glass
+   treatment rather than going transparent.
+
+   Every effect in this section is switched off in the reduced-motion block at
+   the very bottom of the file, and the canvas itself unmounts entirely.
+   ========================================================================== */
+
+/* --- the world layer ---------------------------------------------------- */
+
+.sw {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* The canvas repaints every frame; containment stops that invalidating
+     layout or paint for anything in the page above it. `overflow: hidden`
+     because the canvas is sized to window.innerWidth, which on a desktop
+     browser is a scrollbar's width wider than this box. */
+  contain: layout paint;
+  overflow: hidden;
+}
+.sw-canvas { display: block; width: 100%; height: 100%; }
+
+/* Vignette over the world. Without it, a bright shard drifting behind a
+   paragraph makes the paragraph unreadable for the second it takes to pass.
+   The second gradient is a scrim down the left, where every heading and
+   paragraph on this page sits -- it buys the copy a quiet backdrop and reads,
+   from the front, as the world simply being lit from the right. */
+.sw-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(11, 13, 19, 0.72) 0%,
+      rgba(11, 13, 19, 0.44) 34%,
+      rgba(11, 13, 19, 0) 62%
+    ),
+    radial-gradient(
+      95% 75% at 50% 42%,
+      rgba(11, 13, 19, 0.2) 0%,
+      rgba(11, 13, 19, 0.6) 62%,
+      rgba(11, 13, 19, 0.88) 100%
+    );
+}
+
+/* Everything that isn't the world sits above it. */
+.landing > *:not(.sw) { position: relative; z-index: 1; }
+
+/* Frosted glass, scoped to the landing page -- .card and .demo are used by the
+   signed-in app too, where there is no world behind them to show through. */
+.landing .card,
+.landing .demo,
+.landing .world,
+.landing .deck-panel,
+.landing .hero-stats .tilt-inner {
+  background: rgba(21, 25, 37, 0.72);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+/* --- hero layout -------------------------------------------------------- */
+
+.hero { max-width: none; perspective: 1200px; }
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+  gap: 48px;
+  align-items: center;
+}
+.hero-copy { max-width: 640px; }
+
+/* --- the hero deck ------------------------------------------------------ */
+
+.deck {
+  position: relative;
+  height: clamp(380px, 40vw, 460px);
+  perspective: 1300px;
+  animation: deck-float 11s ease-in-out infinite;
+}
+.deck-stage {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  /* A resting three-quarter view, plus whatever the pointer is asking for.
+     Never flat-on: the deck should always read as an object in the world. */
+  transform: rotateY(calc(-15deg + var(--dy, 0deg))) rotateX(calc(7deg + var(--dx, 0deg)));
+  transition: transform 0.45s cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.deck-panel {
+  position: absolute;
+  border: 1px solid var(--border-lit);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.95);
+  /* `translate` rather than a transform, so the bob animation and the
+     translateZ that sets the panel's depth don't fight over one property. */
+  animation: deck-bob 7s ease-in-out infinite;
+}
+.deck-code { top: 0; left: 0; width: 94%; transform: translateZ(-100px); }
+.deck-trace { top: 33%; left: 8%; width: 92%; transform: translateZ(20px); animation-delay: -2.3s; }
+.deck-plain { top: 70%; left: 2%; width: 86%; transform: translateZ(130px); animation-delay: -4.6s; }
+
+.deck-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.deck-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--surface-3); }
+.deck-file { margin-left: 6px; font-size: 0.68rem; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+
+.deck-panel pre {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.6;
+  white-space: pre;
+  overflow: hidden;
+  color: #c3c9d4;
+}
+.deck-line { display: flex; gap: 12px; }
+.deck-num { color: var(--muted); opacity: 0.6; }
+.deck-line.bad { color: var(--fail); }
+
+.deck-tag {
+  display: inline-block;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  margin-bottom: 10px;
+}
+.deck-tag.fail { color: var(--fail); }
+.deck-tag.pass { color: var(--pass); }
+.deck-trace { border-left: 3px solid var(--fail); }
+.deck-plain { border-left: 3px solid var(--pass); }
+.deck-plain p { margin: 0; font-size: 0.82rem; line-height: 1.55; color: var(--text); }
+
+@keyframes deck-float { 50% { transform: translateY(-14px); } }
+@keyframes deck-bob { 50% { translate: 0 -12px; } }
+
+/* --- pointer-tilt cards -------------------------------------------------- */
+
+.tilt { perspective: 900px; }
+.tilt-inner {
+  position: relative;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(var(--lift, 0px));
+  transition: transform 0.3s cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+/* The lit edge. Rotation on its own reads as a rendering glitch; rotation plus
+   a highlight that tracks the pointer reads as an object catching light. */
+.tilt-inner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(
+    240px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.1),
+    transparent 62%
+  );
+}
+.tilt:hover .tilt-inner::after { opacity: 1; }
+
+.hero-stats { perspective: 1000px; }
+.hero-stats > li.tilt {
+  background: none;
+  border: none;
+  padding: 0;
+  display: block;
+}
+.hero-stats .tilt-inner {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hero-stats .tilt-inner::after { border-radius: var(--radius); }
+
+/* The card inside a tilt already moves; its own hover lift would double up. */
+.feature-tilt .card:hover { transform: none; }
+
+/* --- worlds list, lifted off the page ------------------------------------ */
+
+.worlds { perspective: 1100px; }
+.world {
+  transform-style: preserve-3d;
+  transition: border-color 0.18s ease, transform 0.3s cubic-bezier(0.22, 0.8, 0.24, 1),
+    box-shadow 0.3s ease;
+}
+.world:hover {
+  transform: translateZ(26px) rotateX(2deg);
+  box-shadow: 0 24px 55px -30px rgba(0, 0, 0, 0.95), var(--glow);
+}
+
+/* --- scroll-in reveals ---------------------------------------------------- */
+
+.band { perspective: 1100px; }
+
+/* Driven by an inline `--reveal: 0 -> 1` set from useRevealOnScroll, rather
+   than by a class. See the comment there: React owns `className` on some of
+   these elements and wipes anything added imperatively. Both values below are
+   derived from the one property, so a single write reveals the element and the
+   transition still animates, because opacity and transform are what change. */
+[data-reveal] {
+  opacity: var(--reveal, 0);
+  transform: translate3d(0, calc((1 - var(--reveal, 0)) * 28px), 0)
+    rotateX(calc((1 - var(--reveal, 0)) * 8deg));
+  transform-origin: 50% 100%;
+  transition: opacity 0.7s cubic-bezier(0.22, 0.7, 0.24, 1),
+    transform 0.7s cubic-bezier(0.22, 0.7, 0.24, 1);
+}
+
+/* --- scroll affordance ---------------------------------------------------- */
+
+.scroll-cue {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 44px 0 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+.scroll-cue-rail {
+  position: relative;
+  width: 20px;
+  height: 32px;
+  flex: none;
+  border: 1px solid var(--border-lit);
+  border-radius: 999px;
+}
+.scroll-cue-dot {
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: cue-fall 2s ease-in-out infinite;
+}
+@keyframes cue-fall {
+  0% { transform: translateY(0); opacity: 0; }
+  22% { opacity: 1; }
+  100% { transform: translateY(15px); opacity: 0; }
+}
+
+/* --- narrow screens ------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 32px; }
+  /* The deck restates what the ErrorDemo below already shows interactively, so
+     on a phone it is the first thing to go rather than something to shrink. */
+  .deck { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] { opacity: 1; transform: none; transition: none; }
+  .tilt-inner { transform: none; transition: none; }
+  .tilt-inner::after { display: none; }
+  .deck, .deck-panel { animation: none; }
+  .deck-stage { transform: none; transition: none; }
+  .world:hover { transform: none; }
+  /* There is no fly-through to promise once the world is gone. */
+  .scroll-cue { display: none; }
+}
+
+/* ==========================================================================
+   Landing: the topic explorer
+   --------------------------------------------------------------------------
+   Sits under the language list and answers "what would I actually learn?".
+   Tabs across the top, and the picked topic's four branches -- foundations to
+   applied -- below. Rendered from lib/curriculum.ts, so nothing here can claim
+   a module the app doesn't have.
+   ========================================================================== */
+
+/* Lives inside an expanded language row, so it inherits that row's left inset
+   (54px lines up with the text beside the language chip) rather than carrying
+   any separator chrome of its own. */
+.tex {
+  padding: 6px 18px 20px 54px;
+  animation: rise 0.3s 0.06s ease both;
+}
+@media (max-width: 560px) { .tex { padding-left: 18px; } }
+
+.world-panel { border-top: 1px solid var(--border); padding-top: 14px; }
+
+/* An open row is tall enough that lifting it toward the viewer on hover is
+   disorienting rather than pleasing. The border highlight is enough. */
+.world.on:hover { transform: none; box-shadow: none; }
+
+.tex-label {
+  margin: 0 0 16px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+
+/* --- topic tabs ---------------------------------------------------------- */
+
+.tex-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.tex-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(21, 25, 37, 0.72);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease, transform 0.25s
+    cubic-bezier(0.22, 0.8, 0.24, 1), box-shadow 0.25s ease;
+}
+.tex-tab:hover { color: var(--text); border-color: var(--border-lit); transform: translateY(-2px); }
+.tex-tab.on {
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+  transform: translateY(-2px);
+}
+
+.tex-tab-count {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.tex-tab.on .tex-tab-count { background: rgba(124, 156, 255, 0.18); color: var(--accent); }
+
+/* --- the branches -------------------------------------------------------- */
+
+.tex-panel { margin-top: 24px; outline: none; animation: rise 0.45s ease both; }
+.tex-intro { margin: 0 0 22px; color: #c3c9d4; max-width: 68ch; }
+
+.tex-branches {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.tex-branch {
+  height: 100%;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(21, 25, 37, 0.72);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  /* --step comes from the level's index, so the four branches arrive as a
+     sweep left-to-right rather than all at once. Re-runs on every tab switch
+     because the panel is keyed on the topic and remounts. */
+  animation: tex-in 0.5s cubic-bezier(0.22, 0.7, 0.24, 1) both;
+  animation-delay: calc(var(--step, 0) * 80ms);
+}
+@keyframes tex-in {
+  from { opacity: 0; transform: translate3d(0, 20px, 0) rotateX(10deg); }
+  to { opacity: 1; transform: none; }
+}
+
+.tex-branch header { display: flex; gap: 11px; align-items: flex-start; margin-bottom: 14px; }
+.tex-branch h4 { margin: 0 0 3px; font-size: 0.92rem; }
+.tex-branch-hint { margin: 0; font-size: 0.72rem; line-height: 1.45; color: var(--muted); }
+
+.tex-branch-num {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-lit);
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.tex-branch ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  /* The spine, so a branch reads as a path rather than a bulleted list. */
+  border-left: 1px solid var(--border);
+  padding-left: 14px;
+}
+.tex-branch li { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.tex-branch li::before {
+  content: '';
+  position: absolute;
+  left: -18px;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  box-shadow: 0 0 0 3px var(--bg-2);
+}
+.tex-branch li:hover::before { background: var(--accent); }
+
+.tex-mod-title { font-size: 0.82rem; font-weight: 600; line-height: 1.35; }
+.tex-mod-blurb { font-size: 0.72rem; line-height: 1.45; color: var(--muted); }
+
+.tex-foot { margin: 20px 0 0; }
+
+@media (max-width: 1000px) {
+  .tex-branches { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .tex-branches { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tex-panel, .tex-branch { animation: none; }
+  .tex-tab, .tex-tab:hover, .tex-tab.on { transform: none; transition: none; }
+}
+
+/* ==========================================================================
+   Auth: third-party sign-in
+   --------------------------------------------------------------------------
+   "Continue with Google / Microsoft", above the email form on /login and
+   /signup. Only rendered for providers the API reports as configured, so this
+   whole block may legitimately never appear in a given deployment.
+   ========================================================================== */
+
+/* Three across, two down. Six full-width rows was a wall of white that pushed
+   the email form below the fold; a grid reads as a set of options to choose
+   between, which is what it is. Drops to two columns on a phone, where a third
+   would force the longer names to truncate. */
+.oauth-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 520px) {
+  .oauth-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.oauth-caption {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* The familiar white identity button, the same one every site uses.
+   Deliberately NOT themed to the dark palette: recognition is the entire point
+   of these, and a dark-grey "Sign in with Google" reads as a knock-off. Both
+   companies' brand guidelines specify a light button with unaltered logo
+   colours, so this is also the only compliant option. Fixed hex values rather
+   than tokens, for the same reason -- retheming the app must not restyle
+   somebody else's mark. */
+.oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 10px;
+  font-size: 0.88rem;
+  overflow: hidden;
+  border: 1px solid #dadce0;
+  border-radius: var(--radius);
+  background: #fff;
+  color: #1f1f1f;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.oauth-btn:hover { background: #f4f5f7; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+.oauth-btn:active { background: #eceff2; }
+.oauth-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The brand marks are fixed-colour SVGs and must not pick up currentColor. */
+.oauth-btn svg { flex: none; }
+/* The university label is set by whoever deploys this and can be any length, so
+   a long one has to shorten rather than burst the tile. The full text stays
+   reachable via the title and aria-label. */
+.oauth-btn span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* "or log in with an email" — a rule with the label sitting in a gap in it,
+   drawn with two flex-grown lines so the text can be any length. */
+.or-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.or-rule::before,
+.or-rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* A provider with no credentials yet. Development only -- production never
+   lists one. It looks identical to a working button on purpose: this is what
+   the finished page looks like, and pressing it explains what's missing rather
+   than presenting a dead grey rectangle. */
+.oauth-setup-note { color: var(--muted); margin: 2px 0 0; }
+.oauth-setup-note code {
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.9em;
+}
+
+/* ==========================================================================
+   The welcome step — step two of signing up
+   --------------------------------------------------------------------------
+   Three optional questions between "Create account" and the thing they came
+   for. Everything here is sized so the whole form fits one screen without
+   scrolling on a laptop: this is a known drop-off point in a signup funnel, and
+   a page that looks long is one people abandon.
+   ========================================================================== */
+
+.welcome {
+  max-width: 560px;
+  margin: 8vh auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.welcome h1 { font-size: 1.7rem; margin: 0; }
+.welcome > .muted { margin: 0; }
+
+.welcome-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px 14px;
+  margin: 0;
+  min-width: 0;
+}
+.welcome-choices legend {
+  padding: 0 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.welcome-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  color: var(--text);
+  cursor: pointer;
+  padding: 5px 0;
+}
+/* Belt and braces against the `.field input` rule above, in case this fieldset
+   ever ends up inside one: a radio must stay a radio. */
+.welcome-choice input[type='radio'] {
+  flex: none;
+  width: auto;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  accent-color: var(--accent);
+}
+.welcome-note {
+  margin-top: 8px;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 10px;
+  color: var(--text);
+  font-size: 0.88rem;
+}
+.welcome-note:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.welcome-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+/* A button that reads as a link. "Skip for now" has to be a real, obvious
+   option -- a greyed-out afterthought is a dark pattern, and this step is
+   genuinely optional. */
+.linkish {
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 6px 2px;
+}
+.linkish:hover { color: var(--text); }
+
+/* The same two answers, read back on the account page. */
+.profile-answers { margin: 14px 0 16px; display: grid; gap: 4px; }
+.profile-answers dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.profile-answers dd { margin: 0; white-space: pre-wrap; line-height: 1.55; }
+
+/* ==========================================================================
+   The welcome chat — step three of signing up
+   --------------------------------------------------------------------------
+   Conversation on the left, the plan it produces on the right. The plan panel
+   is the point: a chat that visibly builds something beats one that seems to
+   vanish into a database.
+   ========================================================================== */
+
+.welcome-chat { max-width: 1000px; margin: 5vh auto 0; display: flex; flex-direction: column; gap: 20px; }
+.welcome-chat header { display: flex; flex-direction: column; gap: 8px; }
+.welcome-chat h1 { font-size: 1.7rem; margin: 0; }
+.welcome-chat header .muted { margin: 0; max-width: 62ch; }
+
+.welcome-chat-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  /* The plan first on a phone: it's the answer, and scrolling past a whole
+     conversation to reach it would bury it. */
+  .welcome-chat-grid { grid-template-columns: 1fr; }
+  .wc-plan { order: -1; }
+}
+
+.wc-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  /* Tall enough to feel like a conversation, capped so the composer stays on
+     screen without scrolling the page. */
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.wc-msg { border-radius: var(--radius); padding: 11px 14px; max-width: 90%; }
+.wc-msg p { margin: 0 0 8px; line-height: 1.6; }
+.wc-msg p:last-child { margin-bottom: 0; }
+.wc-assistant { background: var(--surface-2); border: 1px solid var(--border); align-self: flex-start; }
+.wc-user {
+  background: rgba(124, 156, 255, 0.14);
+  border: 1px solid rgba(124, 156, 255, 0.32);
+  align-self: flex-end;
+}
+.wc-thinking { align-self: flex-start; font-style: italic; }
+
+.wc-composer { display: flex; gap: 8px; position: sticky; bottom: 0; padding-top: 6px; background: var(--surface); }
+.wc-composer input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 12px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+.wc-composer input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.wc-plan {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: sticky;
+  top: 20px;
+}
+.wc-plan h2 { font-size: 1.05rem; margin: 0; }
+.wc-plan h3 {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+.wc-interests { margin: 0; font-size: 0.92rem; line-height: 1.55; color: #c3c9d4; }
+
+.wc-topics { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.wc-topics li {
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.wc-projects { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.wc-projects li { display: flex; flex-direction: column; gap: 3px; }
+.wc-projects strong { font-size: 0.92rem; }
+.wc-projects span { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+.wc-project-topics { font-size: 0.7rem !important; color: var(--accent) !important; }
+
+@media (prefers-reduced-motion: reduce) { .wc-thread { scroll-behavior: auto; } }
+.plan-subhead {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+
+
+/* ==========================================================================
+   Demo mode
+   --------------------------------------------------------------------------
+   Two buttons on the landing nav that hand out a throwaway account, and the
+   banner that admits, on every page afterwards, that it is one.
+   ========================================================================== */
+
+/* Deliberately quieter than "Start free". These are an alternative to signing
+   up, not a competitor to it -- the primary action stays the primary action. */
+.btn-demo { color: var(--muted); }
+.btn-demo:hover:not(:disabled) { color: var(--text); border-color: var(--border-lit); }
+.btn-demo:disabled { opacity: 0.55; cursor: progress; }
+
+/* A hairline between "try it" and "sign in", so four buttons read as two
+   pairs rather than one undifferentiated row. */
+.nav-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 4px;
+  background: var(--border);
+}
+@media (max-width: 720px) { .nav-divider { display: none; } }
+
+.demo-error { max-width: 640px; margin: 0 auto; }
+
+/* --- the banner ---------------------------------------------------------- */
+
+.demo-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 10px 24px;
+  background: rgba(251, 191, 36, 0.09);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.28);
+  color: #d9c6a1;
+  font-size: 0.86rem;
+}
+.demo-banner a { color: var(--hint); }
+
+.demo-badge {
+  flex: none;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--hint);
+  color: var(--hint);
+}

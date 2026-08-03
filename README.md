@@ -83,6 +83,108 @@ docker build -t codejourney-sandbox:3.12 packages/harness   # the sandbox image
 # then drop the DATABASE_URL export above and use the compose default
 ```
 
+### Third-party sign-in (optional)
+
+Six providers are wired up: **Google, Microsoft, Apple, GitHub, Facebook** and a
+**university's own OpenID Connect login**. Each is **off until its credentials
+are set**, and the app is fully usable with none of them — the buttons don't
+render in production, and the email-and-password form is unchanged. Nothing
+below is needed to run or test the project.
+
+In development the buttons always show, and pressing an unconfigured one says
+which environment variables it wants.
+
+Credentials go in `apps/api/.env` (gitignored — **never commit them**):
+
+```bash
+# Google: console.cloud.google.com -> APIs & Services -> Credentials
+#   -> Create OAuth client ID -> Web application
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+
+# Microsoft — also covers Outlook/Hotmail/Live and most university logins:
+#   portal.azure.com -> Microsoft Entra ID -> App registrations -> New
+#   Supported account types: "Accounts in any organizational directory and
+#   personal Microsoft accounts" -- personal-only leaves out university logins.
+MICROSOFT_CLIENT_ID=...
+MICROSOFT_CLIENT_SECRET=...     # a client *secret*, not a certificate
+MICROSOFT_TENANT=common         # or a tenant id to restrict to one university
+
+# GitHub: github.com/settings/developers -> New OAuth App
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+
+# Facebook: developers.facebook.com -> Create App -> Facebook Login
+FACEBOOK_CLIENT_ID=...          # "App ID"
+FACEBOOK_CLIENT_SECRET=...      # "App Secret"
+
+# A university's own OIDC login. Endpoints are read from the issuer's
+# discovery document, so only the issuer is needed.
+UNIVERSITY_LABEL=Northeastern           # the button reads "Sign in with <this>"
+UNIVERSITY_ISSUER=https://login.microsoftonline.com/<tenant-id>/v2.0
+UNIVERSITY_CLIENT_ID=...
+UNIVERSITY_CLIENT_SECRET=...
+```
+
+Register these **exact** redirect URIs with each provider. They must match byte
+for byte or the provider refuses before your code ever runs:
+
+```
+http://localhost:8000/auth/oauth/<provider>/callback
+```
+
+If the API or web app is not on its default port, set `API_BASE_URL` and
+`WEB_APP_URL` to match — the first is what the provider redirects back to, the
+second is where the user is handed on to afterwards.
+
+#### Apple is the difficult one — read this before trying
+
+Sign in with Apple does not work like the others, and **cannot be tested on
+localhost**:
+
+- It needs a **paid Apple Developer Program membership** ($99/yr) to create the
+  Services ID and signing key at all.
+- Apple **refuses plain-http redirect URIs, including localhost**. Testing it
+  locally means an HTTPS tunnel (ngrok, Cloudflare Tunnel) with `API_BASE_URL`
+  pointed at the tunnel and the tunnel URL registered with Apple.
+- Its "client secret" is not a string Apple gives you. It is an **ES256 JWT you
+  sign yourself** from a downloaded `.p8` key, so it takes four settings:
+
+```bash
+APPLE_CLIENT_ID=com.yourteam.codejourney.web   # the *Services* ID, not the App ID
+APPLE_TEAM_ID=ABCDE12345
+APPLE_KEY_ID=FGHIJ67890
+APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIG...\n-----END PRIVATE KEY-----"
+```
+
+The `\n` escapes are fine — they're unescaped on read, because PEM blocks are
+multi-line and `.env` files are not.
+
+Apple also returns the user's **display name exactly once**, in the body of the
+first callback and never again, which is why its callback is a POST route.
+
+Worth knowing for later: if the Expo companion ships to the App Store offering
+any of the other buttons, App Store guideline 4.8 **requires** Sign in with
+Apple alongside them. That's a release gate, not a nice-to-have.
+
+#### Notes on the others
+
+- **GitHub** is not OpenID Connect. Addresses are private by default, so the
+  primary verified one is fetched separately from `/user/emails`; an account
+  whose addresses are all unverified can create a new CodeJourney account but
+  can never link to an existing one.
+- **Facebook** requires App Review before `email` works for anyone outside your
+  own test users.
+- **University** works with any OIDC issuer — Entra, Okta, Keycloak, or
+  Shibboleth with an OIDC front end. Most US universities front their SSO with
+  Entra, which the Microsoft button already reaches; this exists for
+  deployments that want their own branded button.
+
+No migration is needed for any of this: the `oauth_accounts` table is new, so
+`create_all` builds it on the next start and existing accounts are untouched.
+Someone who already signed up with a password can press a button later and land
+in the same account, provided the provider says it verified their address.
+
 ### Tests
 
 No database or Docker needed — the suite runs on SQLite (see `tests/conftest.py`).

@@ -1,20 +1,37 @@
 import type {
   Account,
+  BranchLink,
   Dashboard,
   Draft,
+  GeneratedLesson,
   InstructorOverview,
+  LearnerProfile,
+  LearnerProfileInput,
   Lesson,
+  LessonProposal,
+  OnboardingPlan,
   Parsons,
   ParsonsCheck,
   Portfolio,
   QuizGrade,
   Exercise,
   HarnessResult,
+  HintResponse,
   Reflection,
+  TutorChatResponse,
+  WelcomeState,
+  TutorMessage,
   SubmitResponse,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+
+/**
+ * The API's origin, for the one case that can't go through `request` below:
+ * "Continue with Google" is a full-page navigation to the API, not a fetch,
+ * because the browser has to follow redirects to the provider and back.
+ */
+export const API_BASE = BASE
 
 const TOKEN_KEY = 'codejourney.token'
 
@@ -92,7 +109,59 @@ export const api = {
       body: JSON.stringify({ email, password, display_name, consent_to_research }),
     }),
 
+  /**
+   * Which third-party sign-in buttons to show. Driven by the server rather
+   * than hard-coded, so a deployment with no Microsoft credentials shows one
+   * button instead of a second that leads nowhere.
+   */
+  oauthProviders: () =>
+    request<{
+      providers: { key: string; label: string; configured: boolean }[]
+    }>('/auth/oauth/providers'),
+
+  /**
+   * Mint a throwaway account for the landing page's demo buttons. A fresh one
+   * per click, so two visitors never share -- or undo -- each other's work.
+   */
+  startDemo: (with_progress: boolean) =>
+    request<{ access_token: string }>('/auth/demo', {
+      method: 'POST',
+      body: JSON.stringify({ with_progress }),
+    }),
+
   me: () => request<Account>('/auth/me'),
+
+  /**
+   * The learner's own goals and project ideas. Note what isn't here: the
+   * experience answer from the welcome step. The API has no schema capable of
+   * returning it, so there is nothing for this client to ask for.
+   */
+  learnerProfile: () => request<LearnerProfile>('/auth/me/profile'),
+
+  /**
+   * Save part or all of the welcome step. Fields left out are left alone --
+   * which is what lets the account page edit goals without clearing the
+   * experience answer it isn't allowed to read.
+   */
+  saveLearnerProfile: (body: Partial<LearnerProfileInput>) =>
+    request<LearnerProfile>('/auth/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  // --- the welcome chat, step three of signing up ---
+
+  /** Everything the chat page needs: availability, greeting, history, plan. */
+  welcomeState: () => request<WelcomeState>('/onboarding/welcome'),
+
+  welcomeChat: (message: string) =>
+    request<{ reply: string; plan: OnboardingPlan }>('/onboarding/welcome/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }),
+
+  /** The plan on its own, for the account page. */
+  onboardingPlan: () => request<OnboardingPlan>('/onboarding/plan'),
 
   /** Grant or withdraw study consent. Withdrawal must be as easy as granting. */
   setConsent: (consent_to_research: boolean) =>
@@ -108,6 +177,19 @@ export const api = {
   progress: () => request<Dashboard>('/progress'),
 
   exercise: (slug: string) => request<Exercise>(`/exercises/${slug}`),
+
+  /** Pull the next hint on demand, in addition to the ones that appear
+   *  automatically after a failed submit. Climbs one rung per press, up to L4. */
+  requestHint: (slug: string, session_id: string) =>
+    request<HintResponse>(`/exercises/${slug}/hint`, {
+      method: 'POST',
+      body: JSON.stringify({ session_id }),
+    }),
+
+  /** The full worked answer, produced on demand and verified against the real
+   *  tests before it's returned. The student chooses to step past the ladder. */
+  showAnswer: (slug: string) =>
+    request<{ solution: string }>(`/exercises/${slug}/solution`),
 
   /** Opens the sitting. Must be called when the editor mounts -- this is what
    *  starts the time-on-task clock, which is a dependent variable. */
@@ -178,6 +260,40 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ ordering }),
     }),
+
+  // --- Reflect stage: the AI tutor (distinct from the private journal) ---
+
+  /** The saved conversation for a lesson, oldest first, so the chat comes back
+   *  exactly as it was left. */
+  tutorHistory: (exercise_id: string) =>
+    request<TutorMessage[]>(`/tutor/history?exercise_id=${exercise_id}`),
+
+  /** Send one new user turn. The prior conversation is the server's -- it's
+   *  persisted per (user, lesson) and reloaded each turn. */
+  tutorChat: (exercise_id: string, message: string) =>
+    request<TutorChatResponse>('/tutor/chat', {
+      method: 'POST',
+      body: JSON.stringify({ exercise_id, message }),
+    }),
+
+  /** Accept the tutor's offer to build practice. The new exercise becomes a
+   *  branch off `parentExerciseId` -- the lesson the chat is on. The server
+   *  verifies it's solvable before returning a slug. */
+  generateLesson: (proposal: LessonProposal, parentExerciseId: string) =>
+    request<GeneratedLesson>('/tutor/lesson', {
+      method: 'POST',
+      body: JSON.stringify({
+        concept: proposal.concept,
+        focus: proposal.focus,
+        title: proposal.title,
+        parent_exercise_id: parentExerciseId,
+      }),
+    }),
+
+  /** The AI-built branches the student made off this lesson, for links on the
+   *  lesson's own page. */
+  branches: (slug: string) =>
+    request<BranchLink[]>(`/exercises/${slug}/branches`),
 
   portfolio: () => request<Portfolio>('/portfolio'),
 

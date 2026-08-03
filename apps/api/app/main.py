@@ -5,17 +5,22 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .db import engine
+from .services import demo
 from .models import Base
+from sqlalchemy.orm import Session
 from .routers import (
     auth,
     drafts,
     exercises,
     instructor,
     learn,
+    oauth,
+    onboarding,
     portfolio,
     progress,
     reflections,
     submissions,
+    tutor,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -48,6 +53,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(oauth.router)
+app.include_router(onboarding.router)
 app.include_router(exercises.router)
 app.include_router(submissions.router)
 app.include_router(progress.router)
@@ -56,6 +63,7 @@ app.include_router(reflections.router)
 app.include_router(learn.router)
 app.include_router(portfolio.router)
 app.include_router(instructor.router)
+app.include_router(tutor.router)
 
 
 @app.on_event("startup")
@@ -64,6 +72,20 @@ def startup() -> None:
     # to preserve data -- which in practice means before the Week 5 pilot,
     # because after that point dropping the DB destroys study data.
     Base.metadata.create_all(engine)
+
+    # Sweep up throwaway demo accounts. Anyone who finds the landing page can
+    # create one, so without this the users table fills with rows nobody will
+    # ever log into again. On startup rather than on a schedule: there is no
+    # scheduler here, and "whenever the server restarts" is often enough for
+    # junk with no reader. Never fatal -- a failed tidy-up must not stop the
+    # API from serving.
+    try:
+        with Session(engine) as db:
+            removed = demo.purge_expired(db)
+        if removed:
+            logging.getLogger(__name__).info("purged %d stale demo account(s)", removed)
+    except Exception:  # noqa: BLE001 - housekeeping, never a startup blocker
+        logging.getLogger(__name__).exception("demo account purge failed")
 
 
 @app.get("/health", tags=["meta"])

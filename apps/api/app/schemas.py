@@ -13,7 +13,14 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from typing import Literal
 
-from .models import Concept, Role, RunMode, Theme, ThemeVariant
+from .models import (
+    ONBOARDING_EXPERIENCE,
+    Concept,
+    Role,
+    RunMode,
+    Theme,
+    ThemeVariant,
+)
 
 
 # --- auth ------------------------------------------------------------------
@@ -62,6 +69,17 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class DemoRequest(BaseModel):
+    """Which flavour of demo to mint.
+
+    False drops you into a lesson with a clean slate; True hands you an account
+    that already has a few days of work, so the dashboard and portfolio have
+    something to show.
+    """
+
+    with_progress: bool = False
+
+
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -72,6 +90,61 @@ class UserOut(BaseModel):
     consented_at: datetime | None
     consent_withdrawn_at: datetime | None
     created_at: datetime
+    #: True for the throwaway accounts behind the landing page's demo buttons.
+    #: The app uses it to say so on screen -- letting someone work for twenty
+    #: minutes in an account that quietly evaporates is worth avoiding.
+    is_demo: bool = False
+
+
+# --- the second step of signing up ------------------------------------------
+
+
+class LearnerProfileIn(BaseModel):
+    """Answers to the welcome step, or a later edit of part of them.
+
+    Every field is `None` by default, meaning **leave this one as it is** --
+    which is not the same as sending `""`, meaning *clear it*. The distinction
+    matters because the account page can edit goals and project ideas but cannot
+    even read the experience answer: if omitting a field wiped it, saving a new
+    goal from that page would silently destroy the thing the tutor uses to pitch
+    its explanations, and nothing would show that it had happened.
+
+    The welcome step sends all four, including empty ones when it is skipped.
+    """
+
+    goals: str | None = Field(default=None, max_length=2000)
+    experience: str | None = Field(default=None, max_length=32)
+    experience_note: str | None = Field(default=None, max_length=1000)
+    project_ideas: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("experience")
+    @classmethod
+    def known_experience(cls, value: str | None) -> str | None:
+        # An unrecognised key would sail through to the tutor and be described
+        # to the model as a level it has never heard of.
+        if value and value not in ONBOARDING_EXPERIENCE:
+            raise ValueError("unknown experience option")
+        return value
+
+
+class LearnerProfileOut(BaseModel):
+    """What comes back out -- and the enforcement point for what does not.
+
+    `experience` and `experience_note` are absent on purpose. The learner is
+    asked how much programming they have done so the tutor can pitch itself
+    correctly; that answer is not read back to them, so there is no schema here
+    capable of returning it. Same principle as the hidden test cases at the top
+    of this file: a response model that cannot represent the field cannot leak
+    it by accident.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    goals: str
+    project_ideas: str
+    #: False before the step has been done once, so the web app knows whether to
+    #: send a new account to the welcome page.
+    completed: bool
 
 
 class ConsentUpdate(BaseModel):
@@ -209,6 +282,16 @@ class ConceptProgress(BaseModel):
     total: int
 
 
+class BranchOut(BaseModel):
+    """A practice exercise the tutor built for this student, hanging off the
+    lesson they made it from. `parent_slug` is where it's drawn in the sequence."""
+
+    parent_slug: str
+    slug: str
+    title: str
+    status: Literal["solved", "in_progress", "not_started"]
+
+
 class DashboardOut(BaseModel):
     """Note the absences: no time-on-task, no hint depth.
 
@@ -224,6 +307,8 @@ class DashboardOut(BaseModel):
     concepts: list[ConceptProgress]
     continue_slug: str | None
     exercises: list[ExerciseProgress]
+    # This student's AI-built branches, each tagged with the lesson it hangs off.
+    branches: list[BranchOut]
 
 
 # --- reflections -----------------------------------------------------------
@@ -362,3 +447,98 @@ class InstructorOut(BaseModel):
     # Non-null only when a run/submit disagreement has been recorded. Should
     # always be zero -- see docs/architecture.md, "The divergence rule".
     divergence_incidents: int
+
+
+# --- reflection tutor ------------------------------------------------------
+#
+# The AI tutor is a SEPARATE feature from the private journal. It talks to the
+# student about the lesson and their code, gauges how secure they feel, and can
+# offer to build a supplementary practice lesson. It never reads the journal --
+# see routers/reflections.py for the rule this keeps intact.
+
+
+class TutorMessage(BaseModel):
+    """One saved turn of the tutor conversation, sent back to render the history.
+
+    Output-only, so no length ceiling -- the server is echoing what it stored.
+    """
+
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class TutorChatRequest(BaseModel):
+    exercise_id: str
+    # Just the new user turn. The prior conversation is the server's -- it's
+    # persisted per (user, exercise) and reloaded each time, so the browser can't
+    # rewrite the history and the chat survives navigating away and back.
+    message: str = Field(min_length=1, max_length=8000)
+
+
+class LessonProposal(BaseModel):
+    """The tutor's offer to build more practice.
+
+    `scope` distinguishes "more of this whole topic" from "a specific thing I
+    noticed you wobble on" -- exactly the two the brief asks for.
+    """
+
+    scope: Literal["topic", "concept"]
+    concept: Concept
+    focus: str = Field(max_length=400)
+    title: str = Field(max_length=120)
+    rationale: str = Field(max_length=600)
+
+
+class TutorChatResponse(BaseModel):
+    reply: str
+    # Present only when the tutor offered to build a lesson this turn. The
+    # student accepts it explicitly; nothing is generated without a click.
+    proposal: LessonProposal | None = None
+    # False when no API key is configured. The UI uses this to show a gentle
+    # "not switched on yet" note instead of pretending the tutor is thinking.
+    configured: bool = True
+
+
+class GenerateLessonRequest(BaseModel):
+    concept: Concept
+    focus: str = Field(min_length=1, max_length=400)
+    title: str = Field(min_length=1, max_length=120)
+    # The lesson the student was on when they asked for this -- the branch's
+    # parent. The tutor always knows it, so it's required.
+    parent_exercise_id: str
+
+
+class GeneratedLessonResponse(BaseModel):
+    """A freshly built, harness-verified practice exercise the student can open."""
+
+    slug: str
+    title: str
+
+
+class BranchLink(BaseModel):
+    """One AI-built branch off an exercise, for the parent's own page."""
+
+    slug: str
+    title: str
+    status: Literal["solved", "in_progress", "not_started"]
+
+
+class SolutionResponse(BaseModel):
+    """A worked answer, produced on demand and verified against the real tests
+    before it is ever sent. The ladder stops before the answer; this is the
+    student choosing to step past it."""
+
+    solution: str
+
+
+class HintRequest(BaseModel):
+    """A student pulling a hint on demand, rather than the ladder pushing one."""
+
+    session_id: str
+
+
+class HintResponse(BaseModel):
+    level: int
+    hint: str | None
+    # True when this is the last rung -- the UI can point to 'Show the answer'.
+    exhausted: bool

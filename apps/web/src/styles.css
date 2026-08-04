@@ -3132,3 +3132,150 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
   white-space: nowrap;
   border: 0;
 }
+
+/* --- the list lab: the filter loop, running where you can watch it ------ */
+
+.lab-head { margin-bottom: 16px; }
+.lab-head h2 { margin-bottom: 4px; }
+
+.lab-grid { display: grid; gap: 18px; align-items: start; }
+@media (min-width: 900px) {
+  .lab-grid { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); }
+}
+
+.lab-code {
+  margin: 0;
+  padding: 12px 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  line-height: 1.85;
+  overflow-x: auto;
+}
+.lab-line { display: block; padding: 0 14px; border-left: 2px solid transparent; }
+/* The executing line, not a selection -- it moves on its own during Play. */
+.lab-line.is-on {
+  border-left-color: var(--accent);
+  background: rgba(124, 156, 255, 0.1);
+  color: var(--text);
+}
+.lab-lineno {
+  display: inline-block;
+  width: 1.6em;
+  color: var(--muted);
+  opacity: 0.55;
+  user-select: none;
+}
+
+.lab-label { margin: 0 0 8px; font-size: 0.85rem; color: var(--text); }
+.lab-label + .lab-row { margin-bottom: 18px; }
+.lab-hint { font-weight: 400; }
+
+.lab-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.lab-row > li { display: flex; flex-direction: column; align-items: center; }
+
+.lab-box {
+  display: block;
+  min-width: 108px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.28s, border-color 0.28s, background 0.28s, opacity 0.28s;
+}
+.is-still .lab-box { transition: none; }
+.lab-value { display: block; }
+.lab-len { display: block; margin-top: 3px; font-size: 0.7rem; color: var(--muted); }
+.lab-index {
+  margin-top: 5px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The four states of an item, as the loop sees it.
+   Kept and skipped are given equal weight in opposite colours: which ones the
+   test rejected is half of what the loop is doing, and dimming them to near
+   invisibility made a decided item look like one not reached yet. */
+.lab-box.is-waiting { opacity: 0.5; }
+.lab-box.is-current {
+  border-color: var(--accent);
+  background: rgba(124, 156, 255, 0.14);
+  transform: translateY(-4px);
+  box-shadow: var(--glow);
+}
+.lab-box.is-kept { border-color: var(--pass); background: rgba(52, 211, 153, 0.12); }
+.lab-box.is-skipped {
+  border-color: rgba(251, 113, 133, 0.5);
+  background: rgba(251, 113, 133, 0.08);
+  opacity: 0.8;
+}
+.lab-box.is-skipped .lab-value { text-decoration: line-through; opacity: 0.75; }
+
+.lab-out { min-height: 46px; align-items: center; }
+.lab-empty { list-style: none; }
+
+.lab-note {
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  min-height: 42px;
+}
+.lab-verdict {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+.lab-verdict.ok { color: var(--pass); background: rgba(52, 211, 153, 0.15); }
+.lab-verdict.no { color: var(--fail); background: rgba(251, 113, 133, 0.15); }
+
+.lab-controls {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  align-items: center;
+  justify-content: space-between;
+}
+.lab-transport, .lab-tune { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lab-tune { font-size: 0.82rem; color: var(--muted); }
+.lab-tune label { display: flex; gap: 8px; align-items: center; }
+
+.lab-transport button, .lab-op {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.lab-transport button:hover:not(:disabled), .lab-op:hover { border-color: var(--border-lit); }
+.lab-transport button:disabled { opacity: 0.4; cursor: default; }
+.lab-play { color: var(--accent) !important; border-color: rgba(124, 156, 255, 0.4) !important; }
+.lab-op.is-on { border-color: var(--accent); color: var(--accent); }
+.lab-ops { display: inline-flex; gap: 4px; }
+.lab-slider input { width: 120px; }
+.lab-slider b { color: var(--text); font-variant-numeric: tabular-nums; }
+.lab-progress { font-variant-numeric: tabular-nums; }

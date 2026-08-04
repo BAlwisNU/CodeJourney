@@ -292,3 +292,20 @@ export function firstListLiteral(
     ),
   }
 }
+
+/**
+ * The first list literal anywhere in a lesson.
+ *
+ * So the interactive parts work on the same values the reader has just been
+ * looking at, rather than an invented example sitting next to the real one.
+ */
+export function firstListInLesson(
+  blocks: Block[]
+): { name: string; items: string[] } | null {
+  for (const block of blocks) {
+    if (block.kind !== 'code') continue
+    const found = firstListLiteral(block.code)
+    if (found) return found
+  }
+  return null
+}

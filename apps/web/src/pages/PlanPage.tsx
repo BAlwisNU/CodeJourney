@@ -1,13 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { FlowNav } from '../components/FlowNav'
 import { Checkpoint } from '../components/lesson/Checkpoint'
 import { LessonBody } from '../components/lesson/LessonBody'
+import { ListLab } from '../components/lesson/ListLab'
 import { InlineMarkdown } from '../components/Markdown'
 import { Parsons } from '../components/Parsons'
 import { api } from '../lib/api'
-import { parseBlocks, readingMinutes, toSections } from '../lib/lessonBlocks'
+import {
+  firstListInLesson,
+  parseBlocks,
+  readingMinutes,
+  toSections,
+} from '../lib/lessonBlocks'
 import type { Exercise, Lesson, Parsons as ParsonsData, QuizGrade } from '../lib/types'
 
 /**
@@ -67,6 +73,27 @@ export function PlanPage() {
     }
   }
 
+  // Parsed once and shared. Three things below need the block list, and
+  // `lab` hands an array to a component that memoises on it -- rebuilding it
+  // every render would defeat that. Above the early return, because hooks
+  // cannot run after one.
+  const blocks = useMemo(
+    () => (lesson ? parseBlocks(lesson.body_md) : []),
+    [lesson]
+  )
+
+  /**
+   * The playable loop, when the lesson is one it makes sense for.
+   *
+   * Gated on the concept and on the lesson actually containing a list of
+   * strings: it traces the filter loop specifically, and drawing it over a
+   * lesson about file handles would be a toy rather than a demonstration.
+   */
+  const lab = useMemo(
+    () => (lesson?.concept === 'lists' ? firstListInLesson(blocks) : null),
+    [lesson?.concept, blocks]
+  )
+
   if (!exercise) return <p className="muted">Loading…</p>
 
   const resultFor = (questionId: string) =>
@@ -84,9 +111,7 @@ export function PlanPage() {
    * At least one is always kept back for the quiz at the end, so the page never
    * loses its recap, and a lesson with no sub-headings simply gets none.
    */
-  const sectionCount = lesson
-    ? toSections(parseBlocks(lesson.body_md)).filter((s) => s.heading).length
-    : 0
+  const sectionCount = toSections(blocks).filter((s) => s.heading).length
   const questions = lesson?.questions ?? []
   const inlineCount = Math.min(sectionCount, Math.max(0, questions.length - 1))
   const inline = questions.slice(0, inlineCount)
@@ -109,7 +134,7 @@ export function PlanPage() {
             <div className="lesson-top">
               <h2>{lesson.title}</h2>
               <span className="lesson-time muted small">
-                {readingMinutes(parseBlocks(lesson.body_md))} min read
+                {readingMinutes(blocks)} min read
               </span>
             </div>
             {/* LessonBody strips the body's own leading heading itself -- it
@@ -123,6 +148,8 @@ export function PlanPage() {
               }
             />
           </section>
+
+          {lab && <ListLab items={lab.items} name={lab.name} />}
 
           {remaining.length > 0 && (
             <section className="panel">

@@ -2745,3 +2745,390 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
 }
 .lesson .md strong { color: var(--text); }
 .lesson .md .md-code { margin: 0 0 22px; }
+
+/* ==========================================================================
+   Lesson reading, the rich version
+   --------------------------------------------------------------------------
+   Sections that fold, code that runs, asides that look like asides. Every rule
+   below degrades to plain prose if its feature never fires -- a lesson with no
+   callouts, no pins and no list literals renders as it always did.
+   ========================================================================== */
+
+.lesson-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.lesson-time { white-space: nowrap; }
+
+/* How far through the reader has got, from the section observers.
+   Not sticky: pinned to the top it floats over the lesson text, and there are
+   already two fixed bars (the demo banner and the flow nav) competing for that
+   edge of the screen. */
+.ls-progress {
+  height: 2px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  margin-bottom: 22px;
+  overflow: hidden;
+}
+.ls-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--grad);
+  transition: width 0.4s ease;
+}
+
+/* --- sections ------------------------------------------------------------ */
+
+.ls {
+  border-top: 1px solid transparent;
+  padding: 4px 0;
+  /* The section nearest the middle of the screen brightens; the rest sit back.
+     Cheaper on the eye than a scrollbar and it needs no chrome. */
+  opacity: 0.72;
+  transition: opacity 0.35s ease;
+}
+.ls-near { opacity: 1; }
+
+.ls h3 { margin: 26px 0 4px; }
+.ls h3 > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.02rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.ls h3 > button:hover { border-color: var(--border-lit); }
+.ls-icon { font-size: 1rem; line-height: 1; flex: none; }
+.ls-title { flex: 1; min-width: 0; }
+.ls-count {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.ls-chevron { color: var(--muted); font-size: 1.05rem; width: 14px; text-align: center; }
+.ls-body { padding: 14px 2px 4px; }
+
+/* --- callouts ------------------------------------------------------------ */
+
+.callout {
+  border: 1px solid var(--border-lit);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 14px 16px;
+  margin: 22px 0;
+  max-width: 68ch;
+}
+.callout p { margin: 0 0 8px; }
+.callout p:last-child { margin-bottom: 0; }
+.callout-title { font-weight: 600; color: var(--text); }
+.callout-idea { border-left-color: var(--accent); }
+.callout-watch { border-left-color: var(--hint); background: rgba(251, 191, 36, 0.07); }
+.callout-try { border-left-color: var(--pass); background: rgba(52, 211, 153, 0.07); }
+
+/* --- glossary ------------------------------------------------------------ */
+
+/* A dotted underline, not a colour: these are ordinary words in a sentence and
+   colouring them would compete with the inline code around them. */
+.gloss {
+  text-decoration: underline dotted var(--border-lit);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+/* --- code blocks --------------------------------------------------------- */
+
+.cb {
+  margin: 0 0 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-2);
+}
+.cb-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.cb-lights { display: inline-flex; gap: 5px; }
+.cb-lights i {
+  width: 9px; height: 9px; border-radius: 50%; display: block;
+  background: var(--surface-3);
+}
+.cb-lights i:first-child { background: #fb7185; }
+.cb-lights i:nth-child(2) { background: #fbbf24; }
+.cb-lights i:nth-child(3) { background: #34d399; }
+.cb-lang {
+  flex: 1;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.cb-actions { display: flex; gap: 6px; }
+.cb-run, .cb-copy {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.cb-run { color: var(--accent); border-color: rgba(124, 156, 255, 0.35); }
+.cb-run:hover:not(:disabled), .cb-copy:hover { color: var(--text); border-color: var(--border-lit); }
+.cb-run:disabled { opacity: 0.6; cursor: progress; }
+
+.cb-code {
+  margin: 0;
+  padding: 16px 18px;
+  overflow-x: auto;
+  line-height: 1.7;
+  font-size: 0.88rem;
+  background: none;
+  border: none;
+}
+/* `.md code` draws the little chip that inline code gets in a sentence, and it
+   applies to the <code> inside a <pre> too -- which boxed every snippet and
+   left a sliver of chip above and below the diff rows. `.md-code code` already
+   turns it off for the plain markdown renderer; this is the same reset for the
+   lesson blocks. */
+.cb-code code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* Notes paired with `# (n)` pins in the source. */
+.cb-notes {
+  margin: 0;
+  padding: 12px 18px 14px 40px;
+  border-top: 1px dashed var(--border);
+  counter-reset: pin;
+}
+.cb-notes > li {
+  counter-increment: pin;
+  list-style: none;
+  position: relative;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+.cb-notes > li::before {
+  content: counter(pin);
+  position: absolute;
+  left: -26px;
+  top: 0.1em;
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-lit);
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+/* Output gets its own panel rather than hiding in a comment. */
+.cb-out { border-top: 1px solid var(--border); padding: 10px 18px 14px; }
+.cb-out-label {
+  display: block;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.cb-out pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--pass);
+}
+.cb-out-err { background: rgba(251, 113, 133, 0.06); }
+.cb-out-err .cb-out-label, .cb-out-err pre { color: var(--fail); }
+
+/* The list diagram: what "positions start at 0" actually looks like. */
+.cb-diagram {
+  border-top: 1px solid var(--border);
+  padding: 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cb-diagram-name {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.76rem;
+  color: var(--accent);
+}
+.cb-cells { display: flex; flex-wrap: wrap; gap: 8px; }
+.cb-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.cb-cell-value {
+  padding: 7px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-lit);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cb-cell-index {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.7rem;
+  color: var(--accent-3);
+}
+.cb-diagram-note { font-size: 0.75rem; color: var(--muted); }
+
+/* --- wide screens: prose left, code alongside ---------------------------- */
+
+/* Two columns only when there is genuinely room for both.
+   The lesson panel is about 890px wide inside a 1280px window; splitting that
+   leaves ~430px for code, which wraps or clips the very lines a reader is
+   trying to follow. Below this width one column and full-width code is the
+   more readable answer, not the compromise. */
+@media (min-width: 1500px) {
+  /* Only inside a section body, so the opening paragraph still runs full
+     width and the folding headers stay full width. */
+  .ls-body { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 0 30px; align-items: start; }
+  .ls-body > p,
+  .ls-body > ul,
+  .ls-body > ol,
+  .ls-body > .callout { grid-column: 1; }
+  .ls-body > .cb { grid-column: 2; position: sticky; top: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ls, .ls-progress > span { transition: none; }
+  .ls { opacity: 1; }
+}
+
+/* --- diff blocks: the wrong line above the right one -------------------- */
+
+.cb-diff .cb-code { padding: 0; }
+.cb-diffstat { font-size: 11px; letter-spacing: 0.02em; margin-right: 4px; }
+.cb-diffstat .minus { color: var(--fail); font-weight: 600; }
+.cb-diffstat .plus { color: var(--pass); font-weight: 600; }
+
+.dl { display: block; padding: 2px 14px 2px 0; }
+.dl-sign {
+  display: inline-block;
+  width: 1.4em;
+  padding-left: 10px;
+  opacity: 0.85;
+  font-weight: 600;
+}
+/* Tinted the whole row, not just the text: the eye finds the changed line
+   before it reads either version. */
+.dl-del { background: rgba(251, 113, 133, 0.14); }
+.dl-del .dl-sign { color: var(--fail); }
+.dl-add { background: rgba(52, 211, 153, 0.13); }
+.dl-add .dl-sign { color: var(--pass); }
+.dl-same { opacity: 0.62; }
+
+/* --- checkpoints: one question, asked where it was taught --------------- */
+
+.ckpt {
+  margin: 20px 0 4px;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.022);
+}
+.ckpt-ok { border-left-color: var(--pass); }
+.ckpt-no { border-left-color: var(--fail); }
+
+.ckpt-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ckpt-prompt { margin: 0 0 10px; font-weight: 500; }
+
+.ckpt-options { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+/* The lesson body draws its own bullets on every `li`, and these are options,
+   not a list of points. */
+.lesson .md .ckpt-options > li::before { content: none; }
+.lesson .md .ckpt-options > li { padding: 0; }
+.ckpt-opt {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ckpt-opt:hover:not(:disabled) { border-color: var(--accent); }
+.ckpt-opt:disabled { cursor: default; }
+.ckpt-opt.is-picked { border-color: var(--accent); }
+.ckpt-opt.is-answer {
+  border-color: var(--pass);
+  background: rgba(52, 211, 153, 0.12);
+}
+.ckpt-opt.is-wrong {
+  border-color: var(--fail);
+  background: rgba(251, 113, 133, 0.11);
+}
+/* Reserved whether or not there's a tick, so options don't shift sideways
+   the moment one is chosen. */
+.ckpt-mark { display: inline-block; width: 1em; font-weight: 700; }
+.ckpt-opt.is-answer .ckpt-mark { color: var(--pass); }
+.ckpt-opt.is-wrong .ckpt-mark { color: var(--fail); }
+
+.ckpt-why {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* Visible to a screen reader, to nobody else. The diff's +/- markers are
+   punctuation that reads as nothing useful aloud. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

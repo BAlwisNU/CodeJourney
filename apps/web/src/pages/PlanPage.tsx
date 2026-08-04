@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { FlowNav } from '../components/FlowNav'
-import { InlineMarkdown, Markdown } from '../components/Markdown'
+import { Checkpoint } from '../components/lesson/Checkpoint'
+import { LessonBody } from '../components/lesson/LessonBody'
+import { InlineMarkdown } from '../components/Markdown'
 import { Parsons } from '../components/Parsons'
 import { api } from '../lib/api'
+import { parseBlocks, readingMinutes, toSections } from '../lib/lessonBlocks'
 import type { Exercise, Lesson, Parsons as ParsonsData, QuizGrade } from '../lib/types'
 
 /**
@@ -69,6 +72,26 @@ export function PlanPage() {
   const resultFor = (questionId: string) =>
     grade?.results.find((r) => r.question_id === questionId)
 
+  /**
+   * How many questions to ask inline, one per section, as you read.
+   *
+   * Positional: lessons are written in the order they teach, and the questions
+   * are written in the order of the lesson, so question 2 is about section 2.
+   * That holds across the curriculum because both come from the same author in
+   * the same pass -- and where it doesn't, an inline question is still a
+   * question about the lesson, which is the worst case.
+   *
+   * At least one is always kept back for the quiz at the end, so the page never
+   * loses its recap, and a lesson with no sub-headings simply gets none.
+   */
+  const sectionCount = lesson
+    ? toSections(parseBlocks(lesson.body_md)).filter((s) => s.heading).length
+    : 0
+  const questions = lesson?.questions ?? []
+  const inlineCount = Math.min(sectionCount, Math.max(0, questions.length - 1))
+  const inline = questions.slice(0, inlineCount)
+  const remaining = questions.slice(inlineCount)
+
   return (
     <div className="plan">
       <FlowNav current="plan" slug={slug} />
@@ -83,21 +106,37 @@ export function PlanPage() {
       {lesson ? (
         <>
           <section className="panel lesson">
-            <h2>{lesson.title}</h2>
-            {/* The body's own leading heading would repeat the title above. */}
-            <Markdown source={lesson.body_md.replace(/^##\s+.*\n/, '')} />
+            <div className="lesson-top">
+              <h2>{lesson.title}</h2>
+              <span className="lesson-time muted small">
+                {readingMinutes(parseBlocks(lesson.body_md))} min read
+              </span>
+            </div>
+            {/* LessonBody strips the body's own leading heading itself -- it
+                would repeat the title beside it. */}
+            <LessonBody
+              source={lesson.body_md}
+              checkpointFor={(n) =>
+                inline[n - 1] ? (
+                  <Checkpoint lessonId={lesson.id} question={inline[n - 1]} />
+                ) : null
+              }
+            />
           </section>
 
-          {lesson.questions.length > 0 && (
+          {remaining.length > 0 && (
             <section className="panel">
-              <h2>Quick check</h2>
+              <h2>{inline.length > 0 ? 'Before you go' : 'Quick check'}</h2>
               <p className="muted small">
-                Four questions, no marks, no time limit. Getting one wrong here
-                is cheaper than getting it wrong in the editor.
+                {remaining.length === 1
+                  ? 'One last question'
+                  : `${remaining.length} questions`}
+                , no marks, no time limit. Getting one wrong here is cheaper
+                than getting it wrong in the editor.
               </p>
 
               <ol className="quiz">
-                {lesson.questions.map((question) => {
+                {remaining.map((question) => {
                   const outcome = resultFor(question.id)
                   return (
                     <li key={question.id} className="quiz-q">
@@ -147,7 +186,7 @@ export function PlanPage() {
                           }
                         >
                           {outcome.correct ? '✓ ' : '✗ '}
-                          {outcome.explanation}
+                          <InlineMarkdown source={outcome.explanation} />
                         </p>
                       )}
                     </li>
@@ -160,7 +199,8 @@ export function PlanPage() {
                   className="primary"
                   onClick={submitQuiz}
                   disabled={
-                    busy || Object.keys(answers).length < lesson.questions.length
+                    busy ||
+                    remaining.some((q) => answers[q.id] === undefined)
                   }
                 >
                   {busy ? 'Checking…' : 'Check my answers'}

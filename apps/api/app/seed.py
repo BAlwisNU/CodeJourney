@@ -334,6 +334,15 @@ if quest["done"]:
 `<` and `<=` are not the same. If a quest expires on day 10 and today is day
 10, is it gone? Deciding exactly where your boundary sits is most of the work in
 problems like this — and it's where most bugs live.
+
+One character apart, and they disagree about exactly one day:
+
+```diff
+ for quest in quests:
+-    if quest["due_day"] < today:
++    if quest["due_day"] <= today:
+         expired.append(quest)
+```
 """,
 )
 
@@ -466,6 +475,16 @@ def seed(db: Session) -> None:
         db.flush()  # need the id for the questions
         for question in QUIZ:
             db.add(QuizQuestion(lesson_id=lesson.id, **question))
+    else:
+        # Refresh the teaching text on an existing database. Seeding otherwise
+        # only ever inserts, so an edit to the lesson would reach a fresh
+        # checkout and never a deployment that already has the row.
+        #
+        # Prose only. The questions are deliberately left alone: attempts point
+        # at question ids, and rewriting the options underneath an answer
+        # already recorded would silently change what a student was asked.
+        lesson.title = LESSON["title"]
+        lesson.body_md = LESSON["body_md"]
 
     # Parsons warm-up, attached to the themed exercise. The generic twin gets
     # the same lines with its own names -- both sides of a pair must get the

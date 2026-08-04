@@ -86,6 +86,11 @@ docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env \
   exec api python -m app.seed
 ```
 
+Run it again after any change to lesson or exercise content. Seeding is
+additive — it inserts what is missing and refreshes the lesson text, and it
+never deletes a student's work — so it is safe to repeat, but content edits do
+not reach a database that already exists until you do.
+
 **8. Point Vercel at it.** Project → Settings → Environment Variables:
 
 ```

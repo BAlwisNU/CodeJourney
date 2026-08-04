@@ -44,12 +44,61 @@ export type RunRequest = {
   source: string
   entrypoint: string
   tests: unknown[]
+  /**
+   * 'harness' grades a submission; 'snippet' just runs code and captures what
+   * it printed. Lesson pages use the second: those examples have no entrypoint
+   * and no tests, they are illustrations, and the interesting output is
+   * whatever `print` produced.
+   */
+  mode?: 'harness' | 'snippet'
+  /**
+   * Code to run before `source`, with its output discarded.
+   *
+   * Lesson snippets read as a continuous session -- the second block loops over
+   * a list the first one defined. Run in isolation it raises NameError, which
+   * teaches the reader nothing except that the Run button is broken. The
+   * earlier blocks are replayed silently so the visible output belongs to the
+   * block that was actually clicked.
+   */
+  prelude?: string
 }
 
 self.onmessage = async (event: MessageEvent<RunRequest>) => {
-  const { id, source, entrypoint, tests } = event.data
+  const { id, source, entrypoint, tests, mode } = event.data
   try {
     const py = await boot()
+
+    if (mode === 'snippet') {
+      py.globals.set('__cj_snippet', source)
+      py.globals.set('__cj_prelude', event.data.prelude ?? '')
+      // stdout and stderr are redirected inside Python rather than hooked from
+      // JS, so a snippet that raises still reports whatever it printed first.
+      const out = py.runPython(`
+import contextlib, io, json, traceback
+__cj_env = {"__name__": "__main__"}
+__cj_buf = io.StringIO()
+__cj_err = None
+try:
+    # The prelude shares one namespace with the snippet, so names defined
+    # earlier in the lesson are in scope. Its output goes to a bin: a reader
+    # clicked Run on one block and expects to see that block's result.
+    if __cj_prelude.strip():
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            try:
+                exec(__cj_prelude, __cj_env)
+            except BaseException:
+                # A prelude that fails is not this block's problem. Carry on and
+                # let the snippet raise on its own terms if it needs to.
+                pass
+    with contextlib.redirect_stdout(__cj_buf), contextlib.redirect_stderr(__cj_buf):
+        exec(__cj_snippet, __cj_env)
+except BaseException as exc:
+    __cj_err = "".join(traceback.format_exception_only(type(exc), exc)).strip()
+json.dumps({"stdout": __cj_buf.getvalue(), "error": __cj_err})
+`)
+      self.postMessage({ id, ok: true, result: JSON.parse(out as string) })
+      return
+    }
 
     // Pass data in via globals rather than string-interpolating it into Python.
     // Interpolating student code into a Python source string would break the

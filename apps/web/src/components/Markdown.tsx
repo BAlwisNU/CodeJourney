@@ -48,7 +48,7 @@ function render(source: string): ReactNode[] {
       const python = lang === 'python' || lang === 'py'
       out.push(
         <pre key={key++} className="md-code" data-lang={python ? 'python' : lang || undefined}>
-          <code>{python ? highlight(code) : code}</code>
+          <code>{python ? highlightPython(code) : code}</code>
         </pre>
       )
       continue
@@ -152,7 +152,7 @@ const PY_TOKENS = new RegExp(
 
 const TOKEN_CLASS = ['tok-comment', 'tok-str', 'tok-num', 'tok-kw', 'tok-fn']
 
-function highlight(code: string): ReactNode[] {
+export function highlightPython(code: string): ReactNode[] {
   const out: ReactNode[] = []
   let last = 0
   let key = 0

@@ -9,3 +9,6 @@ dist/
 
 # Production secrets for the deployment stack.
 deploy/.env
+
+# TypeScript incremental build cache
+*.tsbuildinfo

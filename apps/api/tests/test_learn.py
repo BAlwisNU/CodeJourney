@@ -119,6 +119,55 @@ def test_quiz_is_not_a_gate(client):
     assert submit(client, headers, exercise, session_id, CORRECT).json()["passed"]
 
 
+def test_quiz_grades_one_question_on_its_own(client):
+    """The checkpoints ask a single question in the middle of the lesson.
+
+    Nothing about the endpoint required all four at once, but nothing pinned
+    that down either, and the inline checks are unusable if it ever does.
+    """
+    headers = login(client)
+    lesson = client.get("/learn/lessons/lists", headers=headers).json()
+    first = lesson["questions"][0]
+
+    grade = client.post(
+        f"/learn/lessons/{lesson['id']}/quiz",
+        headers=headers,
+        json={"answers": [{"question_id": first["id"], "chosen_index": 0}]},
+    ).json()
+
+    assert len(grade["results"]) == 1
+    assert grade["results"][0]["question_id"] == first["id"]
+    assert grade["results"][0]["explanation"]
+
+
+def test_reseeding_refreshes_the_lesson_but_keeps_the_questions(client):
+    """Seeding an existing database must update the teaching text.
+
+    It only ever inserted before, so an edit to a lesson reached a fresh
+    checkout and never a deployment. The questions deliberately stay put:
+    attempts point at question ids, and rewriting the options underneath an
+    answer already recorded would change what a student was asked.
+    """
+    from sqlalchemy import select
+
+    from app.models import Lesson
+    from app.seed import seed
+
+    with client.session_factory() as db:
+        lesson = db.scalar(select(Lesson).where(Lesson.slug == "lists-filtering"))
+        before = [q.id for q in lesson.questions]
+        lesson.body_md = "## Stale copy"
+        db.commit()
+
+        seed(db)
+        db.commit()
+
+        db.refresh(lesson)
+        assert lesson.body_md != "## Stale copy"
+        assert "```diff" in lesson.body_md
+        assert [q.id for q in lesson.questions] == before
+
+
 def test_missing_lesson_returns_null_not_an_error(client):
     """Unwritten content degrades to 'straight to the editor'."""
     headers = login(client)

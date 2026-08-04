@@ -93,6 +93,54 @@ export function runInBrowser(
 }
 
 /** Start loading Pyodide early, so the first Run isn't a 10MB wait. */
+export type SnippetResult = { stdout: string; error: string | null }
+
+/**
+ * Run a lesson example and return what it printed.
+ *
+ * Same worker and the same five-second kill as a graded run, because the
+ * failure mode is identical: an example with a typo in it can loop forever just
+ * as easily as a student's code can.
+ *
+ * Errors are returned rather than thrown -- a snippet that raises is a
+ * legitimate thing for a lesson to demonstrate, and the page shows the message
+ * the way it shows any other output.
+ */
+export function runSnippet(
+  source: string,
+  prelude = ''
+): Promise<SnippetResult> {
+  if (!worker) worker = spawn()
+  const active = worker
+  const id = String(nextId++)
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      active.removeEventListener('message', onMessage)
+      active.terminate()
+      worker = null
+      resolve({
+        stdout: '',
+        error: `Still running after ${RUN_TIMEOUT_MS / 1000} seconds — stopped.`,
+      })
+    }, RUN_TIMEOUT_MS)
+
+    function onMessage(event: MessageEvent) {
+      if (event.data?.id !== id) return
+      clearTimeout(timer)
+      active.removeEventListener('message', onMessage)
+      resolve(
+        event.data.ok
+          ? (event.data.result as SnippetResult)
+          : { stdout: '', error: String(event.data.error) }
+      )
+    }
+
+    active.addEventListener('message', onMessage)
+    active.postMessage({ id, source, prelude, entrypoint: '', tests: [], mode: 'snippet' })
+  })
+}
+
 export function warmUp(): void {
   if (!worker) worker = spawn()
 }

@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from typing import Literal
 
+from .names import normalise_display_name
 from .models import (
     ONBOARDING_EXPERIENCE,
     Concept,
@@ -47,8 +48,8 @@ class RegisterRequest(BaseModel):
 
     @field_validator("display_name")
     @classmethod
-    def strip_name(cls, value: str) -> str:
-        cleaned = value.strip()
+    def tidy_name(cls, value: str) -> str:
+        cleaned = normalise_display_name(value)
         if not cleaned:
             raise ValueError("Please enter a name we can call you.")
         return cleaned

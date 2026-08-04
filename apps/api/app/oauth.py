@@ -44,6 +44,7 @@ import httpx
 import jwt
 
 from .config import get_settings
+from .names import normalise_display_name
 
 
 @dataclass(frozen=True)
@@ -520,8 +521,10 @@ def profile_from(provider: Provider, claims: dict) -> Profile:
     name = str(claims.get("name") or "").strip()
     if not name:
         # A display name is required by the User model, and "there" is a worse
-        # greeting than the local part of their address.
+        # greeting than the local part of their address. That local part is
+        # almost always lowercase, which is exactly the case normalising fixes.
         name = email.split("@", 1)[0]
+    name = normalise_display_name(name)
 
     return Profile(
         subject=subject,

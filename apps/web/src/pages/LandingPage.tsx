@@ -8,6 +8,7 @@ import { ScrollWorld } from '../components/ScrollWorld'
 import { Tilt } from '../components/Tilt'
 import { TopicExplorer } from '../components/TopicExplorer'
 import { api, token } from '../lib/api'
+import { demoMarker, endDemo } from '../lib/demo'
 import { useRevealOnScroll } from '../lib/motion'
 
 /**
@@ -89,6 +90,13 @@ const FEATURES = [
 
 export function LandingPage() {
   const navigate = useNavigate()
+
+  // Reaching the front door ends a lesson demo, however you got here -- the
+  // exit tab, the back button, or typing the address. Done before the first
+  // render rather than in an effect, so the nav never briefly offers "Keep
+  // going" for an account that is about to be discarded.
+  if (token.get() && demoMarker.get() === 'lesson') endDemo()
+
   const signedIn = Boolean(token.get())
   const [openWorld, setOpenWorld] = useState<string | null>('python')
   const [demoBusy, setDemoBusy] = useState<'lesson' | 'account' | null>(null)
@@ -111,6 +119,8 @@ export function LandingPage() {
     try {
       const { access_token } = await api.startDemo(kind === 'account')
       token.set(access_token)
+      // After token.set, which clears any previous marker.
+      demoMarker.set(kind)
       // The lesson demo starts at Plan, which is step 1 of its flow -- the
       // lesson, the quiz and the warm-up come before an empty editor. Dropping
       // someone straight into the editor skips the part that explains what

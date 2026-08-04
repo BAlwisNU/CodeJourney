@@ -34,11 +34,27 @@ const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 export const API_BASE = BASE
 
 const TOKEN_KEY = 'codejourney.token'
+/**
+ * Which demo button (if any) produced the current token. Written by the landing
+ * page, read synchronously so it can decide what to show without waiting on the
+ * server -- see lib/demo.ts.
+ */
+export const DEMO_KIND_KEY = 'codejourney.demo'
 
 export const token = {
   get: () => localStorage.getItem(TOKEN_KEY),
-  set: (value: string) => localStorage.setItem(TOKEN_KEY, value),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  set: (value: string) => {
+    // Clearing the demo marker here, rather than at each call site, is what
+    // makes it safe: every route that signs somebody in goes through this
+    // function, so a real login can never inherit a stale "this is a demo"
+    // flag from an earlier visit. The demo path re-sets it immediately after.
+    localStorage.removeItem(DEMO_KIND_KEY)
+    localStorage.setItem(TOKEN_KEY, value)
+  },
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(DEMO_KIND_KEY)
+  },
 }
 
 export class ApiError extends Error {

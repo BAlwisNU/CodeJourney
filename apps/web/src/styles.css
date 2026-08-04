@@ -2524,3 +2524,13 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
   border-style: dashed;
   font-size: 0.9rem;
 }
+
+/* The exit is a <button> so it can end the demo, not just navigate. Reset the
+   button chrome so it sits flush with the flow steps beside it. */
+.flow-exit > button {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--muted);
+}

@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
-import { useDemoKind } from '../lib/demo'
+import { endDemo, useDemoKind } from '../lib/demo'
 
 /**
  * Connect → Plan → Create → Test and improve → Reflect.
@@ -38,6 +38,7 @@ export function FlowNav({
   // step you cannot take is a worse answer than a flow that simply starts
   // where you started. The account demo keeps it, because wandering around is
   // the entire point of that one.
+  const navigate = useNavigate()
   const lessonDemo = useDemoKind() === 'lesson'
   const stages = lessonDemo
     ? STAGES.filter((stage) => stage.key !== 'connect')
@@ -90,7 +91,17 @@ export function FlowNav({
             because it is not a stage of the cycle. */}
         {lessonDemo && (
           <li className="flow-step flow-exit">
-            <Link to="/">
+            {/* A button, not a link: leaving throws the throwaway account away
+                as well as navigating. Trying a sample lesson is not signing in,
+                so nobody should arrive back at the home page apparently logged
+                into an account they never made. */}
+            <button
+              type="button"
+              onClick={() => {
+                endDemo()
+                navigate('/', { replace: true })
+              }}
+            >
               <span className="flow-n" aria-hidden>
                 &larr;
               </span>
@@ -98,7 +109,7 @@ export function FlowNav({
                 <strong>Leave the demo</strong>
                 <span className="flow-sub">Back to the home page</span>
               </span>
-            </Link>
+            </button>
           </li>
         )}
       </ol>

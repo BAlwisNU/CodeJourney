@@ -335,8 +335,10 @@ def test_missing_email_is_a_clear_error():
 
 
 def test_missing_name_falls_back_to_the_local_part():
+    """And capitalises it -- a local part is nearly always lowercase, which is
+    exactly the case app/names.py exists to fix."""
     profile = profile_from(providers()["google"], {"sub": "9", "email": "kai@b.com"})
-    assert profile.display_name == "kai"
+    assert profile.display_name == "Kai"
 
 
 # --- the providers added later ---------------------------------------------
@@ -506,13 +508,13 @@ def test_apple_reads_the_display_name_sent_once_in_the_callback_body():
 
     # Later sign-ins carry no name; the address's local part stands in.
     returning = _apple_profile(providers()["apple"], {"id_token": id_token}, {})
-    assert returning.display_name == "kai"
+    assert returning.display_name == "Kai"
 
     # A mangled name payload must not fail the sign-in.
     broken = _apple_profile(
         providers()["apple"], {"id_token": id_token}, {"user": "{not json"}
     )
-    assert broken.display_name == "kai"
+    assert broken.display_name == "Kai"
 
 
 def test_apple_posts_its_callback_instead_of_redirecting(client):

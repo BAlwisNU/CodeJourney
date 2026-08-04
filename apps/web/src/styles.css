@@ -3135,42 +3135,169 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
 
 /* --- the list lab: the filter loop, running where you can watch it ------ */
 
-.lab-head { margin-bottom: 16px; }
-.lab-head h2 { margin-bottom: 4px; }
+.lab {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(124, 156, 255, 0.07), transparent 60%),
+    radial-gradient(100% 80% at 100% 0%, rgba(167, 139, 250, 0.06), transparent 55%),
+    var(--surface);
+}
+/* A hairline of the brand gradient along the top edge. Reads as "this panel is
+   the interactive one" without a heavy border or a coloured background. */
+.lab::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--grad);
+  opacity: 0.8;
+}
 
-.lab-grid { display: grid; gap: 18px; align-items: start; }
-@media (min-width: 900px) {
-  .lab-grid { grid-template-columns: minmax(0, 300px) minmax(0, 1fr); }
+.lab-head { margin-bottom: 20px; }
+.lab-head h2 { margin: 8px 0 4px; }
+
+.lab-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid rgba(124, 156, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(124, 156, 255, 0.08);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.lab-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(124, 156, 255, 0.18);
+  animation: lab-blink 2.4s ease-in-out infinite;
+}
+@keyframes lab-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.lab-grid { display: grid; gap: 20px; align-items: start; }
+@media (min-width: 940px) {
+  /* The narration moves under the code it describes, which balances the two
+     columns and puts the sentence next to the line that produced it. DOM order
+     stays code -> stage -> note, so the single-column stack below this width
+     reads in the right order without any reordering. */
+  .lab-grid {
+    grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+    grid-template-areas: 'code stage' 'note stage';
+    grid-template-rows: auto 1fr;
+  }
+  .lab-pane { grid-area: code; }
+  .lab-stage { grid-area: stage; }
+  .lab-note { grid-area: note; margin: 0; }
+}
+
+/* --- the code, as a small window ------------------------------------- */
+
+.lab-pane {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.lab-pane-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+.lab-pane-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lab-pane-tag {
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: rgba(124, 156, 255, 0.12);
+  color: var(--accent);
+  font-size: 10.5px;
 }
 
 .lab-code {
   margin: 0;
-  padding: 12px 0;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 10px 0;
+  background: none;
+  border: none;
   font-size: 0.82rem;
-  line-height: 1.85;
+  line-height: 1.95;
   overflow-x: auto;
 }
-.lab-line { display: block; padding: 0 14px; border-left: 2px solid transparent; }
-/* The executing line, not a selection -- it moves on its own during Play. */
+.lab-line {
+  display: block;
+  padding-right: 12px;
+  color: var(--muted);
+  transition: color 0.25s, background 0.25s;
+}
+/* The executing line. A left bar plus a gutter caret, so which line is running
+   survives being read on a bad screen or in greyscale. */
 .lab-line.is-on {
-  border-left-color: var(--accent);
-  background: rgba(124, 156, 255, 0.1);
   color: var(--text);
+  background: linear-gradient(
+    90deg,
+    rgba(124, 156, 255, 0.16),
+    rgba(124, 156, 255, 0.02)
+  );
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.is-still .lab-line { transition: none; }
+.lab-caret {
+  display: inline-block;
+  width: 1.1em;
+  padding-left: 6px;
+  color: var(--accent);
 }
 .lab-lineno {
   display: inline-block;
-  width: 1.6em;
+  width: 1.7em;
   color: var(--muted);
-  opacity: 0.55;
+  opacity: 0.5;
   user-select: none;
+  font-variant-numeric: tabular-nums;
 }
 
-.lab-label { margin: 0 0 8px; font-size: 0.85rem; color: var(--text); }
-.lab-label + .lab-row { margin-bottom: 18px; }
-.lab-hint { font-weight: 400; }
+/* --- the shelves -------------------------------------------------------- */
+
+.lab-shelf {
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.018);
+}
+/* The collector is where things arrive, so it reads as a tray rather than
+   another list. */
+.lab-shelf-out { border-style: dashed; background: rgba(255, 255, 255, 0.01); }
+
+.lab-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.lab-var {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.lab-hint { font-size: 0.76rem; color: var(--muted); }
+.lab-hint code {
+  background: rgba(124, 156, 255, 0.1);
+  border: none;
+  padding: 1px 4px;
+  color: var(--accent);
+}
 
 .lab-row {
   list-style: none;
@@ -3178,104 +3305,259 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
   padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 .lab-row > li { display: flex; flex-direction: column; align-items: center; }
 
 .lab-box {
+  position: relative;
   display: block;
-  min-width: 108px;
-  padding: 10px 12px;
+  min-width: 122px;
+  padding: 12px 13px 11px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
+  border-radius: 11px;
+  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
   color: var(--text);
   font: inherit;
   font-size: 0.8rem;
   text-align: left;
   cursor: pointer;
-  transition: transform 0.28s, border-color 0.28s, background 0.28s, opacity 0.28s;
+  /* A little overshoot on the way up -- the item is being picked up, and a
+     linear ease makes that read as a redraw rather than a movement. */
+  transition:
+    transform 0.34s cubic-bezier(0.34, 1.4, 0.64, 1),
+    border-color 0.28s, background 0.28s, opacity 0.28s, box-shadow 0.28s;
 }
 .is-still .lab-box { transition: none; }
-.lab-value { display: block; }
-.lab-len { display: block; margin-top: 3px; font-size: 0.7rem; color: var(--muted); }
-.lab-index {
-  margin-top: 5px;
-  font-size: 0.72rem;
+.lab-box:hover { border-color: var(--border-lit); }
+
+.lab-box { min-height: 74px; }
+.lab-value { display: block; padding-right: 20px; }
+/* Bottom-left, opposite the stamp. Both were pinned right, and on a card this
+   short they sat on top of each other. */
+.lab-len {
+  position: absolute;
+  left: 13px;
+  bottom: 9px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.64rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+.lab-stamp {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.lab-index {
+  margin-top: 7px;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 
-/* The four states of an item, as the loop sees it.
-   Kept and skipped are given equal weight in opposite colours: which ones the
-   test rejected is half of what the loop is doing, and dimming them to near
-   invisibility made a decided item look like one not reached yet. */
-.lab-box.is-waiting { opacity: 0.5; }
+/* The four states of an item, as the loop sees it. Kept and skipped carry
+   equal weight in opposite colours -- which ones the test rejected is half of
+   what the loop is doing. */
+.lab-box.is-waiting { opacity: 0.45; }
 .lab-box.is-current {
   border-color: var(--accent);
-  background: rgba(124, 156, 255, 0.14);
-  transform: translateY(-4px);
-  box-shadow: var(--glow);
+  background: linear-gradient(180deg, rgba(124, 156, 255, 0.2), rgba(124, 156, 255, 0.07));
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 0 0 1px rgba(124, 156, 255, 0.4), 0 14px 30px -12px rgba(124, 156, 255, 0.7);
 }
-.lab-box.is-kept { border-color: var(--pass); background: rgba(52, 211, 153, 0.12); }
+.lab-box.is-kept {
+  border-color: rgba(52, 211, 153, 0.55);
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.16), rgba(52, 211, 153, 0.05));
+}
+.lab-box.is-kept .lab-stamp { color: var(--pass); }
 .lab-box.is-skipped {
-  border-color: rgba(251, 113, 133, 0.5);
-  background: rgba(251, 113, 133, 0.08);
-  opacity: 0.8;
+  border-color: rgba(251, 113, 133, 0.45);
+  background: linear-gradient(180deg, rgba(251, 113, 133, 0.11), rgba(251, 113, 133, 0.03));
+  opacity: 0.85;
 }
-.lab-box.is-skipped .lab-value { text-decoration: line-through; opacity: 0.75; }
+.lab-box.is-skipped .lab-stamp { color: var(--fail); }
+.lab-box.is-skipped .lab-value { text-decoration: line-through; opacity: 0.7; }
 
-.lab-out { min-height: 46px; align-items: center; }
-.lab-empty { list-style: none; }
+/* Arriving in the collector is the moment worth animating -- it is the append
+   actually happening. */
+.lab-box.is-landed { animation: lab-land 0.4s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.is-still .lab-box.is-landed { animation: none; }
+@keyframes lab-land {
+  from { opacity: 0; transform: translateY(-16px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+
+.lab-out { min-height: 44px; align-items: center; }
+.lab-empty {
+  list-style: none;
+  font-size: 0.76rem;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* The step from one shelf to the other. */
+.lab-flow { display: flex; justify-content: center; padding: 9px 0; }
+.lab-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.7rem;
+  color: var(--muted);
+  opacity: 0.5;
+  transition: opacity 0.25s, color 0.25s, border-color 0.25s;
+}
+.lab-arrow::before { content: '↓'; }
+.lab-arrow.is-on {
+  opacity: 1;
+  color: var(--pass);
+  border-color: rgba(52, 211, 153, 0.5);
+  background: rgba(52, 211, 153, 0.1);
+}
+.is-still .lab-arrow { transition: none; }
+
+/* --- narration ---------------------------------------------------------- */
 
 .lab-note {
-  margin: 16px 0 0;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  font-size: 0.88rem;
-  line-height: 1.6;
-  min-height: 42px;
-}
-.lab-verdict {
-  display: inline-block;
-  margin-right: 8px;
-  padding: 1px 7px;
-  border-radius: 4px;
-  font-size: 0.76rem;
-  font-weight: 600;
-}
-.lab-verdict.ok { color: var(--pass); background: rgba(52, 211, 153, 0.15); }
-.lab-verdict.no { color: var(--fail); background: rgba(251, 113, 133, 0.15); }
-
-.lab-controls {
-  margin-top: 14px;
   display: flex;
   flex-wrap: wrap;
-  gap: 14px 22px;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 12px 15px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  min-height: 46px;
+}
+.lab-note-text { flex: 1 1 240px; }
+.lab-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.lab-verdict.ok { color: var(--pass); background: rgba(52, 211, 153, 0.14); box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.3); }
+.lab-verdict.no { color: var(--fail); background: rgba(251, 113, 133, 0.14); box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.3); }
+
+/* --- the scrubber ------------------------------------------------------- */
+
+.lab-rail {
+  list-style: none;
+  display: flex;
+  gap: 4px;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.lab-rail > li { flex: 1 1 0; }
+.lab-rail button {
+  display: block;
+  width: 100%;
+  height: 5px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background 0.25s, transform 0.25s;
+}
+.lab-rail button:hover { transform: scaleY(1.6); }
+.lab-rail button.is-past { background: rgba(124, 156, 255, 0.45); }
+.lab-rail button.is-at { background: var(--accent); transform: scaleY(1.8); }
+.is-still .lab-rail button { transition: none; }
+
+/* --- controls ----------------------------------------------------------- */
+
+.lab-controls {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
   align-items: center;
   justify-content: space-between;
 }
 .lab-transport, .lab-tune { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.lab-tune { font-size: 0.82rem; color: var(--muted); }
-.lab-tune label { display: flex; gap: 8px; align-items: center; }
 
-.lab-transport button, .lab-op {
-  padding: 6px 12px;
+.lab-btn {
+  padding: 7px 14px;
   border: 1px solid var(--border);
-  border-radius: 7px;
-  background: transparent;
+  border-radius: 9px;
+  background: var(--surface-2);
   color: var(--text);
   font: inherit;
   font-size: 0.8rem;
   cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.12s;
 }
-.lab-transport button:hover:not(:disabled), .lab-op:hover { border-color: var(--border-lit); }
-.lab-transport button:disabled { opacity: 0.4; cursor: default; }
-.lab-play { color: var(--accent) !important; border-color: rgba(124, 156, 255, 0.4) !important; }
-.lab-op.is-on { border-color: var(--accent); color: var(--accent); }
-.lab-ops { display: inline-flex; gap: 4px; }
-.lab-slider input { width: 120px; }
-.lab-slider b { color: var(--text); font-variant-numeric: tabular-nums; }
-.lab-progress { font-variant-numeric: tabular-nums; }
+.lab-btn:hover:not(:disabled) { border-color: var(--border-lit); background: var(--surface-3); }
+.lab-btn:active:not(:disabled) { transform: translateY(1px); }
+.lab-btn:disabled { opacity: 0.35; cursor: default; }
+.lab-icon { padding: 7px 11px; }
+.lab-ghost { background: transparent; }
+.lab-play {
+  border-color: transparent;
+  background: var(--grad);
+  color: #0d1017;
+  font-weight: 600;
+  box-shadow: 0 6px 18px -8px rgba(124, 156, 255, 0.9);
+}
+.lab-play:hover:not(:disabled) { border-color: transparent; background: var(--grad); filter: brightness(1.08); }
+
+.lab-step-count { margin-left: 4px; font-size: 0.8rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.lab-step-count i { color: var(--muted); font-style: normal; }
+
+.lab-tune { font-size: 0.8rem; color: var(--muted); }
+.lab-tune-label { white-space: nowrap; }
+
+.lab-seg {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+}
+.lab-seg button {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.lab-seg button.is-on { background: var(--accent); color: #0d1017; font-weight: 600; }
+.is-still .lab-seg button { transition: none; }
+
+.lab-slider { display: flex; align-items: center; gap: 10px; }
+.lab-slider input {
+  width: 128px;
+  accent-color: var(--accent);
+}
+.lab-slider b {
+  min-width: 22px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

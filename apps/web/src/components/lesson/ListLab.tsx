@@ -29,6 +29,12 @@ import {
  *
  * The items come from the lesson's own code block, so the boxes hold the same
  * quests the reader has just been looking at.
+ *
+ * Motion is load-bearing here rather than decoration -- an item *travelling*
+ * into the collector is the thing being taught -- so `prefers-reduced-motion`
+ * turns transitions off but never removes a state. Every colour is paired with
+ * a shape or a mark for the same reason: kept and skipped must not be
+ * distinguishable by hue alone.
  */
 
 const TICK_MS = 950
@@ -76,100 +82,162 @@ export function ListLab({ items, name }: { items: string[]; name: string }) {
   }
 
   return (
-    <section className="panel lab">
-      <div className="lab-head">
+    <section className={reduced ? 'panel lab is-still' : 'panel lab'}>
+      <header className="lab-head">
+        <span className="lab-badge">
+          <i aria-hidden />
+          Interactive
+        </span>
         <h2>Watch it run</h2>
         <p className="muted small">
           The same loop, one line at a time. Change the test and it re-runs —
           the point is to disagree with it and see what happens.
         </p>
-      </div>
+      </header>
 
       <div className="lab-grid">
-        <pre className="lab-code" aria-label="the loop being traced">
-          {lines.map((line, i) => (
-            <span key={i} className={i === step.line ? 'lab-line is-on' : 'lab-line'}>
-              <span className="lab-lineno" aria-hidden>
-                {i + 1}
+        <div className="lab-pane">
+          <div className="lab-pane-bar">
+            <span className="lab-pane-title">the loop</span>
+            <span className="lab-pane-tag">python</span>
+          </div>
+          <pre className="lab-code">
+            {lines.map((line, i) => (
+              <span
+                key={i}
+                className={i === step.line ? 'lab-line is-on' : 'lab-line'}
+              >
+                <span className="lab-caret" aria-hidden>
+                  {i === step.line ? '▸' : ''}
+                </span>
+                <span className="lab-lineno" aria-hidden>
+                  {i + 1}
+                </span>
+                {line || ' '}
               </span>
-              {line || ' '}
-            </span>
-          ))}
-        </pre>
+            ))}
+          </pre>
+        </div>
 
         <div className="lab-stage">
-          <p className="lab-label">
-            {name}
-            {/* Clicking a box is the other half of the lesson: positions are
-                things you can point at, and the first one is 0. */}
-            <span className="lab-hint muted small">
-              {probe === null
-                ? ' — click a box to look inside it'
-                : ` — ${name}[${probe}] is "${items[probe]}"`}
-            </span>
-          </p>
+          <div className="lab-shelf">
+            <p className="lab-label">
+              <span className="lab-var">{name}</span>
+              <span className="lab-hint">
+                {probe === null ? (
+                  'click a box to look inside'
+                ) : (
+                  <>
+                    <code>
+                      {name}[{probe}]
+                    </code>{' '}
+                    is “{items[probe]}”
+                  </>
+                )}
+              </span>
+            </p>
 
-          <ul className={reduced ? 'lab-row is-still' : 'lab-row'}>
-            {items.map((item, index) => (
-              <li key={index}>
-                <button
-                  type="button"
-                  className={`lab-box is-${stateOf(index)}`}
-                  onClick={() => setProbe(probe === index ? null : index)}
-                  aria-pressed={probe === index}
-                >
-                  <span className="lab-value">{item}</span>
-                  <span className="lab-len" aria-hidden>
-                    {item.length} chars
-                  </span>
-                </button>
-                <span className="lab-index" aria-hidden>
-                  {index}
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          <p className="lab-label">
-            short_ones
-            <span className="lab-hint muted small">
-              {' — '}
-              {step.collected.length} item
-              {step.collected.length === 1 ? '' : 's'}
-            </span>
-          </p>
-          <ul className={reduced ? 'lab-row lab-out is-still' : 'lab-row lab-out'}>
-            {step.collected.length === 0 ? (
-              <li className="lab-empty muted small">empty for now</li>
-            ) : (
-              step.collected.map((index) => (
+            <ul className="lab-row">
+              {items.map((item, index) => (
                 <li key={index}>
-                  <span className="lab-box is-kept">
-                    <span className="lab-value">{items[index]}</span>
+                  <button
+                    type="button"
+                    className={`lab-box is-${stateOf(index)}`}
+                    onClick={() => setProbe(probe === index ? null : index)}
+                    aria-pressed={probe === index}
+                  >
+                    {/* Paired with the colour so the two decided states are
+                        never distinguishable by hue alone. */}
+                    <span className="lab-stamp" aria-hidden>
+                      {stateOf(index) === 'kept'
+                        ? '✓'
+                        : stateOf(index) === 'skipped'
+                          ? '✕'
+                          : ''}
+                    </span>
+                    <span className="lab-value">{item}</span>
+                    <span className="lab-len" aria-hidden>
+                      len {item.length}
+                    </span>
+                  </button>
+                  <span className="lab-index" aria-hidden>
+                    {index}
                   </span>
                 </li>
-              ))
-            )}
-          </ul>
+              ))}
+            </ul>
+          </div>
+
+          <div className="lab-flow" aria-hidden>
+            <span className={step.line === 3 ? 'lab-arrow is-on' : 'lab-arrow'}>
+              append
+            </span>
+          </div>
+
+          <div className="lab-shelf lab-shelf-out">
+            <p className="lab-label">
+              <span className="lab-var">short_ones</span>
+              <span className="lab-hint">
+                {step.collected.length} item
+                {step.collected.length === 1 ? '' : 's'}
+              </span>
+            </p>
+            <ul className="lab-row lab-out">
+              {step.collected.length === 0 ? (
+                <li className="lab-empty">nothing collected yet</li>
+              ) : (
+                step.collected.map((index) => (
+                  <li key={index}>
+                    <span className="lab-box is-kept is-landed">
+                      <span className="lab-stamp" aria-hidden>
+                        ✓
+                      </span>
+                      <span className="lab-value">{items[index]}</span>
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
         </div>
+
+        {/* aria-live so the narration is read out as it changes -- it carries
+            the actual explanation, and the boxes beside it are decoration to
+            anyone using a screen reader. */}
+        <p className="lab-note" aria-live="polite">
+          {step.test !== null && (
+            <span className={step.test ? 'lab-verdict ok' : 'lab-verdict no'}>
+              {step.test ? '✓ True' : '✕ False'}
+            </span>
+          )}
+          <span className="lab-note-text">{step.note}</span>
+        </p>
       </div>
 
-      {/* aria-live so the narration is read out as it changes -- it carries the
-          actual explanation, and the boxes beside it are decoration to anyone
-          using a screen reader. */}
-      <p className="lab-note" aria-live="polite">
-        {step.test !== null && (
-          <span className={step.test ? 'lab-verdict ok' : 'lab-verdict no'}>
-            {step.test ? 'True' : 'False'}
-          </span>
-        )}
-        {step.note}
-      </p>
+      {/* A scrubber, not a readout: the run is short enough that jumping back
+          to the step you half-followed is the natural thing to want. */}
+      <ol className="lab-rail">
+        {trace.map((_, i) => (
+          <li key={i}>
+            <button
+              type="button"
+              className={i === at ? 'is-at' : i < at ? 'is-past' : ''}
+              onClick={() => {
+                setPlaying(false)
+                setAt(i)
+              }}
+              aria-label={`step ${i + 1} of ${trace.length}`}
+              aria-current={i === at}
+            />
+          </li>
+        ))}
+      </ol>
 
       <div className="lab-controls">
         <div className="lab-transport">
           <button
             type="button"
+            className="lab-btn lab-icon"
             onClick={() => {
               setPlaying(false)
               setAt((n) => Math.max(0, n - 1))
@@ -181,6 +249,7 @@ export function ListLab({ items, name }: { items: string[]; name: string }) {
           </button>
           <button
             type="button"
+            className="lab-btn"
             onClick={() => {
               setPlaying(false)
               setAt((n) => Math.min(trace.length - 1, n + 1))
@@ -191,13 +260,14 @@ export function ListLab({ items, name }: { items: string[]; name: string }) {
           </button>
           <button
             type="button"
-            className="lab-play"
+            className="lab-btn lab-play"
             onClick={() => (last ? (setAt(0), setPlaying(true)) : setPlaying(!playing))}
           >
             {playing ? '❚❚ Pause' : last ? '↻ Run again' : '▶ Play'}
           </button>
           <button
             type="button"
+            className="lab-btn lab-ghost"
             onClick={() => {
               setPlaying(false)
               setAt(0)
@@ -206,28 +276,27 @@ export function ListLab({ items, name }: { items: string[]; name: string }) {
           >
             Reset
           </button>
-          <span className="lab-progress muted small">
-            {at + 1} / {trace.length}
+          <span className="lab-step-count">
+            {at + 1}
+            <i>/{trace.length}</i>
           </span>
         </div>
 
         <div className="lab-tune">
-          <label>
-            keep when length is
-            <span className="lab-ops">
-              {(['<', '<='] as Comparison[]).map((choice) => (
-                <button
-                  key={choice}
-                  type="button"
-                  className={op === choice ? 'lab-op is-on' : 'lab-op'}
-                  onClick={() => retune(() => setOp(choice))}
-                  aria-pressed={op === choice}
-                >
-                  {choice}
-                </button>
-              ))}
-            </span>
-          </label>
+          <span className="lab-tune-label">keep when length is</span>
+          <span className="lab-seg" data-on={op}>
+            {(['<', '<='] as Comparison[]).map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                className={op === choice ? 'is-on' : undefined}
+                onClick={() => retune(() => setOp(choice))}
+                aria-pressed={op === choice}
+              >
+                {choice}
+              </button>
+            ))}
+          </span>
           <label className="lab-slider">
             <input
               type="range"

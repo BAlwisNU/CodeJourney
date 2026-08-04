@@ -88,12 +88,15 @@ export function FlowNav({
           )
         })}
 
-        {/* The lesson demo's way out. Connect is gone for these visitors, so
-            without this the flow has no exit at all -- and the place to send
-            them is the page they came from, not a dashboard belonging to an
-            account they never made. Marked with an arrow rather than a number
-            because it is not a stage of the cycle. */}
-        {lessonDemo && (
+        {/* A way out, always, and marked with an arrow rather than a number
+            because it is not a stage of the cycle.
+            
+            The stages describe where you are inside a lesson; none of them says
+            "I'm done here for now". Connect happens to lead to the dashboard,
+            but "Pick a project" does not read as an exit, and a demo has no
+            Connect at all -- so each gets a labelled way out, to the place that
+            makes sense for them. */}
+        {lessonDemo ? (
           <li className="flow-step flow-exit">
             {/* A button, not a link: leaving throws the throwaway account away
                 as well as navigating. Trying a sample lesson is not signing in,
@@ -114,6 +117,21 @@ export function FlowNav({
                 <span className="flow-sub">Back to the home page</span>
               </span>
             </button>
+          </li>
+        ) : (
+          <li className="flow-step flow-exit">
+            {/* A plain link, unlike the demo's button: a real learner stays
+                signed in, and their work is already saved. Nothing to discard,
+                nothing to warn about. */}
+            <Link to="/exercises">
+              <span className="flow-n" aria-hidden>
+                &larr;
+              </span>
+              <span className="flow-text">
+                <strong>Leave the lesson</strong>
+                <span className="flow-sub">Back to your lessons</span>
+              </span>
+            </Link>
           </li>
         )}
       </ol>

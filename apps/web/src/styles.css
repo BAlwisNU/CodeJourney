@@ -794,7 +794,7 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 }
 .flow-step a, .flow-step > span, .flow-step > button {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px;
+  padding: 10px 11px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -822,8 +822,12 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 }
 .flow-step.on .flow-n { background: var(--accent); color: #0b1020; border-color: var(--accent); }
 .flow-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
-.flow-text strong { font-size: 0.85rem; }
-.flow-sub { font-size: 0.72rem; opacity: 0.75; }
+/* Five boxes in the row now, so the labels sit in a narrower column. They wrap
+   rather than truncate: a row of "Lesson, quiz, w..." tells a learner less than
+   a row that is a few pixels taller. `balance` evens the wrapped lines instead
+   of stranding one word, and the cards already stretch to match each other. */
+.flow-text strong { font-size: 0.82rem; text-wrap: balance; }
+.flow-sub { font-size: 0.7rem; opacity: 0.75; text-wrap: balance; }
 @media (max-width: 760px) {
   .flow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .flow-sub { display: none; }

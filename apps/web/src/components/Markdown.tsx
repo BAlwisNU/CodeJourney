@@ -36,6 +36,7 @@ function render(source: string): ReactNode[] {
 
     // fenced code block
     if (line.startsWith('```')) {
+      const lang = line.slice(3).trim().toLowerCase()
       const body: string[] = []
       i++
       while (i < lines.length && !lines[i].startsWith('```')) {
@@ -43,9 +44,11 @@ function render(source: string): ReactNode[] {
         i++
       }
       i++ // closing fence
+      const code = body.join('\n')
+      const python = lang === 'python' || lang === 'py'
       out.push(
-        <pre key={key++} className="md-code">
-          <code>{body.join('\n')}</code>
+        <pre key={key++} className="md-code" data-lang={python ? 'python' : lang || undefined}>
+          <code>{python ? highlight(code) : code}</code>
         </pre>
       )
       continue
@@ -112,6 +115,62 @@ function render(source: string): ReactNode[] {
     out.push(<p key={key++}>{inline(para.join(' '))}</p>)
   }
 
+  return out
+}
+
+/**
+ * Colour Python source, without a highlighting library.
+ *
+ * Lessons are mostly code, and unlit monospace is the difference between a
+ * snippet you read and one you skim past. The comments matter most: this
+ * content uses them to show what an expression evaluates to
+ * (`quests[0]        # "Slay the dragon"`), so a distinct colour turns a wall
+ * of grey into example-and-answer.
+ *
+ * Same reasoning as the renderer above -- this returns React elements, so
+ * highlighting can never introduce an HTML injection path. A library here would
+ * be ~40kB and a `dangerouslySetInnerHTML` to audit, for one language.
+ *
+ * One regex, alternation ordered by precedence: comments and strings win over
+ * everything, so a `#` inside a string and a keyword inside a comment are both
+ * left alone.
+ */
+const PY_TOKENS = new RegExp(
+  [
+    '(#[^\\n]*)', // comment
+    '("""[\\s\\S]*?"""|\'\'\'[\\s\\S]*?\'\'\'|"(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\')', // string
+    '\\b(\\d+\\.?\\d*)\\b', // number
+    '\\b(False|None|True|and|as|assert|break|class|continue|def|del|elif|else|' +
+      'except|finally|for|from|global|if|import|in|is|lambda|not|or|pass|raise|' +
+      'return|try|while|with|yield)\\b', // keyword
+    '\\b(abs|all|any|bool|dict|enumerate|float|input|int|len|list|max|min|open|' +
+      'print|range|reversed|round|set|sorted|str|sum|tuple|zip|append|split|join|' +
+      'strip|items|keys|values|get)\\b', // builtin / common method
+  ].join('|'),
+  'g'
+)
+
+const TOKEN_CLASS = ['tok-comment', 'tok-str', 'tok-num', 'tok-kw', 'tok-fn']
+
+function highlight(code: string): ReactNode[] {
+  const out: ReactNode[] = []
+  let last = 0
+  let key = 0
+  let match: RegExpExecArray | null
+
+  PY_TOKENS.lastIndex = 0
+  while ((match = PY_TOKENS.exec(code)) !== null) {
+    if (match.index > last) out.push(code.slice(last, match.index))
+    // Which alternative matched decides the colour.
+    const group = match.slice(1).findIndex((g) => g !== undefined)
+    out.push(
+      <span key={key++} className={TOKEN_CLASS[group] ?? ''}>
+        {match[0]}
+      </span>
+    )
+    last = match.index + match[0].length
+  }
+  if (last < code.length) out.push(code.slice(last))
   return out
 }
 

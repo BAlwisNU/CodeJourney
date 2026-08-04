@@ -2605,3 +2605,143 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
   .chat-thread { scroll-behavior: auto; }
   .chat-thinking .dot { animation: none; opacity: 0.6; }
 }
+
+/* ==========================================================================
+   Lesson reading: syntax colour and typography
+   --------------------------------------------------------------------------
+   Lessons are mostly code and short prose, and both were rendering flat. The
+   comments matter more here than in most codebases: the content uses them to
+   show what an expression evaluates to, so colouring them turns a grey block
+   into example-and-answer.
+   ========================================================================== */
+
+.md-code {
+  position: relative;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  overflow-x: auto;
+  line-height: 1.7;
+  font-size: 0.88rem;
+  tab-size: 4;
+}
+/* A quiet language tag, so a block reads as "this is Python" at a glance
+   rather than only after you start parsing it. */
+.md-code[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+/* Conventional dark-theme assignments: keywords carry the structure, strings
+   the data, comments recede. Nothing here is decorative -- each colour is a
+   category a reader is already trained on from any editor. */
+.tok-kw { color: var(--accent-2); }
+.tok-str { color: #7ee0b8; }
+.tok-num { color: var(--accent-3); }
+.tok-fn { color: var(--accent); }
+.tok-comment { color: var(--muted); font-style: italic; }
+
+/* --- the lesson body itself ---------------------------------------------- */
+
+.lesson { padding: 30px 32px 34px; }
+.lesson > h2 {
+  font-size: 1.5rem;
+  letter-spacing: -0.015em;
+  margin: 0 0 6px;
+}
+
+.lesson .md p {
+  font-size: 1.02rem;
+  /* Generous leading and a bounded measure: this is the one place on the site
+     someone reads several paragraphs in a row, and long lines are what makes
+     that tiring. */
+  line-height: 1.8;
+  color: #c7cddb;
+  max-width: 68ch;
+  margin: 0 0 18px;
+}
+
+/* Sub-headings get an accent rule rather than just being bigger, so the eye
+   can find the sections when scrolling back to look something up. */
+.lesson .md h3,
+.lesson .md h4 {
+  position: relative;
+  font-size: 1.08rem;
+  letter-spacing: -0.01em;
+  margin: 34px 0 12px;
+  padding-left: 14px;
+}
+.lesson .md h3::before,
+.lesson .md h4::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--grad);
+}
+
+.lesson .md ul,
+.lesson .md ol { max-width: 66ch; margin: 0 0 18px; padding-left: 0; }
+.lesson .md li {
+  line-height: 1.75;
+  color: #c7cddb;
+  margin-bottom: 8px;
+  list-style: none;
+  position: relative;
+  padding-left: 30px;
+}
+.lesson .md ul > li::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0.72em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+/* Numbered steps get real numerals in the accent -- the filtering recipe is a
+   sequence, and it should look like one. */
+.lesson .md ol { counter-reset: step; }
+.lesson .md ol > li { counter-increment: step; }
+.lesson .md ol > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.1em;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border-lit);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Inline code as a chip, so `0` and `append` are visibly the machine's words
+   and not emphasis. */
+.lesson .md p > code,
+.lesson .md li > code {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.86em;
+  color: var(--accent-3);
+}
+.lesson .md strong { color: var(--text); }
+.lesson .md .md-code { margin: 0 0 22px; }

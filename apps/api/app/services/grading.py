@@ -15,6 +15,7 @@ else in this codebase is a module in one FastAPI app on purpose.
 """
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -23,10 +24,45 @@ from ..config import get_settings
 
 settings = get_settings()
 
-# packages/harness/harness.py -- the same file Pyodide loads in the browser.
-HARNESS_PATH = (
-    Path(__file__).resolve().parents[4] / "packages" / "harness" / "harness.py"
-)
+def _find_harness() -> Path:
+    """Locate packages/harness/harness.py -- the file Pyodide also loads.
+
+    It sits in two different places depending on how the app is running, and
+    this used to assume only the first:
+
+      source checkout   <repo>/apps/api/app/services/  -> four levels up
+      container         /app/app/services/             -> two levels up is /,
+                        and the Dockerfile puts the harness at /packages
+
+    Walking four parents from inside the container runs off the top of the
+    filesystem and raises IndexError *at import time*, which takes the whole API
+    down before it serves a single request -- and does so only in production,
+    because development never reaches this path.
+
+    Candidates are tried in order and the first that exists wins. Nothing raises
+    here: if none are found the value is still a usable Path, and the failure
+    surfaces at grading time with a message about the harness rather than as an
+    import error three frames deep in uvicorn.
+    """
+    override = os.environ.get("HARNESS_PATH")
+    if override:
+        return Path(override)
+
+    here = Path(__file__).resolve()
+    candidates: list[Path] = []
+    # A source checkout, where the repo root is four levels up.
+    if len(here.parents) > 4:
+        candidates.append(here.parents[4] / "packages" / "harness" / "harness.py")
+    # The container, where apps/api/Dockerfile copies it to /packages/harness.
+    candidates.append(Path("/packages/harness/harness.py"))
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+HARNESS_PATH = _find_harness()
 
 # Wrapper that feeds the harness from stdin and prints its verdict as JSON.
 # Kept as a string rather than a file because the Docker runner pipes it in.

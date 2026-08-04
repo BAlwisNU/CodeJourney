@@ -347,19 +347,24 @@ One character apart, and they disagree about exactly one day:
 )
 
 QUIZ = [
+    # Order matters twice over. It is the order the questions are shown in, and
+    # the Plan page hands the first few out as checkpoints -- one after each
+    # section, in order -- so the opening four are the ones that belong to the
+    # four sections of the lesson, in the sequence the lesson teaches them. The
+    # rest close the page as a recap.
     dict(
-        prompt="What does `quests[0]` give you?",
+        prompt="Inside `for quest in quests:`, what is `quest`?",
         options=[
-            "The first item",
-            "The second item",
+            "One item from the list — a different one each time round",
             "The whole list",
-            "An error — lists start at 1",
+            "The position of the item",
+            "The number of items in the list",
         ],
         correct_index=0,
         explanation=(
-            "Positions start at 0, so `quests[0]` is the first item. A list of 3 "
-            "things has positions 0, 1 and 2 — which is why `goals[3]` would be "
-            "an error."
+            "The loop hands you the item itself, not its position. First time "
+            "round `quest` is \"Slay the dragon\", next time it's \"Find the "
+            "sword\". You only need positions when you specifically want them."
         ),
         order_index=1,
     ),
@@ -405,6 +410,102 @@ QUIZ = [
             "before, `<=` would include today."
         ),
         order_index=4,
+    ),
+    dict(
+        prompt="What does `quests[0]` give you?",
+        options=[
+            "The first item",
+            "The second item",
+            "The whole list",
+            "An error — lists start at 1",
+        ],
+        correct_index=0,
+        explanation=(
+            "Positions start at 0, so `quests[0]` is the first item. A list of 3 "
+            "things has positions 0, 1 and 2 — which is why `goals[3]` would be "
+            "an error."
+        ),
+        order_index=5,
+    ),
+    dict(
+        prompt="`quests` holds 3 things. What is `quests[3]`?",
+        options=[
+            "An error — the last position is 2",
+            "The third item",
+            "The last item",
+            "None",
+        ],
+        correct_index=0,
+        explanation=(
+            "Three items sit at positions 0, 1 and 2, so there is no position 3 "
+            "and Python raises IndexError. The last position is always one less "
+            "than the length — `len(quests) - 1`."
+        ),
+        order_index=6,
+    ),
+    dict(
+        prompt="`short_ones.append(quest)` — where does the item end up?",
+        options=[
+            "On the end of short_ones",
+            "At the start of short_ones",
+            "It replaces whatever short_ones held",
+            "Back in quests",
+        ],
+        correct_index=0,
+        explanation=(
+            "append always adds to the end, which is why the collected list comes "
+            "out in the same order the loop found things in. You never have to "
+            "say where it goes."
+        ),
+        order_index=7,
+    ),
+    dict(
+        prompt="The loop runs and nothing passes the test. What comes back?",
+        options=[
+            "An empty list",
+            "None",
+            "An error",
+            "The original list",
+        ],
+        correct_index=0,
+        explanation=(
+            "You started with `short_ones = []` and never appended to it, so an "
+            "empty list is exactly what you get. That's fine to hand on — looping "
+            "over an empty list simply does nothing."
+        ),
+        order_index=8,
+    ),
+    dict(
+        prompt="After the filter has finished, what has happened to `quests` itself?",
+        options=[
+            "Nothing — it still holds all three",
+            "It holds only the ones that passed",
+            "It is empty",
+            "It has been sorted",
+        ],
+        correct_index=0,
+        explanation=(
+            "Collecting into a new list leaves the original untouched. That's the "
+            "real reason it's the safer habit: nothing else in your program gets "
+            "surprised by a list that changed underneath it."
+        ),
+        order_index=9,
+    ),
+    dict(
+        prompt='When does the body of `if quest["done"]:` run?',
+        options=[
+            "When done is True",
+            "Every time — an if on a value always runs",
+            "Whenever the quest has a done key at all",
+            "When done is False",
+        ],
+        correct_index=0,
+        explanation=(
+            'A bare `if` on a value runs when that value is true, so this is the '
+            'same as `if quest["done"] == True:` and reads better. To catch the '
+            'unfinished ones instead, write `if not quest["done"]:`.'
+        ),
+        order_index=10,
     ),
 ]
 
@@ -479,12 +580,26 @@ def seed(db: Session) -> None:
         # Refresh the teaching text on an existing database. Seeding otherwise
         # only ever inserts, so an edit to the lesson would reach a fresh
         # checkout and never a deployment that already has the row.
-        #
-        # Prose only. The questions are deliberately left alone: attempts point
-        # at question ids, and rewriting the options underneath an answer
-        # already recorded would silently change what a student was asked.
         lesson.title = LESSON["title"]
         lesson.body_md = LESSON["body_md"]
+
+        # Questions are added but never rewritten, and never removed. Attempts
+        # point at question ids: changing the options underneath an answer
+        # already recorded would silently change what a student was asked, and
+        # deleting one would orphan the attempt. Adding a question does neither.
+        #
+        # Identity is the prompt, because that IS the question -- an edit to the
+        # wording is a different question and should be treated as one. Position
+        # is the only field refreshed: it decides display order and which
+        # questions the Plan page hands out as checkpoints, and it says nothing
+        # about what was asked.
+        existing = {q.prompt: q for q in lesson.questions}
+        for question in QUIZ:
+            found = existing.get(question["prompt"])
+            if found is None:
+                db.add(QuizQuestion(lesson_id=lesson.id, **question))
+            else:
+                found.order_index = question["order_index"]
 
     # Parsons warm-up, attached to the themed exercise. The generic twin gets
     # the same lines with its own names -- both sides of a pair must get the

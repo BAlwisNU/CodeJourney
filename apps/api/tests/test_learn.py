@@ -78,7 +78,9 @@ def test_lesson_is_served_for_a_concept(client):
     headers = login(client)
     lesson = client.get("/learn/lessons/lists", headers=headers).json()
     assert lesson["title"]
-    assert len(lesson["questions"]) == 4
+    # Enough to hand one to each section as a checkpoint and still close the
+    # page with a recap. The exact count is content, and grows.
+    assert len(lesson["questions"]) >= 5
 
 
 def test_quiz_answers_never_reach_the_browser(client):
@@ -100,7 +102,7 @@ def test_quiz_grades_and_explains_both_right_and_wrong(client):
         f"/learn/lessons/{lesson['id']}/quiz", headers=headers, json={"answers": answers}
     ).json()
 
-    assert grade["total"] == 4
+    assert grade["total"] == len(lesson["questions"])
     # Every result carries an explanation, including the correct ones -- someone
     # who guessed right has learned nothing yet.
     assert all(r["explanation"] for r in grade["results"])
@@ -140,13 +142,11 @@ def test_quiz_grades_one_question_on_its_own(client):
     assert grade["results"][0]["explanation"]
 
 
-def test_reseeding_refreshes_the_lesson_but_keeps_the_questions(client):
+def test_reseeding_refreshes_the_lesson_text(client):
     """Seeding an existing database must update the teaching text.
 
     It only ever inserted before, so an edit to a lesson reached a fresh
-    checkout and never a deployment. The questions deliberately stay put:
-    attempts point at question ids, and rewriting the options underneath an
-    answer already recorded would change what a student was asked.
+    checkout and never a deployment.
     """
     from sqlalchemy import select
 
@@ -155,7 +155,6 @@ def test_reseeding_refreshes_the_lesson_but_keeps_the_questions(client):
 
     with client.session_factory() as db:
         lesson = db.scalar(select(Lesson).where(Lesson.slug == "lists-filtering"))
-        before = [q.id for q in lesson.questions]
         lesson.body_md = "## Stale copy"
         db.commit()
 
@@ -165,7 +164,48 @@ def test_reseeding_refreshes_the_lesson_but_keeps_the_questions(client):
         db.refresh(lesson)
         assert lesson.body_md != "## Stale copy"
         assert "```diff" in lesson.body_md
-        assert [q.id for q in lesson.questions] == before
+
+
+def test_reseeding_adds_new_questions_without_touching_the_old_ones(client):
+    """Questions are additive. Never rewritten, never removed.
+
+    Attempts point at question ids, so changing the options underneath an
+    answer already recorded would change what a student was asked, and
+    deleting one would orphan the attempt. Adding a question does neither --
+    which is the only way a lesson can grow a question after release.
+    """
+    from sqlalchemy import select
+
+    from app.models import Lesson, QuizQuestion
+    from app.seed import seed
+
+    with client.session_factory() as db:
+        lesson = db.scalar(select(Lesson).where(Lesson.slug == "lists-filtering"))
+        kept = sorted(lesson.questions, key=lambda q: q.order_index)[0]
+        before_id, before_prompt = kept.id, kept.prompt
+        before_options = list(kept.options)
+
+        # Simulate a database seeded before the extra questions were written.
+        for question in lesson.questions[3:]:
+            db.delete(question)
+        db.commit()
+        assert len(db.scalars(select(QuizQuestion)).all()) == 3
+
+        seed(db)
+        db.commit()
+
+        db.refresh(lesson)
+        assert len(lesson.questions) == 10
+        # The survivor is the same row, asking the same thing.
+        survivor = db.get(QuizQuestion, before_id)
+        assert survivor.prompt == before_prompt
+        assert survivor.options == before_options
+
+        # And seeding twice must not duplicate anything.
+        seed(db)
+        db.commit()
+        db.refresh(lesson)
+        assert len(lesson.questions) == 10
 
 
 def test_missing_lesson_returns_null_not_an_error(client):

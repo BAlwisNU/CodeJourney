@@ -94,6 +94,10 @@ class UserOut(BaseModel):
     #: The app uses it to say so on screen -- letting someone work for twenty
     #: minutes in an account that quietly evaporates is worth avoiding.
     is_demo: bool = False
+    #: "lesson" or "account" for a demo, None otherwise. The lesson demo is a
+    #: look at one exercise and is not offered a route to the dashboard; the
+    #: account demo is there to explore one.
+    demo_kind: str | None = None
 
 
 # --- the second step of signing up ------------------------------------------

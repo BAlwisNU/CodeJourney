@@ -166,6 +166,8 @@ export type Account = {
   created_at: string
   /** True for the throwaway accounts behind the landing page's demo buttons. */
   is_demo: boolean
+  /** Which demo button minted it, or null for a real account. */
+  demo_kind: 'lesson' | 'account' | null
 }
 
 /**

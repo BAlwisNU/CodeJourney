@@ -111,7 +111,11 @@ export function LandingPage() {
     try {
       const { access_token } = await api.startDemo(kind === 'account')
       token.set(access_token)
-      navigate(kind === 'lesson' ? '/exercise/lists-make' : '/exercises')
+      // The lesson demo starts at Plan, which is step 1 of its flow -- the
+      // lesson, the quiz and the warm-up come before an empty editor. Dropping
+      // someone straight into the editor skips the part that explains what
+      // they are about to write.
+      navigate(kind === 'lesson' ? '/exercise/lists-make/plan' : '/exercises')
     } catch (err) {
       setDemoError(err instanceof Error ? err.message : String(err))
       setDemoBusy(null)
@@ -147,7 +151,7 @@ export function LandingPage() {
                 onClick={() => void startDemo('lesson')}
                 disabled={demoBusy !== null}
               >
-                {demoBusy === 'lesson' ? 'Opening…' : 'Try a lesson'}
+                {demoBusy === 'lesson' ? 'Opening…' : 'Demo Lesson'}
               </button>
               <button
                 type="button"

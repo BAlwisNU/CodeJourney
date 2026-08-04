@@ -8,7 +8,12 @@ the Week 8 analysis, and never being able to log in as anybody.
 from sqlalchemy import select
 
 from app.models import Submission, User
-from app.services.demo import DEMO_DOMAIN, is_demo_email, purge_expired
+from app.services.demo import (
+    DEMO_DOMAIN,
+    demo_kind,
+    is_demo_email,
+    purge_expired,
+)
 
 from conftest import login
 
@@ -39,10 +44,30 @@ def test_every_click_gets_its_own_account(client):
     assert first["email"] != second["email"]
 
 
+def test_the_two_buttons_are_told_apart(client):
+    """The lesson demo is shown no way back to a dashboard it never came from;
+    the account demo keeps it, because exploring is the whole point of that one.
+    So the app has to know which button was pressed."""
+    lesson = client.get("/auth/me", headers=_start(client, False)).json()
+    account = client.get("/auth/me", headers=_start(client, True)).json()
+
+    assert lesson["demo_kind"] == "lesson"
+    assert account["demo_kind"] == "account"
+    # Both are still demos, and both still say so.
+    assert lesson["is_demo"] is account["is_demo"] is True
+
+
+def test_an_older_demo_without_a_kind_is_treated_as_the_permissive_one(client):
+    """Accounts minted before the two were distinguished must not be stranded."""
+    assert demo_kind(f"demo-abc123@{DEMO_DOMAIN}") == "account"
+
+
 def test_a_real_account_is_not_flagged_as_a_demo(client):
     me = client.get("/auth/me", headers=login(client)).json()
     assert me["is_demo"] is False
+    assert me["demo_kind"] is None
     assert is_demo_email(me["email"]) is False
+    assert demo_kind(me["email"]) is None
 
 
 # --- the two rules that actually matter -------------------------------------

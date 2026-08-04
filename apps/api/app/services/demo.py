@@ -58,14 +58,36 @@ def is_demo_email(email: str) -> bool:
     return email.endswith(f"@{DEMO_DOMAIN}")
 
 
+def demo_kind(email: str) -> str | None:
+    """Which button minted this account: "lesson", "account", or None.
+
+    Encoded in the address rather than a new column, so it needs no migration
+    and is legible straight from the database. The two behave differently on
+    purpose: the lesson demo is a focused look at one exercise and has no
+    dashboard to go back to, while the account demo exists precisely to wander
+    around one.
+    """
+    if not is_demo_email(email):
+        return None
+    local = email.split("@", 1)[0]
+    if local.startswith("demo-lesson-"):
+        return "lesson"
+    if local.startswith("demo-account-"):
+        return "account"
+    # Minted before the two were distinguished. Treated as the permissive one:
+    # leaving an old demo stranded is worse than showing it a dashboard.
+    return "account"
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
 def create_demo_user(db: Session, *, with_progress: bool) -> User:
     """Mint a fresh throwaway account, optionally with work already in it."""
+    kind = "account" if with_progress else "lesson"
     user = User(
-        email=f"demo-{uuid.uuid4().hex[:12]}@{DEMO_DOMAIN}",
+        email=f"demo-{kind}-{uuid.uuid4().hex[:12]}@{DEMO_DOMAIN}",
         # No password exists for these, and none can be set. See UNUSABLE_PASSWORD.
         password_hash=UNUSABLE_PASSWORD,
         display_name="Guest",
@@ -181,6 +203,7 @@ def purge_expired(db: Session, *, older_than_days: int = 7) -> int:
 __all__ = [
     "DEMO_DOMAIN",
     "create_demo_user",
+    "demo_kind",
     "is_demo_email",
     "purge_expired",
     "ThemeVariant",

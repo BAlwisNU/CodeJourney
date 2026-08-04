@@ -105,7 +105,10 @@ def me(user: CurrentUser) -> UserOut:
     # is_demo is derived from the address rather than stored, so it cannot drift
     # out of step with what the account actually is.
     return UserOut.model_validate(user, from_attributes=True).model_copy(
-        update={"is_demo": demo.is_demo_email(user.email)}
+        update={
+            "is_demo": demo.is_demo_email(user.email),
+            "demo_kind": demo.demo_kind(user.email),
+        }
     )
 
 

@@ -110,8 +110,26 @@ def test_a_demo_account_cannot_be_logged_into(client):
 # --- the seeded history -----------------------------------------------------
 
 
-def test_the_account_demo_arrives_with_work_already_in_it(client):
-    """An empty dashboard demonstrates nothing about what the product does."""
+def test_the_account_demo_shows_all_three_states(client):
+    """Solved, in progress, and not started -- the dashboard has three states,
+    and a demo showing one of them demonstrates a third of the product.
+
+    Asserted through /progress rather than the tables, because that endpoint is
+    what decides the states and is what the dashboard actually renders.
+    """
+    headers = _start(client, with_progress=True)
+    body = client.get("/progress", headers=headers).json()
+    states = {}
+    for row in body["exercises"]:
+        states[row["status"]] = states.get(row["status"], 0) + 1
+
+    assert states.get("solved", 0) >= 5, states
+    assert states.get("in_progress", 0) >= 3, states
+    assert states.get("not_started", 0) >= 10, states
+
+
+def test_the_account_demo_shows_the_hint_ladder_being_used(client):
+    """The retries and the hints are the product; a clean sweep hides both."""
     headers = _start(client, with_progress=True)
     me = client.get("/auth/me", headers=headers).json()
 
@@ -119,11 +137,11 @@ def test_the_account_demo_arrives_with_work_already_in_it(client):
         rows = list(
             db.scalars(select(Submission).where(Submission.user_id == me["id"]))
         )
-    assert rows, "the demo account should have submissions to show"
     assert any(r.passed for r in rows), "something should be solved"
     assert any(not r.passed for r in rows), "and something should have failed"
-    # Hints used, because the hint ladder is the thing worth demonstrating.
-    assert any(r.max_hint_level > 0 for r in rows)
+    assert any(r.max_hint_level > 0 for r in rows), "hints should have been used"
+    # Something solved only after several goes, which is the honest shape of it.
+    assert any(r.attempt_number >= 3 and r.passed for r in rows)
 
 
 def test_the_lesson_demo_starts_clean(client):
@@ -139,7 +157,7 @@ def test_seeding_survives_a_renamed_exercise(client, monkeypatch):
     """Content slugs get edited often; a demo must not 500 because one moved."""
     from app.services import demo as demo_service
 
-    monkeypatch.setattr(demo_service, "_STORY", [("no-such-exercise", 2, 1)])
+    monkeypatch.setattr(demo_service, "_STORY", [("no-such-exercise", 2, 1, "solved")])
     headers = _start(client, with_progress=True)
     assert client.get("/auth/me", headers=headers).status_code == 200
 

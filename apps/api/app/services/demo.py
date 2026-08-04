@@ -111,45 +111,69 @@ def create_demo_user(db: Session, *, with_progress: bool) -> User:
     return user
 
 
-#: What a plausible few days of work looks like. Kept small: the point is a
-#: dashboard that isn't empty, not a simulation of a whole course.
-_STORY = [
-    # (slug, attempts before passing, hints used)
-    ("lists-make", 1, 0),
-    ("lists-index", 2, 1),
-    ("loops-for", 3, 2),
+#: A believable fortnight of work.
+#:
+#: Three outcomes, because the dashboard has three states and a demo that only
+#: ever shows one of them demonstrates a third of the product:
+#:
+#:   solved   passed in the end -- some first try, some after a fight
+#:   stuck    attempted, not passed. This is what "in progress" looks like, and
+#:            it is the state the hint ladder exists for.
+#:   opened   started and walked away without submitting. Counts as in progress
+#:            too (see routers/progress.py) and is what half-finished really
+#:            looks like in practice.
+#:
+#: Everything not listed is left untouched and shows as not started, which is
+#: most of the 69 -- as it should be for someone a fortnight in.
+_STORY: list[tuple[str, int, int, str]] = [
+    # (slug, attempts, highest hint used, outcome)
+    ("lists-make", 1, 0, "solved"),
+    ("lists-index", 2, 1, "solved"),
+    ("lists-slice", 1, 0, "solved"),
+    ("loops-for", 3, 2, "solved"),
+    ("loops-range", 2, 0, "solved"),
+    ("str-index", 4, 3, "solved"),
+    # Still going: submitted, not passing yet.
+    ("lists-loop", 2, 1, "stuck"),
+    ("loops-accum", 3, 3, "stuck"),
+    # Opened and left. No submissions at all.
+    ("dicts-make", 0, 0, "opened"),
+    ("str-case", 0, 0, "opened"),
 ]
 
 
 def _seed_progress(db: Session, user: User) -> None:
-    """Give the account a believable history.
+    """Give the account a history worth looking at.
 
-    Deliberately imperfect: one exercise solved first try, one after a couple of
-    goes, one that needed hints. A demo where everything passed immediately
-    shows none of what the product is actually for.
+    Deliberately uneven. A demo where everything passed first time shows none
+    of what this product is actually for -- the hint ladder, the retries, the
+    half-finished exercise you come back to.
     """
-    started = _now() - timedelta(days=3)
+    started = _now() - timedelta(days=14)
 
-    for index, (slug, attempts, hints) in enumerate(_STORY):
+    for index, (slug, attempts, hints, outcome) in enumerate(_STORY):
         exercise = db.scalar(select(Exercise).where(Exercise.slug == slug))
         if exercise is None:
             # The content set is edited often; a demo must not 500 because one
             # slug was renamed.
             continue
 
+        # Spread across the fortnight so "pick up where you left off" has an
+        # order to work with, and the most recent thing is something unfinished.
+        day = index + (index // 3)
         session = ExerciseSession(
             user_id=user.id,
             exercise_id=exercise.id,
-            started_at=started + timedelta(days=index),
-            last_activity_at=started + timedelta(days=index, minutes=12),
+            started_at=started + timedelta(days=day),
+            last_activity_at=started + timedelta(days=day, minutes=18),
         )
         db.add(session)
         db.flush()
 
         for attempt in range(1, attempts + 1):
-            passed = attempt == attempts
+            # Only a "solved" run ends in a pass; a "stuck" one never does.
+            passed = outcome == "solved" and attempt == attempts
             total = 4
-            passing = total if passed else max(0, total - 2)
             db.add(
                 Submission(
                     user_id=user.id,
@@ -160,14 +184,17 @@ def _seed_progress(db: Session, user: User) -> None:
                     theme_variant=exercise.variant,
                     test_results={
                         "passed": passed,
-                        "summary": {"passed": passing, "total": total},
+                        "summary": {
+                            "passed": total if passed else min(attempt, total - 1),
+                            "total": total,
+                        },
                     },
                     passed=passed,
-                    max_hint_level=hints if not passed else hints,
-                    seconds_since_exercise_start=120 * attempt + index * 30,
+                    # Hints climb with the struggle rather than arriving at once.
+                    max_hint_level=min(hints, attempt),
+                    seconds_since_exercise_start=150 * attempt + index * 20,
                     attempt_number=attempt,
-                    created_at=started
-                    + timedelta(days=index, minutes=4 * attempt),
+                    created_at=started + timedelta(days=day, minutes=5 * attempt),
                 )
             )
 

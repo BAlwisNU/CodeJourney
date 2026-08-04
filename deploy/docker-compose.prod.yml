@@ -1,0 +1,83 @@
+# Production stack: Postgres, the API, and Caddy terminating TLS.
+#
+# Run from the repository root, not this directory:
+#
+#     docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+#
+# The sandbox image is NOT a service here. It is built once on the host and
+# invoked per submission by the API (`docker run --rm ...`), so it has to exist
+# in the host's Docker, not inside the API container:
+#
+#     docker build -t codejourney-sandbox:3.12 packages/harness
+#
+# Read deploy/README.md before the first run -- there is one genuine security
+# trade-off in here and it should be a decision, not a surprise.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: codejourney
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: codejourney
+    volumes: [pgdata:/var/lib/postgresql/data]
+    # No published port. The database is reachable only from the API on the
+    # compose network -- exposing 5432 to the internet is how these get found.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codejourney"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://codejourney:${POSTGRES_PASSWORD}@db:5432/codejourney
+      # The app refuses to boot in production with the dev default. Generate
+      # one with: openssl rand -hex 32
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in deploy/.env}
+      # Production, so grading uses the sandboxed DockerRunner. LocalRunner
+      # raises rather than run untrusted code unsandboxed -- do not "fix" a
+      # grading error by setting this to development on a public host.
+      ENVIRONMENT: production
+      # Outside development the API allows only the origins listed here.
+      CORS_ORIGINS: '["${WEB_APP_URL}"]'
+      WEB_APP_URL: ${WEB_APP_URL:?set WEB_APP_URL in deploy/.env}
+      API_BASE_URL: ${API_BASE_URL:?set API_BASE_URL in deploy/.env}
+      # Optional. Absent, the tutor and the welcome chat degrade to a friendly
+      # note rather than an error.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      db: {condition: service_healthy}
+    volumes:
+      # REQUIRED for grading, and the one real trade-off in this file. The API
+      # shells out to `docker run` per submission, so it needs the host's
+      # daemon. Access to this socket is equivalent to root on the host: anyone
+      # who finds a remote-code-execution bug in the API owns the whole machine,
+      # not just the container.
+      #
+      # It is here because grading cannot work without it, and it is why
+      # deploy/README.md says to put this on a VM that holds nothing else.
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Not published to the host: Caddy is the only way in.
+    expose: ["8000"]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in deploy/.env}
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

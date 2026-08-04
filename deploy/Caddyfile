@@ -1,0 +1,24 @@
+# TLS in front of the API.
+#
+# Caddy gets a Let's Encrypt certificate automatically on first boot and renews
+# it. That is the whole reason it is here: your Vercel site is https, and a
+# browser will not let an https page call an http API at all -- so the API
+# having a real certificate is not a nicety, it is the difference between the
+# site working and every request being blocked before it is sent.
+#
+# {$API_DOMAIN} comes from deploy/.env. A bare IP address will NOT work: Let's
+# Encrypt only issues certificates for domain names.
+
+{$API_DOMAIN} {
+	encode gzip
+
+	# The API is not published on the host, so this is the only route to it.
+	reverse_proxy api:8000
+
+	header {
+		# The API is called cross-origin from Vercel and never framed itself.
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

@@ -6,3 +6,6 @@ dist/
 .env
 *.db
 .DS_Store
+
+# Production secrets for the deployment stack.
+deploy/.env

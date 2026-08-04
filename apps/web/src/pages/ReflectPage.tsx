@@ -87,6 +87,13 @@ export function ReflectPage() {
       )}
 
       <Tutor exerciseId={exercise.id} solved onLessonCreated={handleLessonCreated} />
+
+      {/* Two different things, and the line says so. The conversation goes to a
+          model; the journal never does (routers/reflections.py). Running them
+          together down one column invites someone to assume the tutor can read
+          what they write below it. */}
+      <hr className="section-split" />
+
       <Journal exerciseId={exercise.id} />
     </div>
   )

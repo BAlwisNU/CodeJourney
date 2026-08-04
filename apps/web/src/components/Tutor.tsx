@@ -36,7 +36,6 @@ export function Tutor({
   /** Fired when a branch is built here, so the parent page can link to it. */
   onLessonCreated?: (lesson: GeneratedLesson) => void
 }) {
-  const [open, setOpen] = useState(false)
   // Only the real exchange with the model. The greeting above is local and is
   // never sent -- the model didn't say it, so it doesn't belong in the history.
   const [messages, setMessages] = useState<TutorMessage[]>([])
@@ -59,7 +58,6 @@ export function Tutor({
       .then((saved) => {
         if (cancelled || saved.length === 0) return
         setMessages(saved)
-        setOpen(true)
       })
       .catch(() => {
         /* a failed history load must never block the chat */
@@ -120,132 +118,146 @@ export function Tutor({
   }
 
   return (
-    <section className="panel tutor">
-      <button
-        type="button"
-        className="tutor-toggle"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <span>
-          <strong>Reflect with your tutor</strong>
-          <span className="muted small tutor-sub">
+    <section className="chat" aria-label="Tutor conversation">
+      <header className="chat-head">
+        <span className="chat-avatar" aria-hidden>
+          {'{ }'}
+        </span>
+        <div>
+          <strong>Your tutor</strong>
+          <span className="muted small">
             {solved
               ? 'Talk through how it went'
               : 'Stuck? Talk it over — no answers given away'}
           </span>
-        </span>
-        <span aria-hidden>{open ? '−' : '+'}</span>
-      </button>
+        </div>
+      </header>
 
-      {open && (
-        <div className="tutor-body">
-          <div className="tutor-log" ref={scroller}>
-            <div className="tutor-msg tutor-assistant">
-              <Markdown source={GREETING} />
+      <div className="chat-thread" ref={scroller}>
+        <article className="chat-turn assistant">
+          <span className="chat-who" aria-hidden>
+            {'{ }'}
+          </span>
+          <div className="chat-bubble">
+            <Markdown source={GREETING} />
+          </div>
+        </article>
+
+        {messages.map((m, i) => (
+          <article key={i} className={`chat-turn ${m.role === 'user' ? 'user' : 'assistant'}`}>
+            {m.role === 'assistant' && (
+              <span className="chat-who" aria-hidden>
+                {'{ }'}
+              </span>
+            )}
+            <div className="chat-bubble">
+              {m.role === 'user' ? <p>{m.content}</p> : <Markdown source={m.content} />}
             </div>
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`tutor-msg ${
-                  m.role === 'user' ? 'tutor-user' : 'tutor-assistant'
-                }`}
+          </article>
+        ))}
+
+        {busy && (
+          <article className="chat-turn assistant" aria-live="polite">
+            <span className="chat-who" aria-hidden>
+              {'{ }'}
+            </span>
+            <div className="chat-bubble chat-thinking">
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+            </div>
+          </article>
+        )}
+
+        {proposal && !built && (
+          <div className="chat-offer">
+            <p className="chat-offer-title">
+              {proposal.scope === 'concept'
+                ? 'Want a targeted practice exercise?'
+                : 'Want more practice on this topic?'}
+            </p>
+            <p className="muted small">
+              <strong>{proposal.title}</strong> — {proposal.focus}
+            </p>
+            <div className="actions">
+              <button type="button" className="primary" onClick={build} disabled={building}>
+                {building ? 'Building it…' : 'Build it for me'}
+              </button>
+              <button
+                type="button"
+                className="link"
+                onClick={() => setProposal(null)}
+                disabled={building}
               >
-                {m.role === 'user' ? <p>{m.content}</p> : <Markdown source={m.content} />}
-              </div>
-            ))}
-            {busy && (
-              <div className="tutor-msg tutor-assistant tutor-thinking" aria-live="polite">
-                <span className="dot" />
-                <span className="dot" />
-                <span className="dot" />
-              </div>
+                Not now
+              </button>
+            </div>
+            {building && (
+              <p className="muted small">
+                Writing the exercise and checking it&rsquo;s solvable…
+              </p>
             )}
           </div>
+        )}
 
-          {proposal && !built && (
-            <div className="tutor-offer">
-              <p className="tutor-offer-title">
-                {proposal.scope === 'concept'
-                  ? 'Want a targeted practice exercise?'
-                  : 'Want more practice on this topic?'}
-              </p>
-              <p className="muted small">
-                <strong>{proposal.title}</strong> — {proposal.focus}
-              </p>
-              <div className="actions">
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={build}
-                  disabled={building}
-                >
-                  {building ? 'Building it…' : 'Build it for me'}
-                </button>
-                <button
-                  type="button"
-                  className="link"
-                  onClick={() => setProposal(null)}
-                  disabled={building}
-                >
-                  Not now
-                </button>
-              </div>
-              {building && (
-                <p className="muted small">
-                  Writing the exercise and checking it&rsquo;s solvable…
-                </p>
-              )}
-            </div>
-          )}
+        {built && (
+          <div className="chat-offer">
+            <p>
+              Done — I built <strong>{built.title}</strong> for you and checked it works.
+            </p>
+            <Link className="primary button-link" to={`/exercise/${built.slug}`}>
+              Open the practice exercise →
+            </Link>
+          </div>
+        )}
 
-          {built && (
-            <div className="tutor-built">
-              <p>
-                Done — I built <strong>{built.title}</strong> for you and checked it
-                works.
-              </p>
-              <Link className="primary button-link" to={`/exercise/${built.slug}`}>
-                Open the practice exercise →
-              </Link>
-            </div>
-          )}
+        {error && <p className="panel panel-error small">{error}</p>}
+      </div>
 
-          {error && <p className="panel panel-error small">{error}</p>}
-
-          {configured ? (
-            <form
-              className="tutor-composer"
-              onSubmit={(e) => {
+      {configured ? (
+        <form
+          className="chat-composer"
+          onSubmit={(e) => {
+            e.preventDefault()
+            send()
+          }}
+        >
+          <textarea
+            rows={1}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              // Grow with the text, up to the cap in the stylesheet. A fixed
+              // two-row box makes anything longer than a sentence feel like
+              // writing through a letterbox.
+              const el = e.currentTarget
+              el.style.height = 'auto'
+              el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+            }}
+            onKeyDown={(e) => {
+              // Enter sends; Shift+Enter for a newline, like every chat.
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
                 send()
-              }}
-            >
-              <textarea
-                rows={2}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  // Enter sends; Shift+Enter for a newline, like every chat.
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    send()
-                  }
-                }}
-                placeholder="Type how it went…"
-                disabled={busy}
-              />
-              <button type="submit" className="primary" disabled={busy || !draft.trim()}>
-                Send
-              </button>
-            </form>
-          ) : (
-            <p className="muted small tutor-off">
-              The tutor isn&rsquo;t switched on yet, but your journal below is
-              always here.
-            </p>
-          )}
-        </div>
+              }
+            }}
+            placeholder="Type how it went…"
+            disabled={busy}
+          />
+          <button
+            type="submit"
+            className="chat-send"
+            disabled={busy || !draft.trim()}
+            aria-label="Send"
+          >
+            ↑
+          </button>
+        </form>
+      ) : (
+        <p className="muted small chat-off">
+          The tutor isn&rsquo;t switched on yet, but your journal below is always
+          here.
+        </p>
       )}
     </section>
   )

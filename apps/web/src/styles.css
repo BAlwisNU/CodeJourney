@@ -822,14 +822,20 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 }
 .flow-step.on .flow-n { background: var(--accent); color: #0b1020; border-color: var(--accent); }
 .flow-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
-/* Five boxes in the row now, so the labels sit in a narrower column. They wrap
+/* Six boxes in the row now, so the labels sit in a narrower column. They wrap
    rather than truncate: a row of "Lesson, quiz, w..." tells a learner less than
    a row that is a few pixels taller. `balance` evens the wrapped lines instead
    of stranding one word, and the cards already stretch to match each other. */
 .flow-text strong { font-size: 0.82rem; text-wrap: balance; }
 .flow-sub { font-size: 0.7rem; opacity: 0.75; text-wrap: balance; }
 @media (max-width: 760px) {
-  .flow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* grid-auto-flow has to go back to rows here. Left on `column` it keeps
+     creating implicit columns and the two-column template never applies, so
+     the row simply grew with every stage added and pushed the page sideways. */
+  .flow ol {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .flow-sub { display: none; }
 }
 
@@ -856,7 +862,14 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 .plan { display: flex; flex-direction: column; gap: 18px; max-width: 900px; margin: 0 auto; }
 .plan-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .plan-head h1 { margin: 0; }
-.plan-foot { display: flex; justify-content: center; padding: 8px 0 32px; }
+.plan-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0 32px;
+}
 .lesson-body { white-space: pre-wrap; font-size: 0.92rem; line-height: 1.65; }
 .lesson-body, .pf-code pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 

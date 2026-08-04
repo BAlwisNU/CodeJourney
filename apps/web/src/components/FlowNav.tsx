@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { endDemo, useDemoKind } from '../lib/demo'
 
 /**
- * Connect → Plan → Create → Test and improve → Reflect.
+ * Connect → Read & Watch → Quiz → Create → Test and improve → Reflect.
  *
  * Visible on every stage so the student always knows where they are in the
  * cycle and that reflection is a real step rather than an optional extra tacked
@@ -14,7 +14,7 @@ import { endDemo, useDemoKind } from '../lib/demo'
  * worked. They're shown as one step with both labels.
  */
 
-export type Stage = 'connect' | 'plan' | 'create' | 'reflect'
+export type Stage = 'connect' | 'plan' | 'quiz' | 'create' | 'reflect'
 
 // Order is the numbering -- see the note where flow-n is rendered.
 const STAGES: { key: Stage; label: string; sub: string }[] = [
@@ -23,7 +23,8 @@ const STAGES: { key: Stage; label: string; sub: string }[] = [
   // the value stored against every sitting. Only the label a learner reads
   // changed: "Read & Watch" says what you actually do here, where "Plan"
   // described the teaching model rather than the activity.
-  { key: 'plan', label: 'Read & Watch', sub: 'Lesson, quiz, warm-up' },
+  { key: 'plan', label: 'Read & Watch', sub: 'Lesson and warm-up' },
+  { key: 'quiz', label: 'Quiz', sub: 'Check what stuck' },
   { key: 'create', label: 'Create & test', sub: 'Write it, run it, fix it' },
   { key: 'reflect', label: 'Reflect', sub: 'What you learned' },
 ]
@@ -58,11 +59,9 @@ export function FlowNav({
               ? '/exercises'
               : !slug
                 ? null
-                : stage.key === 'plan'
-                  ? `/exercise/${slug}/plan`
-                  : stage.key === 'reflect'
-                    ? `/exercise/${slug}/reflect`
-                    : `/exercise/${slug}`
+                : stage.key === 'create'
+                  ? `/exercise/${slug}`
+                  : `/exercise/${slug}/${stage.key}`
 
           const body = (
             <>

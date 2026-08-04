@@ -11,6 +11,7 @@ import { AuthPage } from './pages/AuthPage'
 import { InstructorPage } from './pages/InstructorPage'
 import { PlanPage } from './pages/PlanPage'
 import { PortfolioPage } from './pages/PortfolioPage'
+import { QuizPage } from './pages/QuizPage'
 import { ReflectPage } from './pages/ReflectPage'
 import { TopicPage } from './pages/TopicPage'
 import { WelcomeChatPage } from './pages/WelcomeChatPage'
@@ -124,6 +125,17 @@ export function App() {
           <RequireAuth>
             <main className="app">
               <PlanPage />
+            </main>
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/exercise/:slug/quiz"
+        element={
+          <RequireAuth>
+            <main className="app">
+              <QuizPage />
             </main>
           </RequireAuth>
         }

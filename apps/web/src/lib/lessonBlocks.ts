@@ -17,6 +17,7 @@ export type Block =
   | { kind: 'code'; lang: string; code: string; annotations: string[] }
   | { kind: 'list'; ordered: boolean; items: string[] }
   | { kind: 'callout'; tone: CalloutTone; title: string; body: string[] }
+  | { kind: 'video'; url: string; title: string }
 
 export type CalloutTone = 'idea' | 'watch' | 'try'
 
@@ -70,6 +71,25 @@ export function parseBlocks(source: string): Block[] {
         i++
       }
       i++
+
+      // A ```video fence: one `url | title` per line. Kept in the lesson body
+      // rather than added as a column on lessons, so a video can be written
+      // the same way every other part of a lesson is -- and because there is
+      // no migration tool here, so a new column would reach a fresh checkout
+      // and never a running deployment.
+      if (lang === 'video') {
+        for (const entry of body) {
+          const text = entry.trim()
+          if (!text) continue
+          const [url, ...rest] = text.split('|')
+          out.push({
+            kind: 'video',
+            url: url.trim(),
+            title: rest.join('|').trim(),
+          })
+        }
+        continue
+      }
       // Pull out any "# (n)" markers so the code stays runnable and the numbers
       // can be rendered as pins instead.
       const annotations: string[] = []
@@ -308,4 +328,11 @@ export function firstListInLesson(
     if (found) return found
   }
   return null
+}
+
+/** Every video the lesson declares, in order. */
+export function videosIn(blocks: Block[]): Extract<Block, { kind: 'video' }>[] {
+  return blocks.filter(
+    (block): block is Extract<Block, { kind: 'video' }> => block.kind === 'video'
+  )
 }

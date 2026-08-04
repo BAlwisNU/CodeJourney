@@ -119,8 +119,21 @@ export function App() {
         }
       />
 
+      {/* Two paths, one page. The bare /plan is the Read view, so the tab a
+        learner lands on and the tab they click back to share an address. */}
       <Route
         path="/exercise/:slug/plan"
+        element={
+          <RequireAuth>
+            <main className="app">
+              <PlanPage />
+            </main>
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/exercise/:slug/plan/:view"
         element={
           <RequireAuth>
             <main className="app">

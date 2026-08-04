@@ -3574,3 +3574,123 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+
+/* --- the three views of Read & Watch ------------------------------------ */
+
+.views {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.view {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+.view:hover { border-color: var(--border-lit); color: var(--text); }
+.view.on {
+  border-color: var(--accent);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.view-icon {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+.view.on .view-icon { border-color: var(--accent); background: rgba(124, 156, 255, 0.14); }
+.view-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.view-text strong { font-size: 0.85rem; }
+.view-hint { font-size: 0.7rem; opacity: 0.75; }
+
+@media (max-width: 560px) {
+  /* The hint is the first thing to go: three readable labels beat three
+     labels with a subtitle each, wrapped onto two lines. The icon then moves
+     above the label rather than beside it -- "Interactive" needs the whole
+     column width at this size, and beside a 26px icon it does not get it. */
+  .view-hint { display: none; }
+  .view {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    padding: 10px 6px;
+  }
+  .view-text { align-items: center; }
+  .view-text strong { font-size: 0.8rem; }
+}
+
+/* Shown when a view has nothing in it yet. Says so, rather than rendering an
+   empty panel that reads as a page that failed to load. */
+.views-empty { text-align: center; padding: 28px 16px 8px; }
+/* Specific enough to beat `.views-empty p` below, which would otherwise
+   overwrite the auto margins and strand the icon on the left. */
+.views-empty .views-empty-icon {
+  margin: 0 auto 12px;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+.views-empty p { margin: 0 0 8px; }
+.views-empty-go {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+/* --- lesson video ------------------------------------------------------- */
+
+.vid { margin: 0 0 20px; }
+.vid:last-child { margin-bottom: 0; }
+.vid-cap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.vid-title { font-size: 0.9rem; color: var(--text); }
+.vid-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+.vid-frame iframe, .vid-frame video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.vid-fallback {
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.88rem;
+}

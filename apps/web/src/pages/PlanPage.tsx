@@ -42,10 +42,10 @@ import type { Exercise, Lesson, Parsons as ParsonsData } from '../lib/types'
 
 type View = 'read' | 'watch' | 'interactive'
 
-const VIEWS: { key: View; label: string; icon: string }[] = [
-  { key: 'read', label: 'Read', icon: '📖' },
-  { key: 'watch', label: 'Watch', icon: '▶' },
-  { key: 'interactive', label: 'Interactive', icon: '⚡' },
+const VIEWS: { key: View; label: string }[] = [
+  { key: 'read', label: 'Read' },
+  { key: 'watch', label: 'Watch' },
+  { key: 'interactive', label: 'Interactive' },
 ]
 
 export function PlanPage() {
@@ -145,9 +145,6 @@ export function PlanPage() {
             className={v.key === current ? 'view on' : 'view'}
             aria-current={v.key === current ? 'page' : undefined}
           >
-            <span className="view-icon" aria-hidden>
-              {v.icon}
-            </span>
             <span className="view-text">
               <strong>{v.label}</strong>
               <span className="view-hint">{hintFor(v.key)}</span>
@@ -202,9 +199,6 @@ export function PlanPage() {
                broken; one that says what it is for reads as unfinished, which
                is what it is. */
             <div className="views-empty">
-              <p className="views-empty-icon" aria-hidden>
-                ▶
-              </p>
               <p>
                 <strong>No video for this lesson yet.</strong>
               </p>
@@ -235,9 +229,6 @@ export function PlanPage() {
           </>
         ) : (
           <div className="panel views-empty">
-            <p className="views-empty-icon" aria-hidden>
-              ⚡
-            </p>
             <p>
               <strong>Nothing interactive for this lesson yet.</strong>
             </p>

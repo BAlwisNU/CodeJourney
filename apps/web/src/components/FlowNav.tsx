@@ -19,7 +19,11 @@ export type Stage = 'connect' | 'plan' | 'create' | 'reflect'
 // Order is the numbering -- see the note where flow-n is rendered.
 const STAGES: { key: Stage; label: string; sub: string }[] = [
   { key: 'connect', label: 'Connect', sub: 'Pick a project' },
-  { key: 'plan', label: 'Plan', sub: 'Lesson, quiz, warm-up' },
+  // The stage key stays 'plan' -- it is the route (/exercise/:slug/plan) and
+  // the value stored against every sitting. Only the label a learner reads
+  // changed: "Read & Watch" says what you actually do here, where "Plan"
+  // described the teaching model rather than the activity.
+  { key: 'plan', label: 'Read & Watch', sub: 'Lesson, quiz, warm-up' },
   { key: 'create', label: 'Create & test', sub: 'Write it, run it, fix it' },
   { key: 'reflect', label: 'Reflect', sub: 'What you learned' },
 ]

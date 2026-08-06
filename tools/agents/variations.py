@@ -42,7 +42,8 @@ from pathlib import Path
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_MODEL = "gemini-2.5-flash-image"
 
-DATASET = Path("tools/agents/dataset")
+#: Anchored to this file, so the tool works from any directory.
+DATASET = Path(__file__).resolve().parent / "dataset"
 
 # What each character looks like, in the words a caption should use. The LoRA
 # learns to associate the trigger with these features, so they need to be true

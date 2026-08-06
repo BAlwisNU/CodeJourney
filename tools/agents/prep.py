@@ -41,6 +41,10 @@ from PIL import Image
 WEB_PX = 640
 TRAIN_PX = 1024
 
+#: Anchored to this file, so the tool works from any directory.
+_HERE = Path(__file__).resolve().parent
+_REPO = _HERE.parents[1]
+
 
 def flood_background(image: Image.Image, tolerance: int) -> tuple[Image.Image, int]:
     """Make the border-connected background transparent.
@@ -241,8 +245,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("source", type=Path, help="the group illustration")
     parser.add_argument("--names", nargs="+", required=True, help="one output name per character, left to right")
-    parser.add_argument("--out", type=Path, default=Path("apps/web/public/agents"))
-    parser.add_argument("--train-out", type=Path, default=Path("tools/agents/dataset"))
+    parser.add_argument("--out", type=Path, default=_REPO / "apps/web/public/agents")
+    parser.add_argument("--train-out", type=Path, default=_HERE / "dataset")
     parser.add_argument(
         "--bounds",
         nargs="+",

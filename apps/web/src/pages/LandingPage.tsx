@@ -88,10 +88,10 @@ const HERO_STATS = [
 ]
 
 const FEATURES = [
-  { icon: 'bolt' as IconName, title: 'Runs as you type', body: 'Python runs inside the browser tab. Press Run and it answers immediately — nothing to install, nothing to wait for.' },
-  { icon: 'reorder' as IconName, title: 'Warm up first', body: 'Drag jumbled lines into the right order before facing an empty editor. Two of them don’t belong — spotting that is the puzzle.' },
-  { icon: 'watch' as IconName, title: 'Watch it run', body: 'Step through your program line by line and see exactly what each one does to your data.' },
-  { icon: 'journal' as IconName, title: 'Keep the receipts', body: 'What you tried, where you got stuck, how you fixed it — building a portfolio that shows how far you came, not just your final answers.' },
+  { icon: 'bolt' as IconName, title: 'Runs as you type', body: 'Python runs in the tab. Press Run, get an answer. Nothing to install.' },
+  { icon: 'reorder' as IconName, title: 'Warm up first', body: 'Order the jumbled lines before facing an empty editor. Two don’t belong.' },
+  { icon: 'watch' as IconName, title: 'Watch it run', body: 'Step through your program and watch what each line does to your data.' },
+  { icon: 'journal' as IconName, title: 'Keep the receipts', body: 'What you tried, where you got stuck, how you fixed it. The journey, not just the answers.' },
 ]
 
 export function LandingPage() {
@@ -208,11 +208,8 @@ export function LandingPage() {
               Break it. <span className="grad">Find out why.</span>
             </h1>
             <p className="lede">
-              Most people quit programming for the same two reasons: the
-              exercises are dull, and when the code breaks all you get is red
-              text and the word <em>wrong</em>. CodeJourney fixes both — you
-              build things worth building, and every failure comes with an
-              explanation.
+              Build things worth building. When it breaks, you get an
+              explanation — not the word <em>wrong</em>.
             </p>
             <div className="hero-cta">
               <Link
@@ -254,8 +251,7 @@ export function LandingPage() {
       <section className="band" aria-labelledby="demo-heading">
         <h2 id="demo-heading" data-reveal>Try breaking something</h2>
         <p className="section-lede" data-reveal>
-          Pick a mistake everyone makes in their first week, and press Run. This
-          is the real translation, word for word.
+          Press Run. That is the real translation.
         </p>
         <div data-reveal>
           <ErrorDemo />
@@ -265,9 +261,7 @@ export function LandingPage() {
       <section className="band" aria-labelledby="worlds-heading">
         <h2 id="worlds-heading" data-reveal>Start with Python. More on the way.</h2>
         <p className="section-lede" data-reveal>
-          Python first, because it&rsquo;s the kindest place to begin. C++, HTML
-          &amp; CSS, and SQL are next — same layered feedback, same explain-it
-          -when-it-breaks approach.
+          C++, HTML &amp; CSS and SQL are next.
         </p>
 
         <ul className="worlds">
@@ -298,7 +292,13 @@ export function LandingPage() {
                   {/* Only the live language has a curriculum to show. The
                       others get their one-line "coming soon" and nothing
                       more, which is the honest shape of what exists. */}
-                  {!lang.soon && <TopicExplorer />}
+                  {/* Compact: on the landing page this is proof that a real
+                      curriculum exists, not the curriculum itself. Every
+                      module's one-line blurb was 339 words of the page. The
+                      dashboard shows the full version, where somebody is
+                      choosing what to do next rather than deciding whether to
+                      sign up. */}
+                  {!lang.soon && <TopicExplorer compact />}
                 </div>
               )}
             </li>
@@ -309,8 +309,7 @@ export function LandingPage() {
       <section className="band" aria-labelledby="ladder-heading">
         <h2 id="ladder-heading" data-reveal>Stuck? Help arrives in steps</h2>
         <p className="section-lede" data-reveal>
-          Each rung tells you a little more. Retrying costs you nothing, and the
-          last step is a human being — never the answer.
+          Each rung says a little more. The last one is a person.
         </p>
 
         <ol className="ladder">
@@ -346,9 +345,7 @@ export function LandingPage() {
             that said it twice and spends itself on what makes that credible:
             it has actually read the thing you are working on. */}
         <p className="section-lede" data-reveal>
-          It has read the lesson you are on and the code you wrote, and it knows
-          what you came here to build — so it can work with you towards the thing
-          you actually want to have made.
+          It has read your lesson and your code, and knows what you came to build.
         </p>
 
         <AgentTabs />
@@ -357,10 +354,9 @@ export function LandingPage() {
             stated rather than implied. It is enforced structurally and pinned
             by test_tutor_never_receives_the_private_journal. */}
         <p className="agent-rule" data-reveal>
-          <strong>And one thing they never see.</strong> Your journal — what you
-          tried, where you got stuck, how it felt — is kept away from every model
-          on purpose. It is the one place you can write “I have no idea what I am
-          doing” and know that nothing is reading it back.
+          <strong>And one thing they never see.</strong> Your journal. The one
+          place you can write “I have no idea what I am doing” and know nothing
+          is reading it back.
         </p>
       </section>
 

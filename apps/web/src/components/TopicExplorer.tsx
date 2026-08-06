@@ -28,7 +28,7 @@ import { Tilt } from './Tilt'
  * which re-runs on each switch.
  */
 
-export function TopicExplorer() {
+export function TopicExplorer({ compact = false }: { compact?: boolean } = {}) {
   const [openKey, setOpenKey] = useState(CURRICULUM[0].key)
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const topic = CURRICULUM_BY_KEY[openKey]
@@ -51,7 +51,9 @@ export function TopicExplorer() {
 
   return (
     <div className="tex">
-      <p className="tex-label">Pick a topic to see the path through it</p>
+      {!compact && (
+        <p className="tex-label">Pick a topic to see the path through it</p>
+      )}
 
       <div className="tex-tabs" role="tablist" aria-label="Python topics" onKeyDown={onKeyDown}>
         {CURRICULUM.map((t, i) => {
@@ -89,7 +91,7 @@ export function TopicExplorer() {
         aria-labelledby={`tex-tab-${topic.key}`}
         tabIndex={-1}
       >
-        <p className="tex-intro">{topic.intro}</p>
+        {!compact && <p className="tex-intro">{topic.intro}</p>}
 
         <div className="tex-branches">
           {LEVELS.map((level, i) => {
@@ -104,14 +106,14 @@ export function TopicExplorer() {
                     </span>
                     <div>
                       <h4>{level.label}</h4>
-                      <p className="tex-branch-hint">{level.hint}</p>
+                      {!compact && <p className="tex-branch-hint">{level.hint}</p>}
                     </div>
                   </header>
                   <ul>
                     {modules.map((m) => (
                       <li key={m.id}>
                         <span className="tex-mod-title">{m.title}</span>
-                        <span className="tex-mod-blurb">{m.blurb}</span>
+                        {!compact && <span className="tex-mod-blurb">{m.blurb}</span>}
                       </li>
                     ))}
                   </ul>
@@ -125,8 +127,9 @@ export function TopicExplorer() {
             out, so adding a topic or a module can't leave this sentence
             quietly wrong. */}
         <p className="tex-foot muted small">
-          {topic.modules.length} modules in {topic.label}, foundations through
-          applied — and {CURRICULUM.length - 1} more topics beside it.
+          {compact
+            ? `${topic.modules.length} modules, foundations through applied`
+            : `${topic.modules.length} modules in ${topic.label}, foundations through applied — and ${CURRICULUM.length - 1} more topics beside it.`}
         </p>
       </div>
     </div>

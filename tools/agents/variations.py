@@ -34,6 +34,7 @@ import base64
 import json
 import mimetypes
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -249,6 +250,23 @@ def explain(code: int, detail: str, key: str) -> str:
             '    -H "x-goog-api-key: $GEMINI_API_KEY" -H "Content-Type: application/json" \\',
             '    -d \'{"contents":[{"parts":[{"text":"say ok"}]}]}\'',
         ]
+    elif code == 429 and ("limit: 0" in detail or "free_tier" in detail):
+        lines += [
+            "Out of quota because there is none: the free tier allows zero image",
+            "generations. Every image model this key can see returns the same.",
+            "",
+            "The 'please retry in ~24s' in the message is misleading -- the limit",
+            "is 0, not a rate, so waiting changes nothing.",
+            "",
+            "Fix: enable billing on the Google Cloud project behind this key, at",
+            "https://console.cloud.google.com/billing . Text generation works on",
+            "the free tier; images do not.",
+        ]
+    elif code == 429:
+        lines += [
+            "Rate limited. This one IS transient -- rerun and it will skip what it",
+            "already made and carry on. Raise --pause if it keeps happening.",
+        ]
     elif code == 403:
         lines += [
             "The key is recognised but not allowed to do this. Usually one of:",
@@ -396,11 +414,25 @@ def main() -> None:
                     key, model, prompt, reference, args.timeout
                 )
             except urllib.error.HTTPError as error:
-                detail = error.read().decode()[:300]
+                detail = error.read().decode()[:600]
                 print(f"  {i:02d} {slug}: HTTP {error.code}")
                 failed += 1
-                if error.code in (401, 403, 404):
+                # A quota of zero is not a rate limit and will not pass. Stop,
+                # rather than making the same failed call 111 more times.
+                fatal = error.code in (401, 403, 404) or (
+                    error.code == 429 and ("limit: 0" in detail or "free_tier" in detail)
+                )
+                if fatal:
                     raise SystemExit(explain(error.code, detail, key))
+                if error.code == 429:
+                    # Genuine throttling. Back off using the API's own figure
+                    # when it gives one, since it knows better than a guess.
+                    wait = 30.0
+                    match = re.search(r"retry in ([\d.]+)s", detail)
+                    if match:
+                        wait = min(120.0, float(match.group(1)) + 1)
+                    print(f"       throttled, waiting {wait:.0f}s")
+                    time.sleep(wait)
                 continue
             except Exception as error:  # noqa: BLE001 - one bad image must not end the run
                 print(f"  {i:02d} {slug}: {error}")

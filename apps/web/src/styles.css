@@ -873,7 +873,7 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 }
 .flow-step.on .flow-n { background: var(--accent); color: #0b1020; border-color: var(--accent); }
 .flow-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
-/* Six boxes in the row now, so the labels sit in a narrower column. They wrap
+/* Five boxes in the row, so the labels sit in a narrower column. They wrap
    rather than truncate: a row of "Lesson, quiz, w..." tells a learner less than
    a row that is a few pixels taller. `balance` evens the wrapped lines instead
    of stranding one word, and the cards already stretch to match each other. */

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { endDemo, useDemoKind } from '../lib/demo'
 
 /**
- * Connect → Read & Watch → Quiz → Create → Test and improve → Reflect.
+ * Read & Watch → Quiz → Create → Test and improve → Reflect.
  *
  * Visible on every stage so the student always knows where they are in the
  * cycle and that reflection is a real step rather than an optional extra tacked
@@ -14,11 +14,15 @@ import { endDemo, useDemoKind } from '../lib/demo'
  * worked. They're shown as one step with both labels.
  */
 
-export type Stage = 'connect' | 'plan' | 'quiz' | 'create' | 'reflect'
+export type Stage = 'plan' | 'quiz' | 'create' | 'reflect'
 
 // Order is the numbering -- see the note where flow-n is rendered.
+//
+// There is no Connect step. It meant "pick a project", which is something you
+// do before a lesson rather than inside one -- by the time this nav is on
+// screen the project is already chosen, so the step was never the current one
+// on any page. Getting back to the list is what the exit at the end is for.
 const STAGES: { key: Stage; label: string; sub: string }[] = [
-  { key: 'connect', label: 'Connect', sub: 'Pick a project' },
   // The stage key stays 'plan' -- it is the route (/exercise/:slug/plan) and
   // the value stored against every sitting. Only the label a learner reads
   // changed: "Read & Watch" says what you actually do here, where "Plan"
@@ -34,40 +38,30 @@ export function FlowNav({
   slug,
 }: {
   current: Stage
-  /** Omitted on Connect, where no project has been chosen yet. */
+  /** Every stage is inside one exercise, so this is always known in practice. */
   slug?: string
 }) {
-  // Someone who arrived via "Demo Lesson" has no dashboard behind them -- they
-  // never picked a project, they were dropped straight into one. Connect is
-  // dropped from their flow entirely rather than shown greyed out: a visible
-  // step you cannot take is a worse answer than a flow that simply starts
-  // where you started. The account demo keeps it, because wandering around is
-  // the entire point of that one.
+  // Only still needed to decide which way out to offer: someone who arrived
+  // via "Demo Lesson" is not signed in and has nothing to go back to.
   const navigate = useNavigate()
   const lessonDemo = useDemoKind() === 'lesson'
-  const stages = lessonDemo
-    ? STAGES.filter((stage) => stage.key !== 'connect')
-    : STAGES
+  const stages = STAGES
 
   return (
     <nav className="flow" aria-label="Where you are">
       <ol>
         {stages.map((stage, index) => {
           const active = stage.key === current
-          const target =
-            stage.key === 'connect'
-              ? '/exercises'
-              : !slug
-                ? null
-                : stage.key === 'create'
-                  ? `/exercise/${slug}`
-                  : `/exercise/${slug}/${stage.key}`
+          const target = !slug
+            ? null
+            : stage.key === 'create'
+              ? `/exercise/${slug}`
+              : `/exercise/${slug}/${stage.key}`
 
           const body = (
             <>
-              {/* Numbered by position, not by the stage's own number. With
-                  Connect removed the sequence has to read 1-2-3; leaving a
-                  gap where step 1 was looks like something failed to load. */}
+              {/* Numbered by position rather than by any fixed number, so the
+                  sequence always reads 1-2-3 however the list changes. */}
               <span className="flow-n">{index + 1}</span>
               <span className="flow-text">
                 <strong>{stage.label}</strong>
@@ -89,12 +83,10 @@ export function FlowNav({
 
         {/* A way out, always, and marked with an arrow rather than a number
             because it is not a stage of the cycle.
-            
+
             The stages describe where you are inside a lesson; none of them says
-            "I'm done here for now". Connect happens to lead to the dashboard,
-            but "Pick a project" does not read as an exit, and a demo has no
-            Connect at all -- so each gets a labelled way out, to the place that
-            makes sense for them. */}
+            "I'm done here for now". So each kind of visitor gets a labelled way
+            out, to the place that makes sense for them. */}
         {lessonDemo ? (
           <li className="flow-step flow-exit">
             {/* A button, not a link: leaving throws the throwaway account away

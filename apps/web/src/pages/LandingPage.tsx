@@ -86,6 +86,27 @@ const HERO_STATS = [
   { value: '69', label: 'exercises to work through' },
 ]
 
+// Everything claimed here is something the platform actually does, and each is
+// pinned by a test in apps/api/tests/test_tutor.py -- a landing page is the one
+// place a wrong claim is read by everybody.
+const AGENTS = [
+  {
+    when: 'When you sign up',
+    title: 'It asks what you want to build',
+    body: 'A relaxed conversation about what you are interested in, ending in a plan — the topics to learn and a few projects worth building with them.',
+  },
+  {
+    when: 'After you solve it',
+    title: 'It talks through what you wrote',
+    body: 'Not a generic tutor: it has read the lesson and the code you actually submitted, so it can tell you which part you got by understanding and which part you got by luck.',
+  },
+  {
+    when: 'When you want more practice',
+    title: 'It writes you a new exercise',
+    body: 'A fresh problem on whatever you found hard — and it solves the problem itself, through the same grader that marks your work, before you ever see it. If it cannot pass its own tests, you never get shown it.',
+  },
+]
+
 const FEATURES = [
   { icon: 'bolt' as IconName, title: 'Runs as you type', body: 'Python runs inside the browser tab. Press Run and it answers immediately — nothing to install, nothing to wait for.' },
   { icon: 'reorder' as IconName, title: 'Warm up first', body: 'Drag jumbled lines into the right order before facing an empty editor. Two of them don’t belong — spotting that is the puzzle.' },
@@ -335,6 +356,34 @@ export function LandingPage() {
             </div>
           </li>
         </ol>
+      </section>
+
+      <section className="band" aria-labelledby="agents-heading">
+        <h2 id="agents-heading" data-reveal>An AI that has done the reading</h2>
+        <p className="section-lede" data-reveal>
+          Three of them, each with one job and a limited view. They know the
+          lesson you are on and the code you wrote — nothing more.
+        </p>
+
+        <ul className="agents">
+          {AGENTS.map((agent) => (
+            <Tilt as="li" key={agent.title} className="agent" max={6} lift={12}>
+              <span className="agent-when">{agent.when}</span>
+              <h3>{agent.title}</h3>
+              <p>{agent.body}</p>
+            </Tilt>
+          ))}
+        </ul>
+
+        {/* The boundary is the most important thing on this page, so it is
+            stated rather than implied. It is enforced structurally and pinned
+            by test_tutor_never_receives_the_private_journal. */}
+        <p className="agent-rule" data-reveal>
+          <strong>And one thing they never see.</strong> Your journal — what you
+          tried, where you got stuck, how it felt — is kept away from every model
+          on purpose. It is the one place you can write “I have no idea what I am
+          doing” and know that nothing is reading it back.
+        </p>
       </section>
 
       <section className="band" aria-labelledby="features-heading">

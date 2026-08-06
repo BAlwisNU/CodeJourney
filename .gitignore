@@ -12,3 +12,6 @@ deploy/.env
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Generated character training sets — large, and regenerable from prep.py
+tools/agents/dataset/

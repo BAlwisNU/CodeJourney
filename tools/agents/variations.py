@@ -146,6 +146,8 @@ def list_models(key: str) -> None:
     The image model's id has changed more than once, so rather than hard-code
     a guess and fail with a 404 nobody can act on, this prints what the key can
     reach and which of those can return an image.
+
+    A successful listing does NOT mean the key can generate -- see explain().
     """
     request = urllib.request.Request(f"{API_ROOT}/models", headers={"x-goog-api-key": key})
     with urllib.request.urlopen(request, timeout=60) as response:
@@ -161,24 +163,45 @@ def list_models(key: str) -> None:
 def explain(code: int, detail: str, key: str) -> str:
     """Turn Google's error into the thing you actually have to go and do.
 
-    The 401 in particular is badly worded for this case: it says "Expected
-    OAuth 2 access token", which reads like the request was malformed. It is
-    not -- it is what this endpoint says when the credential is not a Gemini
-    API key at all. A credential of the wrong type can still list models, so
-    --list-models succeeding does not prove the key will work.
+    The 401 here is worth spelling out, because everything about it misleads.
+    It says "Expected OAuth 2 access token", which reads like a malformed
+    request. It is not. Measured against this endpoint:
+
+        a made-up key      -> 400 "API key not valid"
+        no key at all      -> 403 "unregistered callers"
+        an accepted key    -> 200 on /models
+
+    A key can pass that last test, list every model, and still get 401 on
+    generateContent -- which means the key is real but this project wants OAuth
+    for generation rather than an API key. In practice that is a Workspace or
+    organisation account, or a key minted in the Cloud Console instead of AI
+    Studio. The fix is a key from a personal Google account at
+    aistudio.google.com, not a differently-shaped one from the same place.
+
+    So --list-models is a reachability check, not an authorisation check. Do
+    not read a successful listing as "the key works".
     """
     lines = [f"\nStopping: HTTP {code}. This is a credential problem, not a transient one.\n"]
     if "Expected OAuth 2 access token" in detail:
         lines += [
-            "That key is not a Gemini API key.",
+            "This key is recognised -- it can list models -- but this project will",
+            "not accept an API key for generateContent, only OAuth.",
             "",
-            f"  yours starts:  {key[:6]}...",
-            "  expected:      AIza...",
+            "That usually means one of:",
+            "  - you signed in to AI Studio with a Workspace / university account",
+            "    whose org policy blocks API-key generation",
+            "  - the key was made in the Google Cloud Console rather than in",
+            "    AI Studio",
             "",
-            "Gemini API keys come from https://aistudio.google.com/apikey and begin",
-            "with 'AIza'. Other Google credentials -- OAuth tokens, Cloud service",
-            "accounts, keys from other consoles -- can often list models but cannot",
-            "call generateContent, which is exactly what you are seeing.",
+            "Fix: sign in to https://aistudio.google.com/apikey with a PERSONAL",
+            "Google account and create a key there. The prefix does not matter --",
+            "what matters is that it can call generateContent, which you can check",
+            "in one line:",
+            "",
+            '  curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/'
+            'models/gemini-2.5-flash:generateContent" \\',
+            '    -H "x-goog-api-key: $GEMINI_API_KEY" -H "Content-Type: application/json" \\',
+            '    -d \'{"contents":[{"parts":[{"text":"say ok"}]}]}\'',
         ]
     elif code == 403:
         lines += [

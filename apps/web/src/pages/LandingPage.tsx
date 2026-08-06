@@ -74,11 +74,16 @@ const LADDER = [
   { tag: 'L5', when: 'Still stuck', title: 'An actual person', body: 'Your instructor gets told you could use a hand.' },
 ]
 
+// Three of these are about how the platform teaches; the fourth is about how
+// much there is to teach, which is the question "is this a real thing or a
+// demo?" that the other three cannot answer. Pinned to the actual library size
+// by a test -- a landing page that overstates the content is worse than one
+// that says nothing about it.
 const HERO_STATS = [
   { value: '0', label: 'things to install' },
   { value: '∞', label: 'tries per exercise' },
   { value: '5', label: 'levels of help' },
-  { value: '0', label: 'times we show the answer' },
+  { value: '69', label: 'exercises to work through' },
 ]
 
 const FEATURES = [

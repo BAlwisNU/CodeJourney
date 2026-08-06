@@ -141,3 +141,37 @@ def test_tests_survive_the_json_round_trip(spec):
                 f"{spec['slug']} test {case['name']!r}: {field} changes shape when "
                 f"stored as JSON (often an int-keyed dict or a tuple)"
             )
+
+
+def test_the_landing_page_advertises_the_real_exercise_count(client):
+    """The hero stat is a promise about the library, so it has to match it.
+
+    docs/curriculum.md still says "7 built, 62 planned", which is what happens
+    to a hand-maintained number nothing checks. A claim on the landing page is
+    seen by everyone who visits, so this one is checked.
+    """
+    import re
+    from pathlib import Path
+
+    from sqlalchemy import select
+
+    from app.models import Exercise
+
+    with client.session_factory() as db:
+        seeded = len(db.scalars(select(Exercise)).all())
+
+    landing = (
+        Path(__file__).resolve().parents[3]
+        / "apps" / "web" / "src" / "pages" / "LandingPage.tsx"
+    )
+    match = re.search(
+        r"value:\s*'(\d+)',\s*label:\s*'exercises to work through'",
+        landing.read_text(),
+    )
+    assert match, (
+        "the exercise-count stat is no longer in HERO_STATS -- update this test "
+        "or delete it along with the stat"
+    )
+    assert int(match.group(1)) == seeded, (
+        f"the landing page claims {match.group(1)} exercises, the library has {seeded}"
+    )

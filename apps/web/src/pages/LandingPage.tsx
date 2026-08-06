@@ -92,18 +92,23 @@ const HERO_STATS = [
 const AGENTS = [
   {
     when: 'When you sign up',
-    title: 'It asks what you want to build',
-    body: 'A relaxed conversation about what you are interested in, ending in a plan — the topics to learn and a few projects worth building with them.',
+    title: 'It asks what you actually want to build',
+    body: 'Not a form with a dropdown — a conversation. What you are curious about, what you would love to have made by the end. It comes out of that with a plan: the topics to learn, and a few projects worth building with them. Yours, not a default syllabus.',
   },
   {
-    when: 'After you solve it',
-    title: 'It talks through what you wrote',
-    body: 'Not a generic tutor: it has read the lesson and the code you actually submitted, so it can tell you which part you got by understanding and which part you got by luck.',
+    when: 'While you are learning',
+    title: 'It talks like a friend who happens to code',
+    body: 'Short, warm turns. One question at a time. It asks how the exercise felt before it asks whether you understood, praises the specific thing you got right, and never lectures. What it is quietly working out is not whether your tests passed — it is whether you could do it again tomorrow on your own.',
   },
   {
-    when: 'When you want more practice',
-    title: 'It writes you a new exercise',
-    body: 'A fresh problem on whatever you found hard — and it solves the problem itself, through the same grader that marks your work, before you ever see it. If it cannot pass its own tests, you never get shown it.',
+    when: 'When you want more',
+    title: 'It builds practice around your goals',
+    body: 'Explanations pitched where you actually are, examples drawn from the things you said you cared about. And when something has not landed yet, it writes you a new exercise on exactly that — then solves it itself, through the same grader that marks your work, before you ever see it.',
+  },
+  {
+    when: 'Whenever you like',
+    title: 'You decide what it knows about you',
+    body: 'Your goals and the projects you want to build live in your account, in your words, and you can rewrite them any time. Change them and the coach works from the new ones. What you are here for is allowed to change — most people\u2019s does.',
   },
 ]
 
@@ -359,10 +364,11 @@ export function LandingPage() {
       </section>
 
       <section className="band" aria-labelledby="agents-heading">
-        <h2 id="agents-heading" data-reveal>An AI that has done the reading</h2>
+        <h2 id="agents-heading" data-reveal>A coach who is actually yours</h2>
         <p className="section-lede" data-reveal>
-          Three of them, each with one job and a limited view. They know the
-          lesson you are on and the code you wrote — nothing more.
+          It has read the lesson you are on and the code you wrote, and it knows
+          what you came here to build. Not a chatbot bolted on the side — someone
+          in your corner, working towards the thing you want to have made.
         </p>
 
         <ul className="agents">

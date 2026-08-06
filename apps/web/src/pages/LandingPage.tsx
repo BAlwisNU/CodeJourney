@@ -364,11 +364,16 @@ export function LandingPage() {
       </section>
 
       <section className="band" aria-labelledby="agents-heading">
-        <h2 id="agents-heading" data-reveal>A coach who is actually yours</h2>
+        <h2 id="agents-heading" data-reveal>
+          Your personalised coach and best friend in your coding journey
+        </h2>
+        {/* The heading now carries "on your side", so the lede drops the line
+            that said it twice and spends itself on what makes that credible:
+            it has actually read the thing you are working on. */}
         <p className="section-lede" data-reveal>
           It has read the lesson you are on and the code you wrote, and it knows
-          what you came here to build. Not a chatbot bolted on the side — someone
-          in your corner, working towards the thing you want to have made.
+          what you came here to build — so it can work with you towards the thing
+          you actually want to have made.
         </p>
 
         <ul className="agents">

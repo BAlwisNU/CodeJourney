@@ -1705,11 +1705,36 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
 .hero { max-width: none; perspective: 1200px; }
 .hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
-  gap: 48px;
+  /* The copy column gives up nothing to the frosted panel's padding -- the
+     72px it needs comes out of the deck, which is decoration, so the headline
+     keeps the width it had and stays on two lines. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  gap: 40px;
   align-items: center;
 }
-.hero-copy { max-width: 640px; }
+/* The headline, the paragraph and the call to action sit on frosted glass.
+   The world behind the hero is a moving field of thin lines and glyphs, and
+   reading a paragraph off it meant reading through it. Blurring the backdrop
+   inside this rectangle settles it without dimming the animation everywhere
+   else -- and matches the hero stat cards below, which were already frosted. */
+.hero-copy {
+  max-width: 640px;
+  padding: 34px 36px 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(21, 25, 37, 0.55);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(22px) saturate(125%);
+  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.72);
+}
+/* No backdrop-filter support: fall back to an opaque panel, which is the same
+   design decision made a cruder way rather than unreadable text. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hero-copy { background: rgba(21, 25, 37, 0.93); }
+}
+@media (max-width: 720px) {
+  .hero-copy { padding: 24px 20px 26px; }
+}
 
 /* --- the hero deck ------------------------------------------------------ */
 

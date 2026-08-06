@@ -2853,46 +2853,101 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
   transition: width 0.4s ease;
 }
 
-/* --- sections ------------------------------------------------------------ */
+/* --- pages ---------------------------------------------------------------
 
-.ls {
-  border-top: 1px solid transparent;
-  padding: 4px 0;
-  /* The section nearest the middle of the screen brightens; the rest sit back.
-     Cheaper on the eye than a scrollbar and it needs no chrome. */
-  opacity: 0.72;
-  transition: opacity 0.35s ease;
-}
-.ls-near { opacity: 1; }
+   One section per page. There is no folding and no dimming any more: both
+   existed to manage one very long column, and a page is already the smallest
+   thing a reader has to deal with at once. */
 
-.ls h3 { margin: 26px 0 4px; }
-.ls h3 > button {
+.ls { padding: 4px 0; min-height: 220px; }
+
+.ls h3 {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font: inherit;
-  font-size: 1.02rem;
+  margin: 4px 0 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.08rem;
   font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
 }
-.ls h3 > button:hover { border-color: var(--border-lit); }
 .ls-icon { font-size: 1rem; line-height: 1; flex: none; }
 .ls-title { flex: 1; min-width: 0; }
-.ls-count {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 0.7rem;
-  color: var(--muted);
+.ls-body { padding: 0 2px 4px; }
+
+/* --- the pager ------------------------------------------------------------ */
+
+.ls-pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
 }
-.ls-chevron { color: var(--muted); font-size: 1.05rem; width: 14px; text-align: center; }
-.ls-body { padding: 14px 2px 4px; }
+
+.ls-page-btn {
+  padding: 8px 15px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.ls-page-btn:hover:not(:disabled) { border-color: var(--border-lit); background: var(--surface-3); }
+.ls-page-btn:disabled { opacity: 0.4; cursor: default; }
+/* The forward button carries the accent: it is what you do next, and on a
+   page of prose it should be findable without reading the row. */
+.ls-page-next:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent);
+  color: #0d1017;
+  font-weight: 600;
+}
+.ls-page-next:not(:disabled):hover { background: var(--accent); filter: brightness(1.08); }
+
+/* Jumpable, because a reader who wants the dictionaries section should not
+   have to click Next three times to reach it. */
+.ls-dots { list-style: none; display: flex; gap: 6px; margin: 0; padding: 0; flex: 1; }
+/* The lesson body numbers every `ol > li` with a counter in a circle -- the
+   filtering recipe is a sequence and should look like one. The pager is an
+   ordered list too, and is not that. */
+.lesson .md .ls-dots > li { display: flex; padding: 0; }
+.lesson .md .ls-dots > li::before { content: none; }
+.ls-dots button {
+  width: 100%;
+  min-width: 16px;
+  max-width: 46px;
+  height: 5px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.ls-dots button:hover { transform: scaleY(1.6); }
+.ls-dots button.is-past { background: rgba(124, 156, 255, 0.45); }
+.ls-dots button.is-at { background: var(--accent); transform: scaleY(1.8); }
+
+.ls-page-count {
+  font-size: 0.8rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ls-page-count i { color: var(--muted); font-style: normal; }
+
+@media (max-width: 620px) {
+  /* The dots are the first thing to go: Back, Next and the count still say
+     where you are, and three controls fit a phone where five do not. */
+  .ls-dots { display: none; }
+  .ls-pager { gap: 10px; }
+  .ls-page-btn { flex: 1; }
+}
 
 /* --- callouts ------------------------------------------------------------ */
 
@@ -3098,7 +3153,7 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ls, .ls-progress > span { transition: none; }
+  .ls-progress > span, .ls-dots button, .ls-page-btn { transition: none; }
   .ls { opacity: 1; }
 }
 

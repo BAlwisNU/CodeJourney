@@ -221,7 +221,7 @@ whether it worked.
 |---|---|---|
 | **1. Connect** | `/exercises` | Pick a theme, pick a project |
 | **2. Plan** | `/exercise/:slug/plan` | Lesson, quiz, Parsons warm-up |
-| **3–4. Create & test** | `/exercise/:slug` | Monaco, Run/Submit, error translation, hint ladder |
+| **3–4. Code & test** | `/exercise/:slug` | Monaco, Run/Submit, error translation, hint ladder |
 | **5. Reflect** | same page | Journal: tried / stuck / fixed |
 | — | `/portfolio` | Everything you've made, with the effort it took |
 | — | `/instructor` | Class analytics (instructors only) |

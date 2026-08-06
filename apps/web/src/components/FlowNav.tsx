@@ -29,7 +29,9 @@ const STAGES: { key: Stage; label: string; sub: string }[] = [
   // described the teaching model rather than the activity.
   { key: 'plan', label: 'Read & Watch', sub: 'Lesson and warm-up' },
   { key: 'quiz', label: 'Quiz', sub: 'Check what stuck' },
-  { key: 'create', label: 'Create & test', sub: 'Write it, run it, fix it' },
+  // The stage key stays 'create' -- it is the value stored against every
+  // sitting, and the label is the only part a learner reads.
+  { key: 'create', label: 'Code & test', sub: 'Write it, run it, fix it' },
   { key: 'reflect', label: 'Reflect', sub: 'What you learned' },
 ]
 

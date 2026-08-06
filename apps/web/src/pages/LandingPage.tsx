@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ErrorDemo } from '../components/ErrorDemo'
+import { AgentTabs } from '../components/AgentTabs'
 import { HeroDeck } from '../components/HeroDeck'
 import { Icon, type IconName } from '../components/Icon'
 import { ScrollWorld } from '../components/ScrollWorld'
@@ -84,32 +85,6 @@ const HERO_STATS = [
   { value: '∞', label: 'tries per exercise' },
   { value: '5', label: 'levels of help' },
   { value: '69', label: 'exercises to work through' },
-]
-
-// Everything claimed here is something the platform actually does, and each is
-// pinned by a test in apps/api/tests/test_tutor.py -- a landing page is the one
-// place a wrong claim is read by everybody.
-const AGENTS = [
-  {
-    when: 'When you sign up',
-    title: 'It asks what you actually want to build',
-    body: 'Not a form with a dropdown — a conversation. What you are curious about, what you would love to have made by the end. It comes out of that with a plan: the topics to learn, and a few projects worth building with them. Yours, not a default syllabus.',
-  },
-  {
-    when: 'While you are learning',
-    title: 'It talks like a friend who happens to code',
-    body: 'Short, warm turns. One question at a time. It asks how the exercise felt before it asks whether you understood, praises the specific thing you got right, and never lectures. What it is quietly working out is not whether your tests passed — it is whether you could do it again tomorrow on your own.',
-  },
-  {
-    when: 'When you want more',
-    title: 'It builds practice around your goals',
-    body: 'Explanations pitched where you actually are, examples drawn from the things you said you cared about. And when something has not landed yet, it writes you a new exercise on exactly that — then solves it itself, through the same grader that marks your work, before you ever see it.',
-  },
-  {
-    when: 'Whenever you like',
-    title: 'You decide what it knows about you',
-    body: 'Your goals and the projects you want to build live in your account, in your words, and you can rewrite them any time. Change them and the coach works from the new ones. What you are here for is allowed to change — most people\u2019s does.',
-  },
 ]
 
 const FEATURES = [
@@ -376,15 +351,7 @@ export function LandingPage() {
           you actually want to have made.
         </p>
 
-        <ul className="agents">
-          {AGENTS.map((agent) => (
-            <Tilt as="li" key={agent.title} className="agent" max={6} lift={12}>
-              <span className="agent-when">{agent.when}</span>
-              <h3>{agent.title}</h3>
-              <p>{agent.body}</p>
-            </Tilt>
-          ))}
-        </ul>
+        <AgentTabs />
 
         {/* The boundary is the most important thing on this page, so it is
             stated rather than implied. It is enforced structurally and pinned

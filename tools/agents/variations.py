@@ -40,7 +40,21 @@ import urllib.request
 from pathlib import Path
 
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta"
-DEFAULT_MODEL = "gemini-2.5-flash-image"
+
+#: Tried in order when no --model is given. Newest first, flash before pro
+#: because this makes ~112 images and pro costs multiples per image; and
+#: non-preview before preview, because a preview id can vanish mid-run.
+#:
+#: Not a hard-coded default any more. Google retires models per-account -- a
+#: brand new key gets 404 "no longer available to new users" on ids that work
+#: fine for older ones -- so the only reliable answer is to ask this key what
+#: it can see and choose from that.
+MODEL_PREFERENCE = [
+    "gemini-3.1-flash-image",
+    "gemini-3-flash-image",
+    "gemini-3.1-flash-lite-image",
+    "gemini-2.5-flash-image",
+]
 
 #: Anchored to this file, so the tool works from any directory.
 DATASET = Path(__file__).resolve().parent / "dataset"
@@ -140,6 +154,41 @@ def build_caption(trigger: str, look: str, variation: str, background: str) -> s
     return f"{trigger}, {look}, {variation}, {background}"
 
 
+def fetch_models(key: str) -> list[tuple[str, list[str]]]:
+    """Every model this key can see, as (id, methods)."""
+    request = urllib.request.Request(f"{API_ROOT}/models", headers={"x-goog-api-key": key})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        payload = json.load(response)
+    return [
+        (m.get("name", "").removeprefix("models/"), m.get("supportedGenerationMethods", []))
+        for m in payload.get("models", [])
+    ]
+
+
+def pick_model(models: list[tuple[str, list[str]]]) -> str:
+    """The best image model this key can actually reach."""
+    # "image" in the id catches most of them, but not all: nano-banana-pro is
+    # an image model whose name says nothing of the sort. Matching on the
+    # method list alone would be better and is not possible -- image models
+    # advertise plain generateContent like everything else.
+    usable = {
+        name
+        for name, methods in models
+        if ("image" in name or "banana" in name) and "generateContent" in methods
+    }
+    if not usable:
+        raise SystemExit(
+            "This key cannot see any image-capable model.\n"
+            "Run --list-models to see what it can reach."
+        )
+    for preferred in MODEL_PREFERENCE:
+        if preferred in usable:
+            return preferred
+    # Nothing known: take the newest-looking stable one, else anything.
+    stable = sorted((n for n in usable if "preview" not in n), reverse=True)
+    return (stable or sorted(usable, reverse=True))[0]
+
+
 def list_models(key: str) -> None:
     """Ask the API what it actually has.
 
@@ -149,15 +198,12 @@ def list_models(key: str) -> None:
 
     A successful listing does NOT mean the key can generate -- see explain().
     """
-    request = urllib.request.Request(f"{API_ROOT}/models", headers={"x-goog-api-key": key})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        payload = json.load(response)
+    models = fetch_models(key)
     print("models this key can reach:\n")
-    for model in payload.get("models", []):
-        name = model.get("name", "").removeprefix("models/")
-        methods = model.get("supportedGenerationMethods", [])
+    for name, methods in models:
         marker = "  <- image capable" if "image" in name.lower() else ""
         print(f"  {name:<45} {','.join(methods)}{marker}")
+    print(f"\nwould use: {pick_model(models)}")
 
 
 def explain(code: int, detail: str, key: str) -> str:
@@ -278,7 +324,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--only", nargs="+", help="just these characters")
     parser.add_argument("--count", type=int, default=len(VARIATIONS), help="variations per character")
-    parser.add_argument("--model", default=os.environ.get("GEMINI_IMAGE_MODEL", DEFAULT_MODEL))
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("GEMINI_IMAGE_MODEL"),
+        help="override; by default the best image model this key can see is chosen",
+    )
     parser.add_argument("--dataset", type=Path, default=DATASET)
     parser.add_argument("--dry-run", action="store_true", help="print the prompts, call nothing")
     parser.add_argument("--fake", action="store_true", help="write stand-in images, call nothing")
@@ -301,11 +351,16 @@ def main() -> None:
         list_models(key)
         return
 
+    model = args.model
+    if live and not model:
+        model = pick_model(fetch_models(key))
+
     names = args.only or list(CHARACTERS)
     plan = VARIATIONS[: args.count]
     print(f"{len(names)} character(s) x {len(plan)} variations = {len(names) * len(plan)} images")
     if live:
-        print(f"model: {args.model}   (override with --model or GEMINI_IMAGE_MODEL)")
+        chosen = "chosen" if not args.model else "you asked for"
+        print(f"model: {model}   ({chosen}; override with --model)")
 
     made = skipped = failed = 0
     for name in names:
@@ -338,7 +393,7 @@ def main() -> None:
 
             try:
                 data = fake(prompt, reference) if args.fake else generate(
-                    key, args.model, prompt, reference, args.timeout
+                    key, model, prompt, reference, args.timeout
                 )
             except urllib.error.HTTPError as error:
                 detail = error.read().decode()[:300]

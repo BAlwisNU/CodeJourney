@@ -232,9 +232,14 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   width: min(1080px, 100%);
   z-index: 0;
   pointer-events: none;
-  background: rgba(17, 20, 30, 0.5);
-  -webkit-backdrop-filter: blur(24px) saturate(120%);
-  backdrop-filter: blur(24px) saturate(120%);
+  /* Blur, not a wash. A 50% tint over the world was hiding the thing it was
+     meant to be softening, and 30px of radius smeared the world's thin lines
+     into nothing at all -- both amount to a solid panel by a longer route.
+     At this radius the lines stay visible and stay coloured; they just go out
+     of focus, so the eye stops trying to follow them. */
+  background: rgba(17, 20, 30, 0.1);
+  -webkit-backdrop-filter: blur(14px) saturate(118%);
+  backdrop-filter: blur(14px) saturate(118%);
   /* Hairlines down the sides, so the column reads as a deliberate surface
      rather than as a patch of the background that went soft. */
   border-left: 1px solid rgba(255, 255, 255, 0.055);
@@ -1693,17 +1698,23 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
 
 /* Vignette over the world. Without it, a bright shard drifting behind a
    paragraph makes the paragraph unreadable for the second it takes to pass.
-   The second gradient is a scrim down the left, where every heading and
-   paragraph on this page sits -- it buys the copy a quiet backdrop and reads,
-   from the front, as the world simply being lit from the right. */
+   The first gradient is a scrim down the left, where every heading and
+   paragraph sits, and it reads from the front as the world being lit from
+   the right.
+
+   It used to be heavy, because it was the only thing buying the copy a quiet
+   backdrop. The frosted column does that job now, and at the old weight the
+   two together left nothing of the world visible behind the content -- which
+   is the opposite of the point. Kept, at less than half strength, for the
+   bright shard it was written for. */
 .sw-veil {
   position: absolute;
   inset: 0;
   background:
     linear-gradient(
       100deg,
-      rgba(11, 13, 19, 0.72) 0%,
-      rgba(11, 13, 19, 0.44) 34%,
+      rgba(11, 13, 19, 0.32) 0%,
+      rgba(11, 13, 19, 0.18) 34%,
       rgba(11, 13, 19, 0) 62%
     ),
     radial-gradient(

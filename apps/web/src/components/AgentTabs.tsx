@@ -45,7 +45,7 @@ export const AGENTS: Agent[] = [
     title: 'I ask what you actually want to build',
     say: 'Not a form with a dropdown — a conversation. What you are curious about, what you would love to have made by the end. I come out of it with a plan: the topics to learn, and a few projects worth building with them. Yours, not a default syllabus.',
     tint: '124, 156, 255',
-    art: '/agents/scout.png',
+    art: '/agents/scout.webp',
   },
   {
     id: 'coach',
@@ -54,7 +54,7 @@ export const AGENTS: Agent[] = [
     title: 'I talk like a friend who happens to code',
     say: 'Short, warm turns. One question at a time. I ask how the exercise felt before I ask whether you understood, I praise the specific thing you got right, and I never lecture. What I am quietly working out is not whether your tests passed — it is whether you could do it again tomorrow on your own.',
     tint: '167, 139, 250',
-    art: '/agents/coach.png',
+    art: '/agents/coach.webp',
   },
   {
     id: 'forge',
@@ -63,7 +63,7 @@ export const AGENTS: Agent[] = [
     title: 'I build practice around your goals',
     say: 'Examples drawn from the things you said you cared about. And when something has not landed yet, I write you a new exercise on exactly that — then solve it myself, through the same grader that marks your work, before you ever see it.',
     tint: '52, 211, 153',
-    art: '/agents/forge.png',
+    art: '/agents/forge.webp',
   },
   {
     id: 'keeper',
@@ -72,7 +72,7 @@ export const AGENTS: Agent[] = [
     title: 'You decide what I know about you',
     say: 'Your goals and the projects you want to build live in your account, in your words, and you can rewrite them any time. Change them and we all work from the new ones. What you are here for is allowed to change — most people’s does.',
     tint: '34, 211, 238',
-    art: '/agents/keeper.png',
+    art: '/agents/keeper.webp',
   },
 ]
 
@@ -186,7 +186,7 @@ export function AgentTabs() {
         >
           <Portrait
             className="agent-group"
-            src="/agents/all.png"
+            src="/agents/all.webp"
             alt="The four CodeJourney coaches"
             initial="4"
             tint="124, 156, 255"

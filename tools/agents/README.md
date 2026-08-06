@@ -17,13 +17,23 @@ So there are three stages, and the first one is the one people skip.
 
 ---
 
+## Where the files live
+
+    tools/agents/source/all.png      the master illustration (not shipped)
+    tools/agents/dataset/<name>.png  1024px with alpha, the training seeds
+    apps/web/public/agents/*.webp    what the landing page serves
+
+Masters stay out of `public/` on purpose: everything in there is copied
+verbatim into the build and served to every visitor, and the source PNG is
+2MB against 161KB for the WebP. Nothing in `public/agents/` is hand-edited --
+rerun `prep.py` and it is all regenerated.
+
 ## Stage 1 — references (free, local, done)
 
 Turn the group shot into four clean, cut-out, square references.
 
 ```bash
-# save the group illustration first, then:
-python tools/agents/prep.py apps/web/public/agents/all.png \
+python tools/agents/prep.py tools/agents/source/all.png \
     --names scout coach forge keeper
 ```
 
@@ -37,8 +47,14 @@ Notes:
 - The backdrop is removed by flooding inward from the border, so a white
   background goes but a **cream jumper does not**. If a character still comes
   out too small, the script says so and backs the tolerance off automatically.
-- If the characters are not evenly spaced, pass explicit bands:
-  `--bounds 0,0.26 0.24,0.52 0.5,0.76 0.74,1`
+- The joins are found automatically. The characters in a posed group *touch*,
+  so there is no empty column to look for -- instead each character is a hump
+  in the column-density profile and the joins are the troughs between them. On
+  the current illustration it finds x=413, 759, 1122; equal quarters would have
+  cut through an arm. Override with `--bounds 0,0.26 0.24,0.52 ...` if needed.
+- Any crescent of a neighbour left inside a band is removed as a disconnected
+  piece. Measured on the real art those slivers were 0.1-0.3% of the figure
+  while a held laptop and a belt chain both came back joined to their owner.
 - `--keep-background` skips the cut-out entirely.
 
 ## Stage 2 — build the set (this is the work)

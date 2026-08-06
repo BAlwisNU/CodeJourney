@@ -217,38 +217,55 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   padding: 0 24px 80px;
 }
 
-/* The frosted column behind the whole page.
+/* The frosted region behind the whole page.
    Fixed rather than absolute: the world it blurs is itself a fixed canvas, so
-   a layer that scrolls would slide over a backdrop that doesn't and shimmer.
-   Fixed and full-height, it always covers exactly the visible content column.
+   a layer that scrolled would slide over a backdrop that doesn't, and shimmer.
    z-index 0 with .sw, and later in the document, so it paints above the world
-   and below every section -- those are all position:relative z-index:1. */
+   and below every section -- those are all position:relative z-index:1.
+
+   backdrop-filter cannot itself be graduated: it is on or off for the whole
+   element, which is what made this read as a rectangle laid over the page. A
+   mask solves it -- fading the layer's alpha fades how much of its blurred
+   result is composited, so the world goes gradually out of focus toward the
+   middle instead of stepping at an edge. There is no edge left to see.
+
+   Wider than the content column, so the whole fade happens outside the text
+   and the reading area sits over the settled part. */
 .landing-glass {
   position: fixed;
   top: 0;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: min(1080px, 100%);
+  width: min(1560px, 100%);
   z-index: 0;
   pointer-events: none;
-  /* Blur, not a wash. A 50% tint over the world was hiding the thing it was
-     meant to be softening, and 30px of radius smeared the world's thin lines
-     into nothing at all -- both amount to a solid panel by a longer route.
-     At this radius the lines stay visible and stay coloured; they just go out
-     of focus, so the eye stops trying to follow them. */
   background: rgba(17, 20, 30, 0.1);
   -webkit-backdrop-filter: blur(14px) saturate(118%);
   backdrop-filter: blur(14px) saturate(118%);
-  /* Hairlines down the sides, so the column reads as a deliberate surface
-     rather than as a patch of the background that went soft. */
-  border-left: 1px solid rgba(255, 255, 255, 0.055);
-  border-right: 1px solid rgba(255, 255, 255, 0.055);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 0, 0, 0.35) 8%,
+    #000 26%,
+    #000 74%,
+    rgba(0, 0, 0, 0.35) 92%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 0, 0, 0.35) 8%,
+    #000 26%,
+    #000 74%,
+    rgba(0, 0, 0, 0.35) 92%,
+    transparent 100%
+  );
 }
-/* No backdrop-filter support: an opaque column, which is the same decision
-   made a cruder way rather than text over moving lines. */
+/* No backdrop-filter support: a soft-edged tint, using the same mask. Not the
+   effect, but not a hard-edged panel either. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .landing-glass { background: rgba(17, 20, 30, 0.93); }
+  .landing-glass { background: rgba(17, 20, 30, 0.86); }
 }
 
 /* nav */

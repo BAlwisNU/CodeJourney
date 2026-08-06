@@ -278,6 +278,87 @@ ONBOARDING_EXPERIENCE: dict[str, str] = {
     "rusty": "Learnt some once, but it's rusty",
 }
 
+#: What someone is worried about. The most useful question on the whole form
+#: for a beginner, and the one nobody asks: the thing that stops people is
+#: almost never the syntax. A tutor that knows someone believes they are "not
+#: a maths person" can address that belief instead of teaching over the top
+#: of it. Multi-select -- these come in combinations.
+#:
+#: Labels here are the ones the model is shown AND the ones the form displays;
+#: WelcomePage.tsx repeats them, and they are kept identical deliberately so
+#: there is only one wording of each answer in the product.
+ONBOARDING_WORRIES: dict[str, str] = {
+    "maths": "I'm not a maths person",
+    "stuck": "Getting stuck and giving up",
+    "late": "I've left it too late",
+    "where": "Not knowing what to learn first",
+    "time": "Finding the time",
+    "asking": "Feeling silly asking questions",
+    "none": "Nothing much, honestly",
+}
+
+#: Roughly how much time they have. Sets the pace: someone with ten minutes on
+#: a bus needs a different next step from someone with a free weekend, and
+#: guessing wrong in either direction loses them.
+ONBOARDING_TIME: dict[str, str] = {
+    "minutes": "A few minutes here and there",
+    "hour": "About an hour a week",
+    "few_hours": "A few hours a week",
+    "most_days": "Most days",
+}
+
+#: How they take in something new. Deliberately worded to match the three tabs
+#: a lesson already has -- Read, Watch, Interactive -- so it can one day choose
+#: which one they land on. Today it only reaches the coach, which is enough to
+#: earn its place: someone who learns by breaking things wants to be handed the
+#: editor, not another explanation.
+ONBOARDING_LEARN_STYLE: dict[str, str] = {
+    "read": "Reading it through",
+    "watch": "Watching someone do it",
+    "do": "Trying it and breaking it",
+    "mix": "A bit of everything",
+}
+
+
+class LearnerIntake(Base):
+    """The beginner-oriented half of the signup questions.
+
+    What is worrying them, how much time they have, and how they take in
+    something new. Asked because the thing that stops a beginner is almost
+    never the syntax -- it is believing they are not a maths person, or not
+    knowing what to learn first, and neither shows up in "what do you want to
+    build?".
+
+    **A separate table rather than columns on learner_profiles**, for the
+    reason that table gives for being separate from `users`: it is new, so
+    create_all builds it, and no existing database has to be migrated. This
+    project has no migration tool, and create_all adds missing *tables* but
+    never missing *columns* -- so a new column here would reach a fresh
+    checkout and never a running deployment.
+
+    Read by the tutor, like the rest of the profile, and never by an
+    instructor. Not part of the study dataset.
+    """
+
+    __tablename__ = "learner_intake"
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    #: Keys from ONBOARDING_WORRIES, comma-separated. Multi-select, because
+    #: "not a maths person" and "left it too late" travel together.
+    worries: Mapped[str] = mapped_column(Text, default="")
+    #: One key from ONBOARDING_TIME.
+    time_available: Mapped[str] = mapped_column(String(32), default="")
+    #: One key from ONBOARDING_LEARN_STYLE.
+    learn_style: Mapped[str] = mapped_column(String(32), default="")
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
 
 class OAuthAccount(Base):
     """A Google or Microsoft identity linked to a CodeJourney account.

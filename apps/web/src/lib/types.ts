@@ -189,6 +189,10 @@ export type LearnerProfileInput = {
   experience: string
   experience_note: string
   project_ideas: string
+  /** Keys from the worries list; multi-select. */
+  worries: string[]
+  time_available: string
+  learn_style: string
 }
 
 /** One idea the welcome chat suggested. */

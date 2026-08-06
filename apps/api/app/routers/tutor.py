@@ -21,7 +21,11 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser
 from ..db import get_db
 from ..models import (
+    LearnerIntake,
     ONBOARDING_EXPERIENCE,
+    ONBOARDING_LEARN_STYLE,
+    ONBOARDING_TIME,
+    ONBOARDING_WORRIES,
     Exercise,
     LearnerProfile,
     OnboardingPlan,
@@ -74,6 +78,7 @@ def _learner_brief(user_id: str, db: Session) -> tutor.LearnerBrief | None:
     if profile is None:
         return None
     plan = db.get(OnboardingPlan, user_id)
+    intake = db.get(LearnerIntake, user_id)
     return tutor.LearnerBrief(
         goals=profile.goals,
         experience=ONBOARDING_EXPERIENCE.get(profile.experience, ""),
@@ -85,6 +90,15 @@ def _learner_brief(user_id: str, db: Session) -> tutor.LearnerBrief | None:
         )
         if plan
         else (),
+        # Labels, not keys. The model should be told "That I'm not a maths
+        # person", never "maths".
+        worries=tuple(
+            ONBOARDING_WORRIES[key]
+            for key in (intake.worries.split(",") if intake and intake.worries else [])
+            if key in ONBOARDING_WORRIES
+        ),
+        time_available=ONBOARDING_TIME.get(intake.time_available, "") if intake else "",
+        learn_style=ONBOARDING_LEARN_STYLE.get(intake.learn_style, "") if intake else "",
     )
 
 

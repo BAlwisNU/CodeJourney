@@ -3941,3 +3941,39 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
   color: var(--muted);
 }
 .agent-rule strong { color: var(--text); }
+
+/* --- signup chips --------------------------------------------------------
+   One tap instead of a blank box. The single most useful thing on the welcome
+   form for someone who has never programmed: recognising what you want is far
+   easier than inventing it, and reading the options answers "what is even
+   possible here?" on the way past. */
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips-add { margin: -6px 0 4px; }
+
+.chip {
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.chip:hover { border-color: var(--border-lit); color: var(--text); }
+.chip.is-on {
+  border-color: var(--accent);
+  background: rgba(124, 156, 255, 0.13);
+  color: var(--text);
+  font-weight: 500;
+}
+/* The example chips add to a text box rather than being an answer in
+   themselves, so they read as suggestions and not as a choice you must make. */
+.chips-add .chip { font-size: 0.78rem; background: transparent; opacity: 0.85; }
+.chips-add .chip:hover { opacity: 1; }
+
+.welcome-choices .chips { margin-top: 4px; }
+.welcome-choices .field-hint { margin-top: 10px; }

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, create_access_token, hash_password, verify_password
 from ..db import get_db
-from ..models import LearnerProfile, User
+from ..models import LearnerIntake, LearnerProfile, User
 from ..services import demo
 from ..schemas import (
     ConsentUpdate,
@@ -165,6 +165,24 @@ def set_profile(
         profile.experience_note = body.experience_note.strip()
     if body.project_ideas is not None:
         profile.project_ideas = body.project_ideas.strip()
+
+    # The intake row is created only when one of its answers is actually sent,
+    # so the account page -- which never sends them -- does not create empty
+    # rows for every learner who edits a goal.
+    if any(
+        value is not None
+        for value in (body.worries, body.time_available, body.learn_style)
+    ):
+        intake = db.get(LearnerIntake, user.id)
+        if intake is None:
+            intake = LearnerIntake(user_id=user.id)
+            db.add(intake)
+        if body.worries is not None:
+            intake.worries = ",".join(body.worries)
+        if body.time_available is not None:
+            intake.time_available = body.time_available
+        if body.learn_style is not None:
+            intake.learn_style = body.learn_style
 
     db.commit()
     db.refresh(profile)

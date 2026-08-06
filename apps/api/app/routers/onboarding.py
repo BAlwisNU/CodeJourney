@@ -20,7 +20,11 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser
 from ..db import get_db
 from ..models import (
+    LearnerIntake,
     ONBOARDING_EXPERIENCE,
+    ONBOARDING_LEARN_STYLE,
+    ONBOARDING_TIME,
+    ONBOARDING_WORRIES,
     Concept,
     LearnerProfile,
     OnboardingMessage,
@@ -102,11 +106,20 @@ def _brief(user_id: str, db: Session) -> tutor.LearnerBrief | None:
     profile = db.get(LearnerProfile, user_id)
     if profile is None:
         return None
+    intake = db.get(LearnerIntake, user_id)
     return tutor.LearnerBrief(
         goals=profile.goals,
         experience=ONBOARDING_EXPERIENCE.get(profile.experience, ""),
         experience_note=profile.experience_note,
         project_ideas=profile.project_ideas,
+        # Labels, not keys -- the model should never be shown "maths".
+        worries=tuple(
+            ONBOARDING_WORRIES[key]
+            for key in (intake.worries.split(",") if intake and intake.worries else [])
+            if key in ONBOARDING_WORRIES
+        ),
+        time_available=ONBOARDING_TIME.get(intake.time_available, "") if intake else "",
+        learn_style=ONBOARDING_LEARN_STYLE.get(intake.learn_style, "") if intake else "",
     )
 
 

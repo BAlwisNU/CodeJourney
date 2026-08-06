@@ -16,6 +16,9 @@ from typing import Literal
 from .names import normalise_display_name
 from .models import (
     ONBOARDING_EXPERIENCE,
+    ONBOARDING_LEARN_STYLE,
+    ONBOARDING_TIME,
+    ONBOARDING_WORRIES,
     Concept,
     Role,
     RunMode,
@@ -122,6 +125,12 @@ class LearnerProfileIn(BaseModel):
     experience_note: str | None = Field(default=None, max_length=1000)
     project_ideas: str | None = Field(default=None, max_length=2000)
 
+    #: The beginner-oriented answers. Same None-means-leave-alone rule: the
+    #: account page never sends these, and must not wipe them by omission.
+    worries: list[str] | None = Field(default=None)
+    time_available: str | None = Field(default=None, max_length=32)
+    learn_style: str | None = Field(default=None, max_length=32)
+
     @field_validator("experience")
     @classmethod
     def known_experience(cls, value: str | None) -> str | None:
@@ -129,6 +138,33 @@ class LearnerProfileIn(BaseModel):
         # to the model as a level it has never heard of.
         if value and value not in ONBOARDING_EXPERIENCE:
             raise ValueError("unknown experience option")
+        return value
+
+    @field_validator("time_available")
+    @classmethod
+    def known_time(cls, value: str | None) -> str | None:
+        if value and value not in ONBOARDING_TIME:
+            raise ValueError("unknown time option")
+        return value
+
+    @field_validator("learn_style")
+    @classmethod
+    def known_learn_style(cls, value: str | None) -> str | None:
+        if value and value not in ONBOARDING_LEARN_STYLE:
+            raise ValueError("unknown learning-style option")
+        return value
+
+    @field_validator("worries")
+    @classmethod
+    def known_worries(cls, value: list[str] | None) -> list[str] | None:
+        # Rejected rather than filtered: a client sending a key we do not know
+        # is a client out of step with the server, and quietly dropping it
+        # would hide that until someone noticed the tutor was uninformed.
+        if value is None:
+            return None
+        unknown = [key for key in value if key not in ONBOARDING_WORRIES]
+        if unknown:
+            raise ValueError(f"unknown worry option(s): {', '.join(unknown)}")
         return value
 
 

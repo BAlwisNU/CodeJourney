@@ -14,6 +14,9 @@ from app.models import LearnerProfile
 from app.routers.tutor import _learner_brief
 from app.services.tutor import LearnerBrief, _context_block, TutorContext
 
+from sqlalchemy import select
+
+from app.models import User
 from conftest import login
 
 
@@ -186,3 +189,75 @@ def test_no_brief_when_the_step_was_never_reached(client):
     user_id = client.get("/auth/me", headers=headers).json()["id"]
     with client.session_factory() as db:
         assert _learner_brief(user_id, db) is None
+
+
+def test_beginner_answers_are_saved_and_reach_the_tutor(client):
+    """The form says these shape the teaching, so they have to arrive.
+
+    Collecting a worry and never telling the coach would make the promise on
+    the page false, which is worse than not asking.
+    """
+    from app.routers.tutor import _learner_brief
+    from app.services import tutor
+
+    headers = login(client)
+    assert client.patch(
+        "/auth/me/profile",
+        headers=headers,
+        json={
+            "goals": "automate my spreadsheets",
+            "worries": ["maths", "stuck"],
+            "time_available": "minutes",
+            "learn_style": "do",
+        },
+    ).status_code == 200
+
+    with client.session_factory() as db:
+        user_id = db.scalar(select(User.id).where(User.email == "student@example.com"))
+        brief = _learner_brief(user_id, db)
+
+    # Labels, not keys -- the model must never be shown "maths".
+    assert brief.worries == ("I'm not a maths person", "Getting stuck and giving up")
+    assert brief.time_available == "A few minutes here and there"
+    assert brief.learn_style == "Trying it and breaking it"
+
+    rendered = "\n".join(tutor._learner_facts(brief))
+    assert "not a maths person" in rendered
+    assert "A few minutes here and there" in rendered
+    assert "maths," not in rendered  # no raw keys
+
+
+def test_unknown_beginner_answers_are_rejected(client):
+    """A client out of step with the server should fail loudly.
+
+    Silently dropping an unrecognised key would hide the drift until somebody
+    noticed the coach had stopped being told anything.
+    """
+    headers = login(client)
+    assert client.patch(
+        "/auth/me/profile", headers=headers, json={"worries": ["not_a_real_worry"]}
+    ).status_code == 422
+    assert client.patch(
+        "/auth/me/profile", headers=headers, json={"time_available": "whenever"}
+    ).status_code == 422
+
+
+def test_editing_goals_does_not_wipe_the_beginner_answers(client):
+    """The account page never sends them, and must not destroy them."""
+    headers = login(client)
+    client.patch(
+        "/auth/me/profile",
+        headers=headers,
+        json={"worries": ["late"], "time_available": "hour", "learn_style": "read"},
+    )
+    # An account-page style edit: goals only.
+    client.patch("/auth/me/profile", headers=headers, json={"goals": "something new"})
+
+    from app.routers.tutor import _learner_brief
+
+    with client.session_factory() as db:
+        user_id = db.scalar(select(User.id).where(User.email == "student@example.com"))
+        brief = _learner_brief(user_id, db)
+    assert brief.goals == "something new"
+    assert brief.worries == ("I've left it too late",)
+    assert brief.time_available == "About an hour a week"

@@ -90,6 +90,13 @@ class LearnerBrief:
     #: later still knows what they came for.
     interests: str = ""
     suggested_projects: tuple[str, ...] = ()
+    #: What they said they were worried about, as labels. The most actionable
+    #: thing on the form: someone who believes they are "not a maths person"
+    #: needs that belief addressed, not taught over.
+    worries: tuple[str, ...] = ()
+    #: Roughly how much time they have, and how they take in something new.
+    time_available: str = ""
+    learn_style: str = ""
 
     def is_empty(self) -> bool:
         return not any(
@@ -100,6 +107,9 @@ class LearnerBrief:
                 self.project_ideas,
                 self.interests,
                 self.suggested_projects,
+                self.worries,
+                self.time_available,
+                self.learn_style,
             )
         )
 
@@ -248,7 +258,13 @@ _LEARNER_GUIDANCE = (
     "pitch your explanations and to pick examples they'd care about. Do not "
     "recite it back at them, do not congratulate them on their goals, and do "
     "not treat it as a promise -- someone who said they want to build a game "
-    "still needs today's concept taught properly."
+    "still needs today's concept taught properly.\n"
+    "If they named something that worries them, do not raise it unprompted and "
+    "do not reassure them about it in the abstract. Let it shape what you do: "
+    "someone who fears getting stuck needs to be told specifically what they "
+    "just got right; someone who thinks they are not a maths person needs to "
+    "see that this did not require maths. Someone with a few minutes a week "
+    "should not be offered a project that needs an afternoon."
 )
 
 
@@ -278,6 +294,15 @@ def _learner_facts(learner: "LearnerBrief | None") -> list[str]:
             "Projects they were interested in building: "
             + ", ".join(learner.suggested_projects[:4])
         )
+    if learner.worries:
+        lines.append(
+            "What they said worries them about learning to code: "
+            + "; ".join(learner.worries[:6])
+        )
+    if learner.time_available:
+        lines.append(f"Time they have for this: {learner.time_available}")
+    if learner.learn_style:
+        lines.append(f"How they said they take in something new: {learner.learn_style}")
     return lines
 
 

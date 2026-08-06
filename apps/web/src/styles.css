@@ -217,6 +217,35 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   padding: 0 24px 80px;
 }
 
+/* The frosted column behind the whole page.
+   Fixed rather than absolute: the world it blurs is itself a fixed canvas, so
+   a layer that scrolls would slide over a backdrop that doesn't and shimmer.
+   Fixed and full-height, it always covers exactly the visible content column.
+   z-index 0 with .sw, and later in the document, so it paints above the world
+   and below every section -- those are all position:relative z-index:1. */
+.landing-glass {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1080px, 100%);
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(17, 20, 30, 0.5);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  backdrop-filter: blur(24px) saturate(120%);
+  /* Hairlines down the sides, so the column reads as a deliberate surface
+     rather than as a patch of the background that went soft. */
+  border-left: 1px solid rgba(255, 255, 255, 0.055);
+  border-right: 1px solid rgba(255, 255, 255, 0.055);
+}
+/* No backdrop-filter support: an opaque column, which is the same decision
+   made a cruder way rather than text over moving lines. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .landing-glass { background: rgba(17, 20, 30, 0.93); }
+}
+
 /* nav */
 .landing-nav {
   display: flex;
@@ -1686,7 +1715,9 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
 }
 
 /* Everything that isn't the world sits above it. */
-.landing > *:not(.sw) { position: relative; z-index: 1; }
+/* Every section rides above the world. The two layers that ARE the backdrop
+   are exempt -- the canvas, and the frosted column over it. */
+.landing > *:not(.sw):not(.landing-glass) { position: relative; z-index: 1; }
 
 /* Frosted glass, scoped to the landing page -- .card and .demo are used by the
    signed-in app too, where there is no world behind them to show through. */
@@ -1705,36 +1736,11 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
 .hero { max-width: none; perspective: 1200px; }
 .hero-grid {
   display: grid;
-  /* The copy column gives up nothing to the frosted panel's padding -- the
-     72px it needs comes out of the deck, which is decoration, so the headline
-     keeps the width it had and stays on two lines. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
-  gap: 40px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+  gap: 48px;
   align-items: center;
 }
-/* The headline, the paragraph and the call to action sit on frosted glass.
-   The world behind the hero is a moving field of thin lines and glyphs, and
-   reading a paragraph off it meant reading through it. Blurring the backdrop
-   inside this rectangle settles it without dimming the animation everywhere
-   else -- and matches the hero stat cards below, which were already frosted. */
-.hero-copy {
-  max-width: 640px;
-  padding: 34px 36px 36px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: rgba(21, 25, 37, 0.55);
-  -webkit-backdrop-filter: blur(22px) saturate(125%);
-  backdrop-filter: blur(22px) saturate(125%);
-  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.72);
-}
-/* No backdrop-filter support: fall back to an opaque panel, which is the same
-   design decision made a cruder way rather than unreadable text. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .hero-copy { background: rgba(21, 25, 37, 0.93); }
-}
-@media (max-width: 720px) {
-  .hero-copy { padding: 24px 20px 26px; }
-}
+.hero-copy { max-width: 640px; }
 
 /* --- the hero deck ------------------------------------------------------ */
 

@@ -138,6 +138,13 @@ export function LandingPage() {
           removed entirely under prefers-reduced-motion. */}
       <ScrollWorld />
 
+      {/* Frosted glass between the world and the page. Sits directly after the
+          canvas at the same z-index, so it paints over the world and under
+          every section, all of which are position:relative z-index:1. Fixed
+          and full height, so the column stays frosted the whole way down
+          rather than only behind the hero. */}
+      <div className="landing-glass" aria-hidden />
+
       <header className="landing-nav">
         <span className="wordmark">
           <span className="mark" aria-hidden>

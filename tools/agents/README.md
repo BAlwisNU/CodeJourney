@@ -59,26 +59,43 @@ Notes:
 
 ## Stage 2 — build the set (this is the work)
 
-Take each 1024px reference and produce 20–30 variations of that character.
-Use a model that can hold a character across images:
+`variations.py` re-poses each reference through Gemini's image model ("Nano
+Banana"): same face, same clothes, same style, different angle, expression,
+framing and background.
 
-- **Gemini image editing ("Nano Banana")** — best at "same character, new pose,
-  keep the face". Has a real API, so this stage can be scripted.
-- **Midjourney `--cref`** — excellent results, no public API, so it's manual.
-- **OpenAI `gpt-image-1`** — accepts reference images, has an API.
+```bash
+export GEMINI_API_KEY=...        # https://aistudio.google.com/apikey
 
-Ask for variety on the axes a LoRA needs to generalise:
+python tools/agents/variations.py --dry-run           # see the prompts, spend nothing
+python tools/agents/variations.py --fake              # exercise the pipeline, spend nothing
+python tools/agents/variations.py --only scout        # one character, ~28 images
+python tools/agents/variations.py                     # all four, ~112 images
+```
 
-    three-quarter view · profile · looking up · looking down · smiling ·
-    thinking · arms crossed · waving · close crop on the face · full body ·
-    plain dark background · plain light background
+Writes `dataset/<name>/01-three-quarter-left.png` and a matching `.txt`
+caption beside it, which is the layout LoRA trainers expect — zip the folder
+and upload.
 
-Then curate hard. **20 good images beat 60 mediocre ones** — anything with a
-mangled hand or a wandering face teaches the model to produce those.
+It is **resumable**: anything already on disk is skipped, so an interrupted run
+costs only the images it had not reached. A 401/403/404 stops the run
+immediately rather than burning through 112 identical failures; anything else
+is logged and skipped.
 
-Put them in `tools/agents/dataset/<name>/` and caption each one with a unique
-trigger word, e.g. `SCOUTCHAR, a young man with dark curly hair and glasses,
-three-quarter view, dark background`.
+The 28 variations are deliberately balanced across four axes — angle,
+expression, pose, framing — because a set that is twenty smiles and one profile
+teaches the model to smile rather than to be the character. Backgrounds rotate
+through plain white, charcoal and grey so it does not learn a backdrop either.
+
+If the model id has moved on:
+
+```bash
+python tools/agents/variations.py --list-models        # ask the key what it can reach
+python tools/agents/variations.py --model <id>         # or set GEMINI_IMAGE_MODEL
+```
+
+**Then curate.** This is not optional. Delete anything with a mangled hand, a
+drifted face, or a background that came back busy. 20 good images beat 60
+mediocre ones, because the bad ones teach the model to make bad ones.
 
 ## Stage 3 — train
 

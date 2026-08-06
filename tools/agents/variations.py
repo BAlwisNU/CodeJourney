@@ -158,6 +158,44 @@ def list_models(key: str) -> None:
         print(f"  {name:<45} {','.join(methods)}{marker}")
 
 
+def explain(code: int, detail: str, key: str) -> str:
+    """Turn Google's error into the thing you actually have to go and do.
+
+    The 401 in particular is badly worded for this case: it says "Expected
+    OAuth 2 access token", which reads like the request was malformed. It is
+    not -- it is what this endpoint says when the credential is not a Gemini
+    API key at all. A credential of the wrong type can still list models, so
+    --list-models succeeding does not prove the key will work.
+    """
+    lines = [f"\nStopping: HTTP {code}. This is a credential problem, not a transient one.\n"]
+    if "Expected OAuth 2 access token" in detail:
+        lines += [
+            "That key is not a Gemini API key.",
+            "",
+            f"  yours starts:  {key[:6]}...",
+            "  expected:      AIza...",
+            "",
+            "Gemini API keys come from https://aistudio.google.com/apikey and begin",
+            "with 'AIza'. Other Google credentials -- OAuth tokens, Cloud service",
+            "accounts, keys from other consoles -- can often list models but cannot",
+            "call generateContent, which is exactly what you are seeing.",
+        ]
+    elif code == 403:
+        lines += [
+            "The key is recognised but not allowed to do this. Usually one of:",
+            "  - billing is not enabled on the key's project (image output is paid)",
+            "  - the Generative Language API is not enabled on that project",
+            "  - the key has API restrictions that exclude this endpoint",
+        ]
+    elif code == 404:
+        lines += [
+            "No such model for this key. Run --list-models and pass one of those",
+            "with --model.",
+        ]
+    lines += ["", "Google said:", "  " + detail.strip().replace("\n", "\n  ")]
+    return "\n".join(lines)
+
+
 def generate(key: str, model: str, prompt: str, reference: Path, timeout: int) -> bytes:
     """One edit. Returns the image bytes, or raises with the API's own words."""
     mime = mimetypes.guess_type(reference.name)[0] or "image/png"
@@ -281,13 +319,10 @@ def main() -> None:
                 )
             except urllib.error.HTTPError as error:
                 detail = error.read().decode()[:300]
-                print(f"  {i:02d} {slug}: HTTP {error.code} {detail}")
+                print(f"  {i:02d} {slug}: HTTP {error.code}")
                 failed += 1
                 if error.code in (401, 403, 404):
-                    raise SystemExit(
-                        "\nStopping: that is a key or model problem, not a transient one.\n"
-                        "Try `--list-models` to see what this key can actually reach."
-                    )
+                    raise SystemExit(explain(error.code, detail, key))
                 continue
             except Exception as error:  # noqa: BLE001 - one bad image must not end the run
                 print(f"  {i:02d} {slug}: {error}")

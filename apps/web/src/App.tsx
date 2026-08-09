@@ -9,6 +9,7 @@ import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
 import { AccountPage } from './pages/AccountPage'
 import { AuthPage } from './pages/AuthPage'
 import { InstructorPage } from './pages/InstructorPage'
+import { BuildPage } from './pages/BuildPage'
 import { PlanPage } from './pages/PlanPage'
 import { PortfolioPage } from './pages/PortfolioPage'
 import { QuizPage } from './pages/QuizPage'
@@ -121,6 +122,17 @@ export function App() {
 
       {/* Two paths, one page. The bare /plan is the Read view, so the tab a
         learner lands on and the tab they click back to share an address. */}
+      <Route
+        path="/build/:id"
+        element={
+          <RequireAuth>
+            <main className="app">
+              <BuildPage />
+            </main>
+          </RequireAuth>
+        }
+      />
+
       <Route
         path="/exercise/:slug/plan"
         element={

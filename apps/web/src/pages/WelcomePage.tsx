@@ -58,6 +58,22 @@ const EXPERIENCE = [
 
 // The chips under the two open questions. Examples, not options: they append
 // to the box, so several can be combined and then edited.
+/** Things to build, mirroring STARTER_PROJECTS in apps/api/app/models.py.
+ *
+ *  Picking one is the whole point of this step now: a project is what the
+ *  dashboard is organised around, so the fastest way to a page that means
+ *  something is to leave here having chosen one. Recognition again -- a
+ *  beginner cannot answer "what would you like to build?" from nothing, but
+ *  can absolutely point at the one that sounds fun. */
+const STARTERS = [
+  { title: 'A quest log', topics: ['lists', 'dicts', 'loops'],
+    blurb: 'Track what you have to do, what is overdue, and what is done.' },
+  { title: 'A word game like Wordle', topics: ['strings', 'lists', 'loops'],
+    blurb: 'Guess a word, colour the letters, keep the score.' },
+  { title: 'A tracker for your runs', topics: ['file_io', 'lists', 'functions'],
+    blurb: 'Read your times from a file and work out how you are doing.' },
+]
+
 const GOAL_EXAMPLES = [
   'Automate the boring parts of my job',
   'Understand what my team is building',
@@ -77,6 +93,7 @@ const BUILD_EXAMPLES = [
 export function WelcomePage() {
   const navigate = useNavigate()
 
+  const [picked, setPicked] = useState<number | null>(null)
   const [goals, setGoals] = useState('')
   const [experience, setExperience] = useState('')
   const [experienceNote, setExperienceNote] = useState('')
@@ -105,6 +122,12 @@ export function WelcomePage() {
     setError(null)
     try {
       await api.saveLearnerProfile(answers)
+      // A picked project is created here rather than inferred later, so the
+      // dashboard has something on it the moment they arrive.
+      if (picked !== null) {
+        const s = STARTERS[picked]
+        await api.addProject({ title: s.title, blurb: s.blurb, topics: s.topics })
+      }
       navigate('/welcome/chat', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -149,12 +172,32 @@ export function WelcomePage() {
       <p className="eyebrow">Step 2 of 3</p>
       <h1>Tell us where you&rsquo;re starting from</h1>
       <p className="muted">
-        Two questions, both optional. They shape the lessons and examples you
-        get, and help your coach pitch things at the right level — nobody else
-        sees them.
+        Pick something to build and we will work out the lessons for it. Both
+        questions are optional, and nobody else sees your answers.
       </p>
 
       {error && <p className="panel panel-error small">{error}</p>}
+
+      <fieldset className="welcome-choices">
+        <legend>Which of these would you like to build?</legend>
+        <div className="starters">
+          {STARTERS.map((s, i) => (
+            <button
+              key={s.title}
+              type="button"
+              className={picked === i ? 'starter is-on' : 'starter'}
+              aria-pressed={picked === i}
+              onClick={() => setPicked(picked === i ? null : i)}
+            >
+              <strong>{s.title}</strong>
+              <span>{s.blurb}</span>
+            </button>
+          ))}
+        </div>
+        <p className="field-hint">
+          You can change it, or add others, whenever you like.
+        </p>
+      </fieldset>
 
       <label className="field">
         What would you like to be able to do?

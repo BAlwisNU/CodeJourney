@@ -360,6 +360,92 @@ class LearnerIntake(Base):
     )
 
 
+class LearnerProject(Base):
+    """Something the learner is building, and the concepts it needs.
+
+    The organising unit of the product. A learner does not arrive wanting to
+    learn dictionaries; they arrive wanting to make a thing, and dictionaries
+    are what that thing turns out to need. So a project owns an ordered set of
+    concepts, and the lessons under it are the exercises that teach them.
+
+    **This is a materialised copy, not a second source of truth.** The welcome
+    conversation already produces `OnboardingPlan.projects` -- title, blurb and
+    concept keys -- but that is a record of what the model suggested, frozen at
+    signup. A project has state: it gets built, reordered, abandoned, added to
+    months later. Writing that state back into the plan would destroy the thing
+    the plan is for, which is knowing what was said at the time.
+
+    A new table, so create_all builds it and no existing database needs a
+    migration. Same reason LearnerProfile is separate from users.
+    """
+
+    __tablename__ = "learner_projects"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+
+    title: Mapped[str] = mapped_column(String(200))
+    #: One line on what it is, in the words it was suggested in.
+    blurb: Mapped[str] = mapped_column(Text, default="")
+    #: Concept keys, in teaching order. Validated against Concept on the way in
+    #: -- a project asking for a topic that does not exist would show a lesson
+    #: list with holes in it.
+    topics: Mapped[list] = mapped_column(JSON, default=list)
+
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    #: Set when the learner marks the project itself finished, which is a
+    #: separate act from finishing its lessons: the lessons teach the parts,
+    #: the build is putting them together.
+    built_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class SkippedExercise(Base):
+    """A lesson the learner said they already know.
+
+    Not a completion and deliberately not counted as one. Someone arriving with
+    Python experience should not have to click through `Making a list` to reach
+    the part of their project that is actually new, but nor should the platform
+    record that they did it -- the study dataset would then contain work that
+    never happened.
+    """
+
+    __tablename__ = "skipped_exercises"
+
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    exercise_id: Mapped[str] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+#: Offered to anyone without a plan of their own -- someone who skipped the
+#: welcome chat, or a demo account. Concrete things a beginner can picture,
+#: each mapped onto concepts that already have exercises behind them, so a
+#: starter project is a real path through the curriculum and not a placeholder.
+STARTER_PROJECTS: list[dict] = [
+    {
+        "title": "A quest log",
+        "blurb": "Track what you have to do, what is overdue, and what is done.",
+        "topics": ["lists", "dicts", "loops"],
+    },
+    {
+        "title": "A word game like Wordle",
+        "blurb": "Guess a word, colour the letters, keep the score.",
+        "topics": ["strings", "lists", "loops"],
+    },
+    {
+        "title": "A tracker for your runs",
+        "blurb": "Read your times from a file and work out how you are doing.",
+        "topics": ["file_io", "lists", "functions"],
+    },
+]
+
+
 class OAuthAccount(Base):
     """A Google or Microsoft identity linked to a CodeJourney account.
 

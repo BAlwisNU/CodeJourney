@@ -16,7 +16,7 @@ import {
   toSections,
   videosIn,
 } from '../lib/lessonBlocks'
-import type { Exercise, Lesson, Parsons as ParsonsData } from '../lib/types'
+import type { Exercise, Lesson, Parsons as ParsonsData, Project } from '../lib/types'
 
 /**
  * Stage 1 — Read & Watch, in three views.
@@ -58,6 +58,9 @@ export function PlanPage() {
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [parsons, setParsons] = useState<ParsonsData | null>(null)
+  // Which of the learner's projects need this lesson. Silence is a legitimate
+  // answer -- they may have arrived here some other way.
+  const [wantedBy, setWantedBy] = useState<Project[]>([])
 
   const current: View = view === 'watch' || view === 'interactive' ? view : 'read'
 
@@ -76,6 +79,12 @@ export function PlanPage() {
       if (cancelled) return
       setLesson(l)
       setParsons(p)
+      api
+        .projectsForLesson(slug)
+        .then((r) => !cancelled && setWantedBy(r.projects))
+        .catch(() => {
+          /* A missing reason is not worth an error on a lesson page. */
+        })
     }
     load()
     return () => {
@@ -141,6 +150,21 @@ export function PlanPage() {
           Skip to the editor →
         </Link>
       </header>
+
+      {/* Why you are being asked to learn this. A lesson that cannot say what
+          it is for is just homework. */}
+      {wantedBy.length > 0 && (
+        <p className="lesson-for">
+          <span className="lesson-for-label">You need this for</span>
+          {wantedBy.slice(0, 2).map((p, i) => (
+            <span key={p.id}>
+              {i > 0 && ' and '}
+              <strong>{p.title}</strong>
+            </span>
+          ))}
+          {wantedBy.length > 2 && <span> and {wantedBy.length - 2} more</span>}
+        </p>
+      )}
 
       {/* One tab is not a choice, so it is not shown as one. */}
       {available.length > 1 && (

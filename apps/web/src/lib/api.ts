@@ -1,4 +1,5 @@
 import type {
+  Project,
   Account,
   BranchLink,
   Dashboard,
@@ -104,6 +105,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     )
   }
 
+  // A 204 has no body, and calling .json() on one throws "Unexpected end of
+  // JSON input" -- which surfaces as a thrown error from a call that actually
+  // succeeded. Every endpoint that returns no content hit this.
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T
+  }
   return response.json() as Promise<T>
 }
 
@@ -268,6 +275,29 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ answers }),
     }),
+
+  // --- projects ---
+
+  projects: () => request<{ projects: Project[] }>('/projects'),
+
+  addProject: (body: { title: string; blurb: string; topics: string[] }) =>
+    request<Project>('/projects', { method: 'POST', body: JSON.stringify(body) }),
+
+  setProjectBuilt: (id: string, built: boolean) =>
+    request<Project>(`/projects/${id}/built`, {
+      method: 'PATCH',
+      body: JSON.stringify({ built }),
+    }),
+
+  setLessonKnown: (slug: string, known: boolean) =>
+    request<void>(`/projects/lessons/${slug}/known`, {
+      method: 'PUT',
+      body: JSON.stringify({ known }),
+    }),
+
+  /** Which of my projects need this lesson. Used to say why it is being taught. */
+  projectsForLesson: (slug: string) =>
+    request<{ projects: Project[] }>(`/projects/for-lesson/${slug}`),
 
   parsons: (slug: string) => request<Parsons | null>(`/learn/parsons/${slug}`),
 

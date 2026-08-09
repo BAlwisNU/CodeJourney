@@ -18,6 +18,7 @@ from .routers import (
     onboarding,
     portfolio,
     progress,
+    projects,
     reflections,
     submissions,
     tutor,
@@ -58,6 +59,7 @@ app.include_router(onboarding.router)
 app.include_router(exercises.router)
 app.include_router(submissions.router)
 app.include_router(progress.router)
+app.include_router(projects.router)
 app.include_router(drafts.router)
 app.include_router(reflections.router)
 app.include_router(learn.router)

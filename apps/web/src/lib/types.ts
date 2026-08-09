@@ -303,3 +303,26 @@ export type InstructorOverview = {
   total_submissions: number
   divergence_incidents: number
 }
+
+// --- projects: the organising unit ----------------------------------------
+
+export type ProjectLesson = {
+  slug: string
+  title: string
+  concept: string
+  /** `known` means the learner said they already had it, not that they did it. */
+  status: 'solved' | 'in_progress' | 'not_started' | 'known'
+}
+
+export type Project = {
+  id: string
+  title: string
+  blurb: string
+  topics: string[]
+  built: boolean
+  lessons: ProjectLesson[]
+  done: number
+  total: number
+  /** The next lesson to open, or null when they are all cleared. */
+  next_slug: string | null
+}

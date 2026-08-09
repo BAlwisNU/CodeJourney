@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { type IconName } from '../components/Icon'
 import { type Lang } from '../components/LanguageCarousel'
+import { ProjectBoard } from '../components/ProjectBoard'
 import { TopicSequence } from '../components/TopicSequence'
 import { PageFlick } from '../components/PageFlick'
 import { api, token } from '../lib/api'
@@ -236,6 +237,17 @@ function HomeView({
         </Link>
       )}
 
+      {/* The main view: what you are making. The syllabus is still here, under
+          "Explore" -- it is what the checklists are made of -- but it is no
+          longer the thing you are asked to navigate. */}
+      <ProjectBoard />
+
+      <details className="explore">
+        <summary>
+          <span>Explore every topic</span>
+          <span className="muted small">The whole curriculum, in order</span>
+        </summary>
+
       {/* Demoted to a row of pills. It was the largest thing on the page and
           three of its four options are marked "coming soon", so it spent the
           best space asking you to choose between one real answer and three
@@ -310,6 +322,7 @@ function HomeView({
           </button>
         </section>
       )}
+      </details>
     </>
   )
 }

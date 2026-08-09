@@ -240,13 +240,6 @@ export function LandingPage() {
             </Tilt>
           ))}
         </ul>
-
-        <p className="scroll-cue" aria-hidden>
-          <span className="scroll-cue-rail">
-            <span className="scroll-cue-dot" />
-          </span>
-          Scroll to fly through
-        </p>
       </section>,
 
       /* The proof, and the most persuasive thing on the page: press a button,

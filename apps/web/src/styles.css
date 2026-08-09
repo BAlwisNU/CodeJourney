@@ -2051,35 +2051,6 @@ a.seq-ep:hover {
 
 /* --- scroll affordance ---------------------------------------------------- */
 
-.scroll-cue {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 44px 0 0;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--muted);
-}
-.scroll-cue-rail {
-  position: relative;
-  width: 20px;
-  height: 32px;
-  flex: none;
-  border: 1px solid var(--border-lit);
-  border-radius: 999px;
-}
-.scroll-cue-dot {
-  position: absolute;
-  left: 50%;
-  top: 7px;
-  width: 4px;
-  height: 4px;
-  margin-left: -2px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: cue-fall 2s ease-in-out infinite;
-}
 @keyframes cue-fall {
   0% { transform: translateY(0); opacity: 0; }
   22% { opacity: 1; }
@@ -2103,7 +2074,6 @@ a.seq-ep:hover {
   .deck-stage { transform: none; transition: none; }
   .world:hover { transform: none; }
   /* There is no fly-through to promise once the world is gone. */
-  .scroll-cue { display: none; }
 }
 
 /* ==========================================================================

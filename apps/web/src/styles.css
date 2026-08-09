@@ -4126,7 +4126,7 @@ a.seq-ep:hover {
   position: sticky;
   top: 0;
   height: 100vh;
-  perspective: 1200px;
+  perspective: 1500px;
   /* Straight ahead: you are flying into the scene, not looking down on it. */
   perspective-origin: 50% 44%;
   /* One anchor for both the globe and the ring of tiles. They have to be
@@ -4180,22 +4180,24 @@ a.seq-ep:hover {
   position: absolute;
   /* Small enough that the world stays visible around and behind it -- a tile
      that fills the frame hides the thing it is supposed to be standing on. */
-  /* Sized in the scene, not on screen. A tile at the reading position is
-     scaled by perspective / (perspective + FOCUS) -- about 0.78 -- so every
-     number here has to be divided by that to work out what you actually see.
-     These land near 1180x760 on a 1440x900 screen: about 82% of the width and
-     84% of the height, which is as large as it can go while leaving enough
-     margin for the world behind to still frame it. */
-  width: min(1520px, 105vw);
-  height: min(980px, 108vh);
-  margin-left: calc(min(1520px, 105vw) / -2);
+  /* Sized in the scene, not on screen: a tile at the reading position is
+     scaled by perspective / (perspective + FOCUS), now about 0.93. These land
+     near 1180x760 on a 1440x900 screen -- the same as before, but reached with
+     a much smaller reduction, which is what keeps the text legible. */
+  width: min(1280px, 88vw);
+  height: min(830px, 91vh);
+  margin-left: calc(min(1280px, 88vw) / -2);
   /* Centred on its point on the ring; the stem below reaches down to the
      surface. */
-  margin-top: calc(min(980px, 108vh) / -2);
+  margin-top: calc(min(830px, 91vh) / -2);
   transform-style: preserve-3d;
 }
 
 .gs-face {
+  /* The last 7%. A tile still renders at 0.926, so text authored at 17px
+     arrives at 15.7. Setting the base here at 1.08rem cancels that for
+     everything that inherits its size, which is most of the body copy. */
+  font-size: 1.08rem;
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -4217,17 +4219,21 @@ a.seq-ep:hover {
 .gs-tile .hero { padding: 0; border-top: none; max-width: none; }
 .gs-tile .band > h2 { font-size: clamp(1.7rem, 2.6vw, 2.3rem); margin-bottom: 14px; }
 .gs-tile .hero h1 { font-size: clamp(2.2rem, 3.6vw, 3.2rem); }
-.gs-tile .section-lede, .gs-tile .lede { margin-bottom: 26px; font-size: 1.06rem; }
+.gs-tile .section-lede, .gs-tile .lede { margin-bottom: 26px; font-size: 1.16rem; }
 /* The tile is wide, so the hero keeps its two columns. Stacking them was
    right when the tile was 700px; at 1160 it just made the slide too tall. */
 .gs-tile .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 28px; }
 .gs-tile .agent-group { max-height: 30vh; width: auto; margin-inline: auto; }
 .gs-tile .agent-panel { padding: 14px; }
-.gs-tile .ladder { gap: 6px; font-size: 0.95rem; }
+.gs-tile .ladder { gap: 6px; font-size: 1.02rem; }
 .gs-tile .ladder li { padding: 4px 0; }
 .gs-tile .rung-body p { margin: 2px 0 0; }
 .gs-tile .tex-branches { gap: 8px; }
 .gs-tile .grid-2 { gap: 10px; }
 .gs-tile .card { padding: 14px; }
-.gs-tile .feature p { font-size: 0.92rem; }
+  .gs-tile .feature p { font-size: 1.02rem; }
+/* Anything set below ~0.8rem was illegible once the tile scale was applied to
+   it, and small even now. */
+.gs-tile .hero-stats span { font-size: 0.93rem; }
+.gs-tile .world-name, .gs-tile .agent-mini-text span { font-size: 0.9rem; }
 .gs-tile [data-reveal] { --reveal: 1; }

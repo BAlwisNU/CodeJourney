@@ -27,8 +27,15 @@ import { usePrefersReducedMotion } from '../lib/motion'
 /** Distance between one tile and the next, in world units. */
 const GAP = 1000
 
-/** How far in front of the camera a tile sits when it is the one to read. */
-const FOCUS = 340
+/** How far in front of the camera a tile sits when it is the one to read.
+ *
+ * Kept small on purpose. Perspective scales a tile by P / (P + FOCUS), and
+ * that scale applies to everything drawn on it -- at FOCUS 340 the tile
+ * rendered at 0.779 and the body text, authored at 17px, arrived on screen as
+ * 13.2px. Type does not get to be a different size just because it is on a
+ * card in a 3D scene. At 120 against a 1500 perspective the tile renders at
+ * 0.926, so the page reads at very nearly the size it is written at. */
+const FOCUS = 120
 
 /** How far either side of the reading position a tile stays fully lit.
  *  Without a plateau the two nearest tiles cross over at the same opacity and
@@ -148,8 +155,10 @@ export function WorldScroll({ slides }: { slides: ReactNode[] }) {
                   // Two fades multiplied: distance from the reading position,
                   // and a short one over the last stretch before it passes the
                   // camera. Without the second a tile snapped from fully lit to
-                  // gone the instant it crossed z = 0.
-                  opacity: (near ** 1.4) * clamp01(-z / 300),
+                  // gone the instant it crossed z = 0. The second is short
+                  // because the reading position is now only 120 out, so a long
+                  // one would start dimming the tile while you were reading it.
+                  opacity: (near ** 1.4) * clamp01(-z / 130),
                   filter: `blur(${(1 - near) * 5}px)`,
                   // Only the one at the reading position takes clicks.
                   pointerEvents: near > 0.86 ? 'auto' : 'none',

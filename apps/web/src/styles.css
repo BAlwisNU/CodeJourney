@@ -4148,12 +4148,15 @@ a.seq-ep:hover {
   position: absolute;
   /* Small enough that the world stays visible around and behind it -- a tile
      that fills the frame hides the thing it is supposed to be standing on. */
-  width: min(700px, 52vw);
-  height: min(600px, 68vh);
-  margin-left: calc(min(700px, 52vw) / -2);
+  /* Sized in the scene, not on screen: a tile at the reading position is
+     scaled by perspective / (perspective + FOCUS), about 0.78, so these
+     numbers land near 900x600 in front of you. */
+  width: min(1160px, 78vw);
+  height: min(820px, 88vh);
+  margin-left: calc(min(1160px, 78vw) / -2);
   /* Centred on its point on the ring; the stem below reaches down to the
      surface. */
-  margin-top: calc(min(600px, 68vh) / -2);
+  margin-top: calc(min(820px, 88vh) / -2);
   transform-style: preserve-3d;
 }
 
@@ -4163,7 +4166,7 @@ a.seq-ep:hover {
   overflow: hidden;
   display: grid;
   align-content: center;
-  padding: 26px 30px;
+  padding: 34px 40px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   /* Translucent, so the world shows through behind the panel and the tile
@@ -4180,17 +4183,11 @@ a.seq-ep:hover {
 .gs-tile .band > h2 { font-size: clamp(1.4rem, 2.2vw, 1.9rem); margin-bottom: 10px; }
 .gs-tile .hero h1 { font-size: clamp(1.9rem, 3vw, 2.6rem); }
 .gs-tile .section-lede, .gs-tile .lede { margin-bottom: 20px; font-size: 0.98rem; }
-.gs-tile .hero-grid { grid-template-columns: 1fr; gap: 18px; }
-.gs-tile .deck, .gs-tile .hero-stats { display: none; }
+/* The tile is wide, so the hero keeps its two columns. Stacking them was
+   right when the tile was 700px; at 1160 it just made the slide too tall. */
+.gs-tile .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 28px; }
 .gs-tile .agent-group { max-height: 22vh; width: auto; margin-inline: auto; }
 .gs-tile .agent-panel { padding: 14px; }
-.gs-tile .agent-mini { display: none; }
-/* The full curriculum does not belong on a tile. On the landing page it is
-   proof that a real syllabus exists, and the language rows plus the one-line
-   example say that in a fifth of the height; the dashboard is where somebody
-   actually reads it. Without this the slide needed 924px of a 598px tile. */
-.gs-tile .tex { display: none; }
-.gs-tile .world-panel { padding-bottom: 4px; }
 .gs-tile .ladder { gap: 2px; font-size: 0.86rem; }
 .gs-tile .ladder li { padding: 4px 0; }
 .gs-tile .rung-body p { margin: 2px 0 0; }

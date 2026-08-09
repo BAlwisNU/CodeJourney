@@ -139,14 +139,12 @@ export function WorldScroll({ slides }: { slides: ReactNode[] }) {
                 key={i}
                 className="gs-tile"
                 style={{
-                  // Tiles are strung slightly left and right of the centre
-                  // line, so the ones still coming are visible past the one
-                  // you are reading instead of hidden directly behind it.
-                  transform:
-                    `translateX(${Math.sin(i * 1.1) * 190}px) ` +
-                    `translateY(${Math.cos(i * 0.8) * 70}px) ` +
-                    `translateZ(${z}px) ` +
-                    `rotateY(${Math.sin(i * 1.1) * -9}deg)`,
+                  // Dead centre. Offsetting them left and right made the
+                  // incoming ones visible early, but at the cost of the one
+                  // you are actually reading never being where you are
+                  // looking. The next tile is directly behind this one and
+                  // arrives as this one fades.
+                  transform: `translateZ(${z}px)`,
                   // Two fades multiplied: distance from the reading position,
                   // and a short one over the last stretch before it passes the
                   // camera. Without the second a tile snapped from fully lit to

@@ -348,12 +348,26 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 
 /* nav */
 .landing-nav {
+  /* Stays put while the world turns underneath it. Full-bleed for the same
+     reason the stage is: .landing is max-width 1080 with 24px of padding, so
+     a bar confined to it would leave the blurred backing stopping short of
+     both screen edges with the scene showing through the gap. The inner
+     padding puts the contents back on the page's own measure. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  padding: 16px max(24px, calc(50vw - 516px));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 0;
   gap: 16px;
   flex-wrap: wrap;
+  background: rgba(10, 12, 17, 0.72);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  backdrop-filter: blur(20px) saturate(120%);
+  border-bottom: 1px solid var(--hairline);
 }
 .landing-nav nav { display: flex; gap: 10px; }
 .wordmark { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
@@ -1873,9 +1887,19 @@ a.seq-ep:hover {
 }
 
 /* Everything that isn't the world sits above it. */
-/* Every section rides above the world. The two layers that ARE the backdrop
-   are exempt -- the canvas, and the frosted column over it. */
-.landing > *:not(.sw):not(.landing-glass) { position: relative; z-index: 1; }
+/* Every section rides above the world. Three children are exempt, and each
+   exemption is load-bearing rather than tidy-minded: this selector is
+   (0,3,0), so it beats any single-class rule and silently overrides whatever
+   `position` those elements set for themselves.
+
+   .sw and .landing-glass ARE the backdrop, not content on it. And the nav is
+   chrome -- it needs position:sticky, which this rule was quietly turning
+   back into position:relative, so the bar scrolled away however many times
+   the sticky was declared. */
+.landing > *:not(.sw):not(.landing-glass):not(.landing-nav) {
+  position: relative;
+  z-index: 1;
+}
 
 /* Frosted glass, scoped to the landing page -- .card and .demo are used by the
    signed-in app too, where there is no world behind them to show through. */

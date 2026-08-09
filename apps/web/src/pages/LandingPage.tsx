@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { ErrorDemo } from '../components/ErrorDemo'
 import { AgentTabs } from '../components/AgentTabs'
-import { PlanetScroll } from '../components/PlanetScroll'
 import { HeroDeck } from '../components/HeroDeck'
 import { Icon, type IconName } from '../components/Icon'
 import { ScrollWorld } from '../components/ScrollWorld'
@@ -201,9 +200,7 @@ export function LandingPage() {
         <p className="panel panel-error small demo-error">{demoError}</p>
       )}
 
-      <PlanetScroll
-        slides={[
-      <section className="hero" key="hero">
+      <section className="hero">
         <div className="hero-grid">
           <div className="hero-copy">
             <h1>
@@ -247,11 +244,11 @@ export function LandingPage() {
           </span>
           Scroll to fly through
         </p>
-      </section>,
+      </section>
 
-      /* The proof, and the most persuasive thing on the page: press a button,
-          watch a traceback become a sentence. */
-      <section className="band" aria-labelledby="demo-heading" key="demo">
+      {/* The proof, and the most persuasive thing on the page: press a button,
+          watch a traceback become a sentence. */}
+      <section className="band" aria-labelledby="demo-heading">
         <h2 id="demo-heading" data-reveal>Try breaking something</h2>
         <p className="section-lede" data-reveal>
           Press Run. That is the real translation.
@@ -259,9 +256,9 @@ export function LandingPage() {
         <div data-reveal>
           <ErrorDemo />
         </div>
-      </section>,
+      </section>
 
-      <section className="band" aria-labelledby="worlds-heading" key="worlds">
+      <section className="band" aria-labelledby="worlds-heading">
         <h2 id="worlds-heading" data-reveal>Start with Python. More on the way.</h2>
         <p className="section-lede" data-reveal>
           C++, HTML &amp; CSS and SQL are next.
@@ -307,9 +304,9 @@ export function LandingPage() {
             </li>
           ))}
         </ul>
-      </section>,
+      </section>
 
-      <section className="band" aria-labelledby="ladder-heading" key="ladder">
+      <section className="band" aria-labelledby="ladder-heading">
         <h2 id="ladder-heading" data-reveal>Stuck? Help arrives in steps</h2>
         <p className="section-lede" data-reveal>
           Each rung says a little more. The last one is a person.
@@ -338,9 +335,9 @@ export function LandingPage() {
             </div>
           </li>
         </ol>
-      </section>,
+      </section>
 
-      <section className="band" aria-labelledby="agents-heading" key="agents">
+      <section className="band" aria-labelledby="agents-heading">
         <h2 id="agents-heading" data-reveal>
           Your personalised coach and best friend in your coding journey
         </h2>
@@ -361,9 +358,9 @@ export function LandingPage() {
           place you can write “I have no idea what I am doing” and know nothing
           is reading it back.
         </p>
-      </section>,
+      </section>
 
-      <section className="band" aria-labelledby="features-heading" key="features">
+      <section className="band" aria-labelledby="features-heading">
         <h2 id="features-heading" data-reveal>What you get</h2>
         <div className="grid-2">
           {FEATURES.map((feature) => (
@@ -378,9 +375,9 @@ export function LandingPage() {
             </Tilt>
           ))}
         </div>
-      </section>,
+      </section>
 
-      <section className="band cta-band" data-reveal key="cta">
+      <section className="band cta-band" data-reveal>
         <h2>Ready to break something?</h2>
         <Link
           className="btn btn-primary btn-lg"
@@ -389,9 +386,7 @@ export function LandingPage() {
           {signedIn ? 'Keep going' : 'Start free'}
         </Link>
         <p className="muted small">Takes about a minute to get running.</p>
-      </section>,
-        ]}
-      />
+      </section>
 
       <footer className="landing-footer">
         <span className="wordmark">

@@ -1756,7 +1756,9 @@ a.tnode:hover { transform: translateY(-2px); border-color: var(--border-lit); bo
   padding-top: 26px;
   border-top: 1px solid var(--border);
 }
-.dash-topic:first-of-type { border-top: none; }
+/* The space above a topic is what separates it from the one before. The first
+   has nothing before it, so it gets neither the rule nor the room. */
+.dash-topic:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
 .dash-topic-head {
   display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
 }
@@ -4297,6 +4299,9 @@ a.seq-ep:hover {
   gap: 16px;
 }
 .projects-head h2 { margin: 0; font-size: 1.4rem; letter-spacing: var(--track-tight); }
+/* Heading suppressed: with nothing on the left, space-between would strand the
+   one remaining control there instead of on the right where it belongs. */
+.projects-head.is-bare { justify-content: flex-end; }
 .projects-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -4441,3 +4446,41 @@ a.seq-ep:hover {
 .starter strong { font-size: 0.98rem; }
 .starter span { font-size: 0.84rem; color: var(--muted); line-height: 1.5; }
 .starter.is-on { border-color: var(--accent); background: rgba(124, 156, 255, 0.1); }
+
+/* --- home strips: recent work, and what the coach made for you ------------ */
+
+.strip { display: flex; flex-direction: column; gap: 14px; margin-bottom: 34px; }
+.strip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.strip-head h2 { margin: 0; font-size: 1.15rem; letter-spacing: var(--track-tight); }
+.strip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.strip-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.18s, background 0.18s, transform 0.15s;
+}
+.strip-card:hover { border-color: var(--accent); transform: translateY(-2px); background: var(--surface-2); }
+.strip-title { font-weight: 500; font-size: 0.95rem; }
+.strip-meta { font-size: 0.8rem; }
+/* Built for this person and nobody else, so it is marked as such rather than
+   sitting in the same grey as the taught curriculum. */
+.strip-card.is-made {
+  border-color: rgba(167, 139, 250, 0.35);
+  background: linear-gradient(180deg, rgba(167, 139, 250, 0.08), transparent 70%), var(--surface);
+}
+.strip-card.is-made:hover { border-color: var(--accent-2); }
+
+/* No bottom margin: .subview already sets the gap between its sections, and
+   adding one here stacked with it. */
+.worklog { margin-bottom: 0; }
+.worklog h2 { font-size: 1.15rem; margin: 0 0 14px; }

@@ -126,7 +126,12 @@ function ProjectCard({
   )
 }
 
-export function ProjectBoard() {
+/**
+ * @param heading What to call the section, or null on a page whose own title
+ *   already says it -- the projects page is titled "What you're building", and
+ *   the board printing the same words again underneath read as a mistake.
+ */
+export function ProjectBoard({ heading = 'What you’re building' }: { heading?: string | null } = {}) {
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -152,8 +157,8 @@ export function ProjectBoard() {
 
   return (
     <section className="projects">
-      <div className="projects-head">
-        <h2>What you&rsquo;re building</h2>
+      <div className={heading ? 'projects-head' : 'projects-head is-bare'}>
+        {heading && <h2>{heading}</h2>}
         <button type="button" className="linkish" onClick={() => setAdding((v) => !v)}>
           {adding ? 'Never mind' : '+ Something else'}
         </button>

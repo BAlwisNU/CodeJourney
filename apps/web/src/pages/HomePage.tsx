@@ -56,9 +56,14 @@ const LANGUAGES: LangMeta[] = [
   { key: 'sql', short: 'SQL', name: 'SQL', blurb: 'Ask questions of data and get answers.', locked: true },
 ]
 
+/* Home is the summary; Projects and Lessons are the two things it summarises.
+   "Projects" used to mean the work log -- everything you had opened -- which
+   is a different thing from the projects you are building and could not keep
+   the name once those existed. That list is lessons, so it lives with them. */
 const VIEWS = [
   { key: 'home', label: 'Home', icon: 'home' as IconName },
   { key: 'projects', label: 'Projects', icon: 'projects' as IconName },
+  { key: 'lessons', label: 'Lessons', icon: 'reorder' as IconName },
   { key: 'progress', label: 'Progress & goals', icon: 'progress' as IconName },
 ]
 
@@ -159,6 +164,14 @@ export function HomePage() {
             name={data.display_name}
             nothingYet={nothingYet}
             resume={resume}
+            data={data}
+            onGoto={setView}
+          />
+        )}
+        {view === 'projects' && <ProjectsView />}
+        {view === 'lessons' && (
+          <LessonsView
+            data={data}
             langs={langs}
             focused={focused}
             setFocused={setFocused}
@@ -166,7 +179,6 @@ export function HomePage() {
             branchesBySlug={branchesBySlug}
           />
         )}
-        {view === 'projects' && <ProjectsView data={data} />}
         {view === 'progress' && <ProgressView data={data} />}
       </div>
     </div>
@@ -178,12 +190,9 @@ export function HomePage() {
 function HomeView({
   name,
   nothingYet,
-  langs,
-  focused,
-  setFocused,
-  focusedLang,
-  branchesBySlug,
   resume,
+  data,
+  onGoto,
 }: {
   name: string
   nothingYet: boolean
@@ -194,18 +203,19 @@ function HomeView({
     solved: number
     total: number
   } | null
-  langs: Lang[]
-  focused: number
-  setFocused: (i: number) => void
-  focusedLang?: Lang
-  branchesBySlug: Map<string, DashboardBranch[]>
+  data: Dashboard
+  onGoto: (view: string) => void
 }) {
-  // slug -> the learner's status, for tagging each episode.
-  const statusBySlug = useMemo(() => {
-    const map = new Map<string, ExerciseProgress['status']>()
-    for (const e of focusedLang?.exercises ?? []) map.set(e.slug, e.status)
-    return map
-  }, [focusedLang])
+  // Newest work first. `last_attempt_at` is set by submitting, so this is what
+  // you were actually doing rather than everything you have ever opened.
+  const recent = [...data.exercises]
+    .filter((e) => e.last_attempt_at)
+    .sort((a, b) => (b.last_attempt_at ?? '').localeCompare(a.last_attempt_at ?? ''))
+    .slice(0, 4)
+
+  // Practice the coach built for this learner off the back of something they
+  // found hard. It is on nobody else's dashboard.
+  const madeForYou = data.branches.filter((b) => b.status !== 'solved').slice(0, 4)
 
   return (
     <>
@@ -216,11 +226,6 @@ function HomeView({
         </h1>
       </div>
 
-      {/* The one thing this page is for.
-          It used to be a small "Carry on" link inside the language carousel,
-          three scrolls above six near-identical topic rows -- so the question
-          the page exists to answer, "what do I do now?", was the hardest thing
-          on it to find. */}
       {resume && (
         <Link className="resume" to={`/exercise/${resume.slug}/plan`}>
           <span className="resume-eyebrow">
@@ -231,27 +236,107 @@ function HomeView({
             {resume.solved} of {resume.total} done
             {resume.concept ? ` · ${resume.concept}` : ''}
           </span>
-          <span className="resume-go">
-            {nothingYet ? 'Start →' : 'Continue →'}
-          </span>
+          <span className="resume-go">{nothingYet ? 'Start →' : 'Continue →'}</span>
         </Link>
       )}
 
-      {/* The main view: what you are making. The syllabus is still here, under
-          "Explore" -- it is what the checklists are made of -- but it is no
-          longer the thing you are asked to navigate. */}
       <ProjectBoard />
 
-      <details className="explore">
-        <summary>
-          <span>Explore every topic</span>
-          <span className="muted small">The whole curriculum, in order</span>
-        </summary>
+      {recent.length > 0 && (
+        <section className="strip">
+          <div className="strip-head">
+            <h2>Recent lessons</h2>
+            <button type="button" className="linkish" onClick={() => onGoto('lessons')}>
+              All lessons →
+            </button>
+          </div>
+          <div className="strip-grid">
+            {recent.map((ex) => (
+              <Link key={ex.id} to={statusHref(ex)} className="strip-card">
+                <span className="strip-title">{ex.title}</span>
+                <span className="strip-meta muted small">
+                  {ex.status === 'solved'
+                    ? 'solved'
+                    : `${ex.attempts} ${ex.attempts === 1 ? 'try' : 'tries'} so far`}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* Demoted to a row of pills. It was the largest thing on the page and
-          three of its four options are marked "coming soon", so it spent the
-          best space asking you to choose between one real answer and three
-          disabled ones. */}
+      {madeForYou.length > 0 && (
+        <section className="strip">
+          <div className="strip-head">
+            <h2>Made for you</h2>
+            <span className="muted small">
+              Practice your coach wrote after watching you work
+            </span>
+          </div>
+          <div className="strip-grid">
+            {madeForYou.map((b) => (
+              <Link key={b.slug} to={`/exercise/${b.slug}/plan`} className="strip-card is-made">
+                <span className="strip-title">{b.title}</span>
+                <span className="strip-meta muted small">
+                  {b.status === 'in_progress' ? 'in progress' : 'built for you'}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  )
+}
+
+
+// --- Projects: the things you are building ---------------------------------
+
+function ProjectsView() {
+  return (
+    <div className="subview">
+      <h1>What you&rsquo;re building</h1>
+      <p className="muted">
+        Each one is a real thing to make. The lessons under it are the parts you
+        need first.
+      </p>
+      <ProjectBoard heading={null} />
+    </div>
+  )
+}
+
+// --- Lessons: the curriculum, and everything you have worked on ------------
+
+function LessonsView({
+  data,
+  langs,
+  focused,
+  setFocused,
+  focusedLang,
+  branchesBySlug,
+}: {
+  data: Dashboard
+  langs: Lang[]
+  focused: number
+  setFocused: (i: number) => void
+  focusedLang?: Lang
+  branchesBySlug: Map<string, DashboardBranch[]>
+}) {
+  const worked = [
+    ...data.exercises.filter((e) => e.status === 'in_progress'),
+    ...data.exercises.filter((e) => e.status === 'solved'),
+  ]
+
+  const statusBySlug = new Map<string, ExerciseProgress['status']>()
+  for (const e of focusedLang?.exercises ?? []) statusBySlug.set(e.slug, e.status)
+
+  return (
+    <div className="subview">
+      <h1>Lessons</h1>
+      <p className="muted">
+        Everything there is to learn, and everything you have worked on.
+      </p>
+
       {langs.length > 1 && (
         <div className="lang-pills" role="tablist" aria-label="Language">
           {langs.map((l, i) => (
@@ -271,89 +356,24 @@ function HomeView({
         </div>
       )}
 
-      {focusedLang && !focusedLang.locked && (
-        <section className="topics" key={focusedLang.key}>
-          <div className="lessons-head">
-            <h2>{focusedLang.name} topics</h2>
-            <span className="muted small">
-              Left to right, basics to advanced — the whole path, laid out.
-            </span>
-          </div>
-
-          {/* Every topic's tree, stacked. The learner sees the full map without
-              a single click -- the dashboard IS the curriculum. */}
-          {CURRICULUM.map((topic) => {
-            const built = topic.modules.filter((m) => m.slug).length
-            const doneCount = topic.modules.filter(
-              (m) => m.slug && statusBySlug.get(m.slug) === 'solved'
-            ).length
-            const planned = topic.modules.length - built
-            return (
-              <div className="dash-topic" key={topic.key}>
-                <div className="dash-topic-head">
-                  <h3>{topic.label}</h3>
-                  <span className="muted small">
-                    {doneCount}/{built} done
-                    {planned > 0 && ` · ${planned} more planned`}
-                  </span>
-                </div>
-                <p className="dash-topic-intro muted small">{topic.intro}</p>
-                <TopicSequence
-                  nodes={buildSequence(topic, (slug) => statusBySlug.get(slug))}
-                  branchesBySlug={branchesBySlug}
-                />
-              </div>
-            )
-          })}
-        </section>
-      )}
-
-      {focusedLang?.locked && (
-        <section className="topics coming-soon-panel">
-          <h2>{focusedLang.name} is on the way</h2>
-          <p className="muted">
-            {focusedLang.name} needs its own way to run your code, separate from
-            Python&rsquo;s. We&rsquo;re building it. For now, everything you learn
-            in Python — loops, conditionals, functions, breaking things and
-            fixing them — carries straight over when it lands.
-          </p>
-          <button className="primary" onClick={() => setFocused(0)}>
-            Back to Python
-          </button>
-        </section>
-      )}
-      </details>
-    </>
-  )
-}
-
-// --- Projects --------------------------------------------------------------
-
-function ProjectsView({ data }: { data: Dashboard }) {
-  const inProgress = data.exercises.filter((e) => e.status === 'in_progress')
-  const solved = data.exercises.filter((e) => e.status === 'solved')
-
-  return (
-    <div className="subview">
-      <h1>Your projects</h1>
-      <p className="muted">Everything you&rsquo;ve opened, newest work first.</p>
-
-      {inProgress.length === 0 && solved.length === 0 && (
-        <p className="panel muted">
-          Nothing on the go yet. Head to <strong>Home</strong> and pick a topic.
-        </p>
-      )}
-
-      {inProgress.length > 0 && (
-        <section>
-          <h2>In progress</h2>
+      {worked.length > 0 && (
+        <section className="worklog">
+          <h2>Your work</h2>
           <div className="project-grid">
-            {inProgress.map((ex) => (
-              <Link key={ex.id} to={`/exercise/${ex.slug}`} className="project-card wip">
-                <span className="project-mark" aria-hidden>◐</span>
+            {worked.map((ex) => (
+              <Link
+                key={ex.id}
+                to={`/exercise/${ex.slug}`}
+                className={ex.status === 'solved' ? 'project-card done' : 'project-card wip'}
+              >
+                <span className="project-mark" aria-hidden>
+                  {ex.status === 'solved' ? '✓' : '◐'}
+                </span>
                 <span className="project-title">{ex.title}</span>
                 <span className="muted small">
-                  {ex.attempts} {ex.attempts === 1 ? 'try' : 'tries'} so far
+                  {ex.status === 'solved'
+                    ? 'solved'
+                    : `${ex.attempts} ${ex.attempts === 1 ? 'try' : 'tries'} so far`}
                 </span>
               </Link>
             ))}
@@ -361,29 +381,27 @@ function ProjectsView({ data }: { data: Dashboard }) {
         </section>
       )}
 
-      {solved.length > 0 && (
-        <section>
-          <h2>Finished</h2>
-          <div className="project-grid">
-            {solved.map((ex) => (
-              <Link key={ex.id} to={`/exercise/${ex.slug}`} className="project-card done">
-                <span className="project-mark" aria-hidden>✓</span>
-                <span className="project-title">{ex.title}</span>
-                <span className="muted small">solved</span>
-              </Link>
-            ))}
-          </div>
+      {focusedLang && !focusedLang.locked && (
+        <section className="topics" key={focusedLang.key}>
+          {CURRICULUM.map((topic) => {
+            const nodes = buildSequence(topic, (slug) => statusBySlug.get(slug))
+            if (!nodes.length) return null
+            return (
+              <div className="dash-topic" key={topic.key}>
+                <div className="dash-topic-head">
+                  <h2>{topic.label}</h2>
+                </div>
+                <p className="dash-topic-intro muted small">{topic.intro}</p>
+                <TopicSequence nodes={nodes} branchesBySlug={branchesBySlug} />
+              </div>
+            )
+          })}
         </section>
       )}
-
-      <p className="subview-foot">
-        <Link className="link" to="/portfolio">
-          Open your full portfolio — code, reflections and all →
-        </Link>
-      </p>
     </div>
   )
 }
+
 
 // --- Progress & goals ------------------------------------------------------
 

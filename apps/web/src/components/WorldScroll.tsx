@@ -24,25 +24,35 @@ import { usePrefersReducedMotion } from '../lib/motion'
  * is in the DOM in reading order either way.
  */
 
-/** How far we look down on the ring, in degrees.
- *
- * This is the composition dial. A tile's height above the world's centre is
- * `R * sin(TILT)`, so a shallow tilt leaves the tiles sitting low and running
- * off the bottom of the frame; too steep and they float above a horizon you
- * can no longer see. 40 puts the tile in the upper middle with the curve of
- * the world filling the space beneath it. */
-const TILT = 40
+/** Distance between one tile and the next, in world units. */
+const GAP = 1000
+
+/** How far in front of the camera a tile sits when it is the one to read. */
+const FOCUS = 340
+
+/** How far either side of the reading position a tile stays fully lit.
+ *  Without a plateau the two nearest tiles cross over at the same opacity and
+ *  there is a moment, mid-handover, when nothing on screen is properly
+ *  readable. This holds the arriving tile up while the last one drops away. */
+const PLATEAU = 400
+
+/** How far past the plateau a tile takes to fade out entirely. */
+const FADE = 900
+
+/** How far the world turns over the whole journey, in degrees. Small: you are
+ *  flying towards it, and a world that spins while you approach reads as a
+ *  fairground ride rather than a planet. */
+const TURN = 34
 
 const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n)
 
 export function WorldScroll({ slides }: { slides: ReactNode[] }) {
   const reduced = usePrefersReducedMotion()
   const wrap = useRef<HTMLDivElement>(null)
-  const [angle, setAngle] = useState(0)
+  // 0 at the top of the page, 1 at the bottom.
+  const [travelled, setTravelled] = useState(0)
   const [flat, setFlat] = useState(true)
   const [size, setSize] = useState({ globe: 460, radius: 620 })
-
-  const step = 360 / slides.length
 
   useEffect(() => {
     const measure = () => {
@@ -52,12 +62,11 @@ export function WorldScroll({ slides }: { slides: ReactNode[] }) {
       // The globe is sized from the viewport so the whole arrangement scales
       // together; the orbit clears its surface by a fixed margin so the tiles
       // always stand off it rather than cutting into it.
-      // The world is deliberately bigger than the frame: we sit above it and
-      // see its upper curve, so it reads as a world rather than as a ball. The
-      // ring of tiles clears the surface by a small margin, so they stand ON
-      // it rather than floating at a distance from it.
-      const globe = Math.max(h * 1.5, w * 0.95)
-      setSize({ globe, radius: globe / 2 + 70 })
+      // Big enough to fill the space behind the tiles: it is the thing you are
+      // flying towards, so it should read as a surface below and ahead rather
+      // than as a ball on the screen.
+      const globe = Math.max(h * 1.6, w * 1.0)
+      setSize({ globe, radius: globe / 2 })
     }
     measure()
     window.addEventListener('resize', measure)
@@ -74,8 +83,7 @@ export function WorldScroll({ slides }: { slides: ReactNode[] }) {
         const el = wrap.current
         if (!el) return
         const travel = el.offsetHeight - window.innerHeight
-        const progress = clamp01((window.scrollY - el.offsetTop) / Math.max(1, travel))
-        setAngle(progress * (slides.length - 1) * step)
+        setTravelled(clamp01((window.scrollY - el.offsetTop) / Math.max(1, travel)))
       })
     }
     onScroll()
@@ -84,7 +92,10 @@ export function WorldScroll({ slides }: { slides: ReactNode[] }) {
       window.removeEventListener('scroll', onScroll)
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [flat, slides.length, step])
+  }, [flat, slides.length])
+
+  // How far the camera has flown into the scene.
+  const camZ = travelled * (slides.length - 1) * GAP
 
   if (flat) {
     return <>{slides.map((s, i) => <div key={i} className="slide-flat">{s}</div>)}</>
@@ -97,47 +108,56 @@ export function WorldScroll({ slides }: { slides: ReactNode[] }) {
       style={{ height: `${slides.length * 100}vh` }}
     >
       <div className="gs-stage">
-        {/* The world itself. Behind the orbit, so a tile at the front passes
-            in front of it and one at the back goes behind. */}
+        {/* The world ahead. It sits deep in the scene and drifts as you travel,
+            so the tiles arrive out of it rather than in front of a backdrop. */}
         <div
           className="gs-globe"
-          style={{ width: size.globe, height: size.globe }}
+          style={{
+            width: size.globe,
+            height: size.globe,
+            transform: `translate(-50%, -50%) translateZ(${-1500 + travelled * 820}px) rotateZ(${travelled * TURN}deg)`,
+          }}
           aria-hidden
         />
 
-        {/* The ring is tilted so we look down on the world's shoulder; each
-            tile then counter-rotates by the same amount so it stands upright
-            off the surface instead of lying flat on it. */}
-        <div
-          className="gs-orbit"
-          style={{ transform: `rotateX(${TILT}deg) rotateY(${-angle}deg)` }}
-        >
+        <div className="gs-space">
           {slides.map((slide, i) => {
-            // Shortest angular distance from squared-up, so the tile that has
-            // come all the way round is treated the same as one that has not
-            // left yet.
-            const raw = (i * step - angle) % 360
-            const off = raw > 180 ? raw - 360 : raw < -180 ? raw + 360 : raw
-            const away = Math.abs(off)
-            if (away > 100) return null
-            const facing = Math.cos((off * Math.PI) / 180)
+            // Where this tile is relative to the camera. Negative is in front;
+            // it starts far away and comes towards you as you scroll.
+            const z = camZ - i * GAP - FOCUS
+
+            // Behind the camera, or so far off it is a speck: nothing to draw.
+            if (z > 40 || z < -GAP * 2.4) return null
+
+            // How close it is to the reading position: 1 across the plateau,
+            // falling to 0 over FADE either side.
+            const off = Math.abs(z + FOCUS)
+            const near = clamp01(1 - Math.max(0, off - PLATEAU) / FADE)
+
             return (
               <div
                 key={i}
                 className="gs-tile"
                 style={{
-                  transform: `rotateY(${i * step}deg) translateZ(${size.radius}px) rotateX(${-TILT}deg)`,
-                  opacity: Math.max(0, facing) ** 1.5,
-                  filter: `blur(${Math.min(5, away / 14)}px)`,
-                  // Only the tile you are looking at takes clicks; the others
-                  // are edge-on and would otherwise sit invisibly over it.
-                  pointerEvents: away < step / 2 ? 'auto' : 'none',
-                  zIndex: Math.round(facing * 100),
+                  // Tiles are strung slightly left and right of the centre
+                  // line, so the ones still coming are visible past the one
+                  // you are reading instead of hidden directly behind it.
+                  transform:
+                    `translateX(${Math.sin(i * 1.1) * 190}px) ` +
+                    `translateY(${Math.cos(i * 0.8) * 70}px) ` +
+                    `translateZ(${z}px) ` +
+                    `rotateY(${Math.sin(i * 1.1) * -9}deg)`,
+                  // Two fades multiplied: distance from the reading position,
+                  // and a short one over the last stretch before it passes the
+                  // camera. Without the second a tile snapped from fully lit to
+                  // gone the instant it crossed z = 0.
+                  opacity: (near ** 1.4) * clamp01(-z / 300),
+                  filter: `blur(${(1 - near) * 5}px)`,
+                  // Only the one at the reading position takes clicks.
+                  pointerEvents: near > 0.86 ? 'auto' : 'none',
+                  zIndex: Math.round(near * 100),
                 }}
               >
-                {/* Runs from the back of the tile down to the surface. This is
-                    the part that makes it read as mounted rather than hovering. */}
-                <span className="gs-stem" aria-hidden />
                 <div className="gs-face">{slide}</div>
               </div>
             )

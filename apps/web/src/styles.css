@@ -4094,13 +4094,12 @@ a.seq-ep:hover {
   position: sticky;
   top: 0;
   height: 100vh;
-  perspective: 2600px;
-  /* We are above the world looking down its shoulder. */
-  perspective-origin: 50% 26%;
+  perspective: 1200px;
+  /* Straight ahead: you are flying into the scene, not looking down on it. */
+  perspective-origin: 50% 44%;
   /* One anchor for both the globe and the ring of tiles. They have to be
      concentric or the tiles orbit a point the world is not at -- which is
      exactly what happened when the globe was offset and the ring was not. */
-  --gs-y: 104%;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -4112,10 +4111,10 @@ a.seq-ep:hover {
   position: absolute;
   /* Centred below the frame, so what shows is the upper curve of something
      much larger than the screen. */
-  top: var(--gs-y);
+  top: 62%;
   left: 50%;
-  transform: translate(-50%, -50%);
   border-radius: 50%;
+  will-change: transform;
   background:
     radial-gradient(circle at 34% 28%, rgba(150, 178, 255, 0.55), rgba(88, 112, 190, 0.22) 34%, rgba(14, 18, 30, 0.9) 68%),
     radial-gradient(circle at 70% 78%, rgba(167, 139, 250, 0.22), transparent 52%),
@@ -4135,10 +4134,11 @@ a.seq-ep:hover {
   background: radial-gradient(circle, transparent 66%, rgba(124, 156, 255, 0.15) 78%, transparent 84%);
 }
 
-.gs-orbit {
+/* The corridor the tiles fly down. Anchored at the centre of the frame,
+   because a tile's reading position is straight ahead. */
+.gs-space {
   position: absolute;
-  /* Same anchor as the globe: concentric, so the tiles ride its surface. */
-  top: var(--gs-y);
+  top: 50%;
   left: 50%;
   transform-style: preserve-3d;
   will-change: transform;
@@ -4155,31 +4155,6 @@ a.seq-ep:hover {
      surface. */
   margin-top: calc(min(600px, 68vh) / -2);
   transform-style: preserve-3d;
-}
-
-/* The stem: a short bar from the back of the tile toward the surface, which
-   is what makes the tile read as standing on the world rather than hovering
-   in front of it. */
-.gs-stem {
-  position: absolute;
-  left: 50%;
-  bottom: -34px;
-  width: 2px;
-  height: 46px;
-  transform: translateX(-50%);
-  background: linear-gradient(180deg, rgba(124, 156, 255, 0.55), transparent);
-}
-.gs-stem::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -3px;
-  width: 8px;
-  height: 8px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: rgba(124, 156, 255, 0.85);
-  box-shadow: 0 0 12px rgba(124, 156, 255, 0.9);
 }
 
 .gs-face {

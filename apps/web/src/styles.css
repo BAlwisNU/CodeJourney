@@ -797,20 +797,52 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 }
 
 /* --- the Reflect page ------------------------------------------------------ */
-.reflect-page { max-width: 780px; }
-.reflect-head { margin-bottom: 18px; display: flex; flex-direction: column; gap: 6px; }
-.reflect-head .eyebrow {
-  margin: 0;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--accent);
-  font-weight: 700;
+.reflect-page { display: flex; flex-direction: column; gap: 40px; }
+.reflect-head { margin-bottom: 8px; }
+.reflect-back {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-decoration: none;
 }
-.reflect-head h1 { margin: 0; }
-.reflect-head .link { align-self: flex-start; margin-top: 4px; }
-.reflect-page .tutor,
-.reflect-page .journal { margin-bottom: 16px; }
+.reflect-back:hover { color: var(--text); }
+.reflect-head h1 {
+  margin: 0 0 6px;
+  font-size: clamp(1.9rem, 3vw, 2.4rem);
+  letter-spacing: var(--track-tighter);
+}
+.reflect-sub { margin: 0; color: var(--muted); font-size: 1.02rem; }
+
+/* Each half of the page, announced. */
+.reflect-part { display: flex; flex-direction: column; gap: 14px; }
+.reflect-part-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.reflect-part-head h2 {
+  margin: 0;
+  font-size: 1.24rem;
+  letter-spacing: var(--track-tight);
+}
+/* Who can read what. This is the whole reason the two are separated, so it is
+   stated on each rather than implied by a rule drawn between them. */
+.reflect-who {
+  font-size: 0.82rem;
+  color: var(--faint);
+}
+.reflect-who.is-private { color: var(--pass); }
+
+/* Each panel's own header is redundant once the section above it is titled --
+   "Talk it through" then "Your tutor" is the same sentence twice. */
+.reflect-part .chat-head { display: none; }
+.reflect-part .chat-thread { border-top: none; }
+
 
 /* --- AI-built practice branches in the sequence ---------------------------- */
 /* A column holds an episode and, hanging below it, any practice branched off
@@ -1028,7 +1060,13 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 .badge-flag { color: var(--hint); border-color: var(--hint); }
 
 /* plan page */
-.plan { display: flex; flex-direction: column; gap: 18px; max-width: 900px; margin: 0 auto; }
+/* One measure for every stage of a lesson.
+   Read, Quiz, Code and Reflect each had their own container -- 900 centred,
+   900 centred, 1152 full, 780 left -- so moving between them jumped the whole
+   page sideways and changed its width. They now share the app's width and its
+   left edge, and readability is handled where it belongs: by a max-width on
+   the text itself, not on the page around it. */
+.plan { display: flex; flex-direction: column; gap: 22px; }
 .plan-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .plan-head h1 { margin: 0; }
 .plan-foot {
@@ -1047,13 +1085,15 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 .lesson-body {
   font-size: 1.02rem;
   line-height: 1.72;
+  /* The measure lives here, on the prose, so the panel can span the page
+     while a line of text stays a comfortable length. */
   max-width: 68ch;
 }
 .lesson-body p { margin: 0 0 1.1em; }
 .pf-code pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 
 /* quiz */
-.quiz { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 20px; counter-reset: q; }
+.quiz { list-style: none; padding: 0; margin: 0 0 16px; max-width: 78ch; display: flex; flex-direction: column; gap: 20px; counter-reset: q; }
 .quiz-q { counter-increment: q; }
 .quiz-prompt { margin: 0 0 8px; font-weight: 500; }
 .quiz-prompt::before { content: counter(q) ". "; color: var(--muted); }
@@ -2706,9 +2746,10 @@ a.seq-ep:hover {
   flex-direction: column;
   gap: 18px;
   padding: 22px 18px;
-  /* Tall enough to be a conversation rather than a peephole, capped so the
-     composer and the journal below stay reachable without scrolling the page. */
-  min-height: 320px;
+  /* Grows with the conversation instead of reserving room for one. At 320 a
+     single opening line sat at the top of a third of a screen of nothing,
+     which reads as something failing to load. */
+  min-height: 150px;
   max-height: 58vh;
   overflow-y: auto;
   scroll-behavior: smooth;
@@ -2805,20 +2846,6 @@ a.seq-ep:hover {
    Deliberately short and centred rather than edge to edge: a full-width rule
    reads as "next section of the same thing", where this needs to read as a
    boundary between two things with different rules about who can see them. */
-.section-split {
-  width: 160px;
-  height: 2px;
-  border: none;
-  border-radius: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--border-lit) 25%,
-    var(--border-lit) 75%,
-    transparent
-  );
-  margin: 48px auto;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .chat-thread { scroll-behavior: auto; }

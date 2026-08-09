@@ -72,8 +72,11 @@ export function Journal({ exerciseId }: { exerciseId: string }) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
       >
+        {/* Says what pressing it does. It used to repeat the section's own
+            title back at you, which on the Reflect page meant "Your journal"
+            twice, one line apart. */}
         <span>
-          <strong>Your journal</strong>
+          <strong>{open ? 'Hide the entry' : existing ? 'Open your entry' : 'Write an entry'}</strong>
           {existing && <span className="badge badge-quiet">saved</span>}
         </span>
         <span aria-hidden>{open ? '−' : '+'}</span>

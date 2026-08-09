@@ -57,16 +57,18 @@ export function ReflectPage() {
     <div className="exercise-page reflect-page">
       <FlowNav current="reflect" slug={slug} />
 
+      {/* Back first and quiet, then the title. It used to be four loose
+          elements in a stack -- eyebrow, title, paragraph, a raw underlined
+          link last -- each at its own spacing, so the header read as a list of
+          leftovers rather than as one thing. */}
       <header className="reflect-head">
-        <p className="eyebrow">Reflect</p>
-        <h1>{exercise.title}</h1>
-        <p className="muted">
-          Talk it through and note what you learned. Nothing here changes your
-          grade — it&rsquo;s just for you.
-        </p>
-        <Link className="link" to={`/exercise/${slug}`}>
+        <Link className="reflect-back" to={`/exercise/${slug}`}>
           ← Back to the code
         </Link>
+        <h1>{exercise.title}</h1>
+        <p className="reflect-sub">
+          Nothing here is marked. It is for you.
+        </p>
       </header>
 
       {branches.length > 0 && (
@@ -86,15 +88,25 @@ export function ReflectPage() {
         </div>
       )}
 
-      <Tutor exerciseId={exercise.id} solved onLessonCreated={handleLessonCreated} />
+      {/* Two sections, each announced. The conversation goes to a model; the
+          journal never does (routers/reflections.py), and that difference is
+          the most important thing on the page -- so each says who can read it
+          rather than relying on a divider between them to imply it. */}
+      <section className="reflect-part">
+        <div className="reflect-part-head">
+          <h2>Talk it through</h2>
+          <span className="reflect-who">Your coach can read this</span>
+        </div>
+        <Tutor exerciseId={exercise.id} solved onLessonCreated={handleLessonCreated} />
+      </section>
 
-      {/* Two different things, and the line says so. The conversation goes to a
-          model; the journal never does (routers/reflections.py). Running them
-          together down one column invites someone to assume the tutor can read
-          what they write below it. */}
-      <hr className="section-split" />
-
-      <Journal exerciseId={exercise.id} />
+      <section className="reflect-part">
+        <div className="reflect-part-head">
+          <h2>Your journal</h2>
+          <span className="reflect-who is-private">Nothing reads this but you</span>
+        </div>
+        <Journal exerciseId={exercise.id} />
+      </section>
     </div>
   )
 }

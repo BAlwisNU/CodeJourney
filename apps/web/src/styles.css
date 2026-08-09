@@ -1,19 +1,47 @@
 /* CodeJourney visual system.
-   Dark, saturated, and deliberately a bit playful -- the platform is competing
-   for attention with everything else on a student's screen. Motion is used to
-   confirm actions, never for decoration, and every animation is disabled under
-   prefers-reduced-motion at the bottom of this file. */
+
+   Dark, calm, and content-first. The working rules, in the order they matter:
+
+   1. SEPARATE WITH TONE, NOT LINES. A surface should read as sitting above the
+      one behind it because it is lighter, not because a hairline has been drawn
+      around it. Borders here are translucent white at very low alpha -- present
+      enough to define an edge, faint enough that a page of twelve cards does
+      not read as a spreadsheet. This sheet had 102 hardcoded 1px borders and 41
+      shadows; the ratio was the single most dated thing about it.
+
+   2. SPACE IS THE LAYOUT. Grouping comes from proximity before it comes from
+      containers. Padding is generous, and where something can be a gap instead
+      of a box, it is.
+
+   3. TYPE CARRIES THE HIERARCHY. Few sizes, few weights, tight tracking on
+      anything large, generous line-height on anything you read. Size and weight
+      do the work that colour and rules used to.
+
+   4. ONE ACCENT AT A TIME. The palette has six colours; a given view should use
+      one of them. Status colours mark state, never decorate.
+
+   5. RADII SCALE WITH THE SURFACE. A chip is not a card is not a panel.
+
+   Motion confirms actions, never decorates, and every animation is disabled
+   under prefers-reduced-motion at the bottom of this file. */
 
 :root {
-  --bg: #0b0d13;
+  --bg: #0a0c11;
   --bg-2: #0f1219;
-  --surface: #151925;
-  --surface-2: #1c2130;
-  --surface-3: #242a3d;
-  --border: #2b3348;
-  --border-lit: #3d4766;
-  --text: #eef1f8;
-  --muted: #99a3bd;
+  /* Each surface is a step up in light rather than a differently-outlined box,
+     so depth survives the borders being nearly invisible. */
+  --surface: #14171f;
+  --surface-2: #1a1e28;
+  --surface-3: #232833;
+
+  /* Translucent, so one value is correct on every surface. */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-lit: rgba(255, 255, 255, 0.15);
+  --hairline: rgba(255, 255, 255, 0.05);
+
+  --text: #f2f4f8;
+  --muted: #97a0b3;
+  --faint: #6b7386;
 
   --accent: #7c9cff;
   --accent-2: #a78bfa;
@@ -25,8 +53,20 @@
   --grad: linear-gradient(120deg, var(--accent) 0%, var(--accent-2) 50%, var(--accent-3) 100%);
   --glow: 0 0 0 1px rgba(124, 156, 255, 0.25), 0 8px 30px -8px rgba(124, 156, 255, 0.35);
 
-  --radius: 10px;
-  --radius-lg: 16px;
+  /* Elevation. Long, soft and low-opacity -- a shadow you can point at is too
+     strong. These do the separating that borders used to. */
+  --lift-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px -8px rgba(0, 0, 0, 0.5);
+  --lift-2: 0 2px 6px rgba(0, 0, 0, 0.32), 0 18px 48px -20px rgba(0, 0, 0, 0.7);
+
+  /* A chip is not a card is not a panel. */
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 22px;
+
+  /* Tracking. Large type needs negative tracking to stop looking loose; small
+     caps labels need positive. */
+  --track-tight: -0.022em;
+  --track-tighter: -0.035em;
   color-scheme: dark;
 }
 
@@ -55,9 +95,22 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* 17px, because this is a site people read on. system-ui resolves to SF on
+     a Mac and Segoe on Windows, both of which are designed for exactly this. */
+  font: 17px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
+
+/* Every heading, once, rather than per-component. Large type set at default
+   tracking reads as loose; this is the single change that makes the page feel
+   composed rather than assembled. */
+h1, h2, h3, h4 {
+  letter-spacing: var(--track-tight);
+  line-height: 1.15;
+}
+h1 { letter-spacing: var(--track-tighter); }
 
 .app { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
@@ -66,7 +119,7 @@ h3 { font-size: 1rem; margin: 0 0 8px; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
 
-code, pre, .prompt-body {
+code, pre {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
@@ -74,55 +127,80 @@ code, pre, .prompt-body {
 .exercise { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 24px; }
 @media (max-width: 900px) { .exercise { grid-template-columns: 1fr; } }
 
+/* The prompt is prose with code in it, not code. It was set entirely in the
+   mono face -- the same leftover the lesson body had, from when both were raw
+   markdown in a <pre>. Inline `code` inside it still gets the mono face from
+   the rule above. */
 .prompt-body {
-  white-space: pre-wrap;
+  /* Not pre-wrap: the source is rendered into elements by <Markdown>, so
+     preserving the source's newlines only double-spaces it. A later rule was
+     already overriding this to normal; now there is one answer, not two. */
+  line-height: 1.7;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
-  font-size: 0.9rem;
+  padding: 22px 24px;
+  font-size: 0.97rem;
+  box-shadow: var(--lift-1);
 }
 
 .workspace { display: flex; flex-direction: column; gap: 16px; }
 
 .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
+/* A control is a filled shape, not an outlined one. The border here is barely
+   there and exists only to hold an edge against a similar surface; hover moves
+   the fill, not the outline, because a control that reacts by changing colour
+   feels connected to the pointer and one that reacts by changing its border
+   feels like a diagram. */
 button {
   background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 9px 18px;
+  padding: 10px 20px;
   font-size: 0.95rem;
   font-weight: 500;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  transition: border-color 0.16s ease, background 0.16s ease, transform 0.12s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease,
+    box-shadow 0.18s ease;
 }
 button:hover:not(:disabled) { border-color: var(--border-lit); background: var(--surface-3); }
-button:active:not(:disabled) { transform: translateY(1px); }
-button:disabled { opacity: 0.45; cursor: default; }
+button:active:not(:disabled) { transform: scale(0.985); }
+button:disabled { opacity: 0.4; cursor: default; }
 button.primary {
-  background: var(--grad);
-  background-size: 200% auto;
-  color: #0a0d18;
+  /* One flat accent rather than the three-stop gradient. A gradient on every
+     primary button is the loudest thing in a view and it competes with the
+     content; the accent alone is enough to say "this one". */
+  background: var(--accent);
+  color: #0b1020;
   border-color: transparent;
-  font-weight: 650;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 8px 24px -12px rgba(124, 156, 255, 0.9);
 }
-button.primary:hover:not(:disabled) { box-shadow: var(--glow); background-position: 100% center; }
+button.primary:hover:not(:disabled) {
+  background: #8fabff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), 0 10px 30px -12px rgba(124, 156, 255, 1);
+}
 button.link { background: none; border: none; color: var(--accent); padding: 0; text-decoration: underline; }
 
 /* panels */
+/* The 3px left stripe is gone from the default. It was drawn on every panel
+   and only ever meant something on three of them, so it read as decoration and
+   made the neutral case look like a state. Status panels below still get it,
+   where it is the whole point. */
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px;
+  border-radius: var(--radius-lg);
+  padding: 26px 28px;
+  box-shadow: var(--lift-1);
   animation: rise 0.32s ease both;
 }
-.panel-error { border-left-color: var(--fail); }
-.panel-pass  { border-left-color: var(--pass); background: linear-gradient(180deg, rgba(52,211,153,0.09), transparent 60%); }
-.panel-hint  { border-left-color: var(--hint); }
+.panel-error { border-left: 3px solid var(--fail); }
+.panel-pass  { border-left: 3px solid var(--pass); background: linear-gradient(180deg, rgba(52,211,153,0.09), transparent 60%); }
+.panel-hint  { border-left: 3px solid var(--hint); }
 
 .stdout {
   background: var(--bg);
@@ -283,11 +361,12 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 /* buttons — shared by the landing page only; app buttons stay utilitarian */
 .btn {
   display: inline-block;
-  padding: 9px 18px;
+  padding: 10px 20px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   font-size: 0.95rem;
   font-weight: 500;
+  letter-spacing: -0.01em;
   text-decoration: none;
   color: var(--text);
   cursor: pointer;
@@ -936,8 +1015,18 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   align-items: center;
   padding: 8px 0 32px;
 }
-.lesson-body { white-space: pre-wrap; font-size: 0.92rem; line-height: 1.65; }
-.lesson-body, .pf-code pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+/* Prose in the reading face, code in the mono one.
+   Both of these were leftovers from when a lesson was a raw markdown dump in a
+   <pre>: the whole body was monospace and pre-wrapped, which is right for a
+   code block and wrong for the sentence explaining it. The body is structured
+   elements now, so it can be set like text people read. */
+.lesson-body {
+  font-size: 1.02rem;
+  line-height: 1.72;
+  max-width: 68ch;
+}
+.lesson-body p { margin: 0 0 1.1em; }
+.pf-code pre { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
 
 /* quiz */
 .quiz { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 20px; counter-reset: q; }
@@ -1057,7 +1146,6 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
   color: var(--text); font-size: 0.82rem; line-height: 1.55;
 }
 /* prompt panel no longer needs pre-wrap now that markdown is structured */
-.prompt-body { white-space: normal; }
 
 
 /* One place to disable every animation in this file. */
@@ -1647,21 +1735,35 @@ a.tnode:hover { transform: translateY(-2px); border-color: var(--border-lit); bo
 }
 
 /* episode card */
+/* Six rows of these fill the dashboard, so how they carry state decides how
+   the whole page feels. A 3px coloured cap on every card turned a page of
+   lessons into a page of coloured bars, all shouting at once and none of them
+   the thing you came to do.
+
+   State lives in the numbered mark instead -- it is already there, it is
+   already round, and it is the thing the eye lands on. The card stays neutral,
+   so what varies across the grid is one small token rather than the whole
+   outline of every tile. */
 .seq-ep {
   flex: 0 0 210px;
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-top: 3px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px;
+  padding: 16px;
   text-decoration: none; color: var(--text);
-  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  box-shadow: var(--lift-1);
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
 }
-a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); box-shadow: 0 10px 24px -16px rgba(0,0,0,0.9); }
-.seq-ep.done { border-top-color: var(--pass); }
-.seq-ep.available { border-top-color: var(--accent); box-shadow: 0 0 0 1px rgba(124,156,255,0.25); }
-.seq-ep.planned { opacity: 0.72; border-style: dashed; }
+a.seq-ep:hover {
+  transform: translateY(-2px);
+  background: var(--surface-2);
+  box-shadow: var(--lift-2);
+}
+/* Only the one you can start now is marked on the card itself, because that is
+   the single next action and it should be findable without reading. */
+.seq-ep.available { box-shadow: var(--lift-1), inset 0 0 0 1px rgba(124, 156, 255, 0.4); }
+.seq-ep.planned { opacity: 0.55; }
 .seq-ep.planned .seq-title { color: var(--muted); }
 
 .seq-num {
@@ -1684,7 +1786,10 @@ a.seq-ep:hover { transform: translateY(-2px); border-color: var(--border-lit); b
 @media (prefers-reduced-motion: reduce) { a.seq-ep:hover { transform: none; } }
 
 /* episode status label + in-progress state */
-.seq-ep.in_progress { border-top-color: var(--hint); box-shadow: 0 0 0 1px rgba(251,191,36,0.22); }
+/* In progress is the one card that earns a mark on the card itself: it is
+   where you were, and it is what you would most likely click. Everything else
+   states itself through the numbered mark and the status pill. */
+.seq-ep.in_progress { box-shadow: var(--lift-1), inset 0 0 0 1px rgba(251, 191, 36, 0.32); }
 .seq-ep.in_progress .seq-num { background: rgba(251,191,36,0.15); border-color: var(--hint); color: var(--hint); }
 
 .seq-status {

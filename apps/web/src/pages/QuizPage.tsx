@@ -81,7 +81,7 @@ export function QuizPage() {
 
       <header className="plan-head">
         <h1>Quiz: {exercise.title}</h1>
-        <Link className="btn btn-primary" to={`/exercise/${slug}`}>
+        <Link className="plan-skip" to={`/exercise/${slug}`}>
           Skip to the editor →
         </Link>
       </header>

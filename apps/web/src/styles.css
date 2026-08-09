@@ -1729,7 +1729,28 @@ a.tnode:hover { transform: translateY(-2px); border-color: var(--border-lit); bo
    Topic sequence: episodes one after another, joined by a line
    ========================================================================== */
 
-.seq { overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
+/* The row scrolls, and now says so.
+   It always scrolled, but with a hard edge and no affordance: the fifth card
+   was cut mid-word against the panel border, which reads as broken rather
+   than as "there is more this way". The mask fades the last stretch out, so
+   the cut is a gradient instead of a guillotine, and it only appears when
+   there is actually something to scroll to. */
+.seq {
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+  scroll-padding-left: 4px;
+}
+.seq.has-more {
+  -webkit-mask-image: linear-gradient(to right, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to right, #000 82%, transparent 100%);
+}
+.seq.has-more.at-end {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.seq-ep { scroll-snap-align: start; }
 .seq-track {
   display: flex; align-items: stretch;
   padding: 12px 4px; min-width: min-content;
@@ -2965,19 +2986,6 @@ a.seq-ep:hover {
    Not sticky: pinned to the top it floats over the lesson text, and there are
    already two fixed bars (the demo banner and the flow nav) competing for that
    edge of the screen. */
-.ls-progress {
-  height: 2px;
-  background: var(--surface-2);
-  border-radius: 2px;
-  margin-bottom: 22px;
-  overflow: hidden;
-}
-.ls-progress > span {
-  display: block;
-  height: 100%;
-  background: var(--grad);
-  transition: width 0.4s ease;
-}
 
 /* --- pages ---------------------------------------------------------------
 
@@ -3001,79 +3009,21 @@ a.seq-ep:hover {
 .ls-title { flex: 1; min-width: 0; }
 .ls-body { padding: 0 2px 4px; }
 
-/* --- the pager ------------------------------------------------------------ */
-
-.ls-pager {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 26px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
-}
-
-.ls-page-btn {
-  padding: 8px 15px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-  font-size: 0.84rem;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-}
-.ls-page-btn:hover:not(:disabled) { border-color: var(--border-lit); background: var(--surface-3); }
-.ls-page-btn:disabled { opacity: 0.4; cursor: default; }
-/* The forward button carries the accent: it is what you do next, and on a
-   page of prose it should be findable without reading the row. */
-.ls-page-next:not(:disabled) {
-  border-color: transparent;
-  background: var(--accent);
-  color: #0d1017;
-  font-weight: 600;
-}
-.ls-page-next:not(:disabled):hover { background: var(--accent); filter: brightness(1.08); }
-
-/* Jumpable, because a reader who wants the dictionaries section should not
-   have to click Next three times to reach it. */
-.ls-dots { list-style: none; display: flex; gap: 6px; margin: 0; padding: 0; flex: 1; }
-/* The lesson body numbers every `ol > li` with a counter in a circle -- the
-   filtering recipe is a sequence and should look like one. The pager is an
-   ordered list too, and is not that. */
-.lesson .md .ls-dots > li { display: flex; padding: 0; }
-.lesson .md .ls-dots > li::before { content: none; }
-.ls-dots button {
-  width: 100%;
-  min-width: 16px;
-  max-width: 46px;
-  height: 5px;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: var(--surface-3);
-  cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
-}
-.ls-dots button:hover { transform: scaleY(1.6); }
-.ls-dots button.is-past { background: rgba(124, 156, 255, 0.45); }
-.ls-dots button.is-at { background: var(--accent); transform: scaleY(1.8); }
-
-.ls-page-count {
-  font-size: 0.8rem;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
+/* The way past a stage. Deliberately a link and not a button: it is an escape
+   hatch for someone who already knows this, not a route the page recommends. */
+.plan-skip {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2px;
   white-space: nowrap;
 }
-.ls-page-count i { color: var(--muted); font-style: normal; }
+.plan-skip:hover { color: var(--text); border-bottom-color: var(--border-lit); }
 
-@media (max-width: 620px) {
-  /* The dots are the first thing to go: Back, Next and the count still say
-     where you are, and three controls fit a phone where five do not. */
-  .ls-dots { display: none; }
-  .ls-pager { gap: 10px; }
-  .ls-page-btn { flex: 1; }
-}
+/* Sections sit one after another down the page; the space between them and
+   the heading rule are what separate them, not a page break. */
+.ls + .ls { margin-top: 34px; padding-top: 30px; border-top: 1px solid var(--hairline); }
 
 /* --- callouts ------------------------------------------------------------ */
 
@@ -3279,7 +3229,6 @@ a.seq-ep:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ls-progress > span, .ls-dots button, .ls-page-btn { transition: none; }
   /* No rotation, no drain bar, no slide-in. */
   .agent-panel, .agent-tick { animation: none; }
   .ls { opacity: 1; }
@@ -4237,3 +4186,76 @@ a.seq-ep:hover {
 .gs-tile .hero-stats span { font-size: 0.93rem; }
 .gs-tile .world-name, .gs-tile .agent-mini-text span { font-size: 0.9rem; }
 .gs-tile [data-reveal] { --reveal: 1; }
+
+/* --- the dashboard's first answer ---------------------------------------
+   One card, above everything, saying what to do next. The page previously
+   opened with a language carousel and six near-identical topic rows, and the
+   only thing offering to continue was a 12px link buried inside the carousel. */
+
+.resume {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'eyebrow go' 'title go' 'meta go';
+  gap: 4px 24px;
+  align-items: center;
+  padding: 26px 30px;
+  margin-bottom: 26px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(124, 156, 255, 0.1), transparent 60%),
+    var(--surface);
+  box-shadow: var(--lift-1);
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+}
+.resume:hover { border-color: var(--accent); transform: translateY(-2px); }
+.resume-eyebrow {
+  grid-area: eyebrow;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.resume-title { grid-area: title; font-size: 1.5rem; font-weight: 600; letter-spacing: var(--track-tight); }
+.resume-meta { grid-area: meta; font-size: 0.88rem; }
+.resume-go {
+  grid-area: go;
+  padding: 12px 22px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #0b1020;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* The language picker, demoted from a full-width carousel to a row of pills. */
+.lang-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
+.lang-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.88rem;
+}
+.lang-pill.is-on { border-color: var(--accent); color: var(--text); background: var(--surface-2); }
+.lang-pill:disabled { opacity: 0.45; }
+.lang-pill-soon {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+@media (max-width: 640px) {
+  .resume {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'eyebrow' 'title' 'meta' 'go';
+    gap: 6px;
+  }
+  .resume-go { justify-self: start; margin-top: 12px; }
+}

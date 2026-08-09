@@ -42,6 +42,11 @@ import type { Exercise, Lesson, Parsons as ParsonsData } from '../lib/types'
 
 type View = 'read' | 'watch' | 'interactive'
 
+/** A tab only exists when there is something behind it.
+ *
+ * Watch used to be shown on every lesson reading "nothing yet", and no lesson
+ * has a video. A tab that is empty on all 69 teaches people that tabs are not
+ * worth clicking, which costs the two that are real. */
 const VIEWS: { key: View; label: string }[] = [
   { key: 'read', label: 'Read' },
   { key: 'watch', label: 'Watch' },
@@ -109,15 +114,18 @@ export function PlanPage() {
   const { inline } = splitQuestions(lesson?.questions ?? [], sectionCount)
 
   const hasInteractive = Boolean(lab || parsons)
+  const available = VIEWS.filter(
+    (v) =>
+      v.key === 'read' ||
+      (v.key === 'watch' && videos.length > 0) ||
+      (v.key === 'interactive' && hasInteractive)
+  )
 
   /** A line under each tab, so it says what is behind it before you click. */
   const hintFor = (key: View) => {
-    if (key === 'read') return lesson ? `${readingMinutes(blocks)} min` : 'nothing yet'
-    if (key === 'watch') {
-      if (!videos.length) return 'nothing yet'
-      return videos.length === 1 ? '1 video' : `${videos.length} videos`
-    }
-    return hasInteractive ? 'try it yourself' : 'nothing yet'
+    if (key === 'read') return lesson ? `${readingMinutes(blocks)} min` : ''
+    if (key === 'watch') return videos.length === 1 ? '1 video' : `${videos.length} videos`
+    return 'try it yourself'
   }
 
   return (
@@ -126,13 +134,18 @@ export function PlanPage() {
 
       <header className="plan-head">
         <h1>Before you write: {exercise.title}</h1>
-        <Link className="btn btn-primary" to={`/exercise/${slug}`}>
+        {/* A way past, not an equal option. As a filled primary button beside
+            the title it read as the recommended path, which told everyone the
+            lesson was optional padding. */}
+        <Link className="plan-skip" to={`/exercise/${slug}`}>
           Skip to the editor →
         </Link>
       </header>
 
+      {/* One tab is not a choice, so it is not shown as one. */}
+      {available.length > 1 && (
       <nav className="views" aria-label="How to work through this lesson">
-        {VIEWS.map((v) => (
+        {available.map((v) => (
           <NavLink
             key={v.key}
             // `read` is the bare /plan URL, so the tab a learner lands on by
@@ -152,6 +165,7 @@ export function PlanPage() {
           </NavLink>
         ))}
       </nav>
+      )}
 
       {current === 'read' &&
         (lesson ? (

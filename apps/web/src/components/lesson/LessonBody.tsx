@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 
 import { InlineMarkdown } from '../Markdown'
 import { CodeBlock } from './CodeBlock'
@@ -13,16 +13,16 @@ import {
   type Section,
 } from '../../lib/lessonBlocks'
 import { lookup } from '../../lib/glossary'
-import { usePrefersReducedMotion } from '../../lib/motion'
 
 /**
- * A lesson, read one section at a time.
+ * A lesson, in one scroll.
  *
- * Each section is a page you flick through rather than a stop on one long
- * scroll. A section is already the unit the lesson is written in -- one idea,
- * its example, and the question that checks it -- so a page break at the same
- * place costs nothing and buys an ending: you finish a page knowing you
- * finished something, instead of scrolling into the next idea mid-thought.
+ * This used to paginate: one section per page, with Back/Next and a dot per
+ * page. It was a third layer of navigation on a screen that already had stage
+ * tabs and sub-tabs, spent on a two-minute read -- and scrolling is the best
+ * understood interaction there is. Sections are still the unit the lesson is
+ * written in, and each still ends with the question that checks it; they are
+ * just laid out in order rather than dealt one at a time.
  *
  * Asides become callouts, headings get a glyph, unfamiliar words get a
  * definition on hover, and code blocks run.
@@ -282,7 +282,7 @@ export function LessonBody({
 }: {
   source: string
   /**
-   * The question to ask on headed section `n` (1-based), if any.
+   * The question to ask after headed section `n` (1-based), if any.
    *
    * A callback rather than a list, because which questions are spare is the
    * Plan page's business -- it owns the quiz and has to not ask the same thing
@@ -294,95 +294,23 @@ export function LessonBody({
   const sections = useMemo(() => toSections(blocks), [blocks])
   const preludes = useMemo(() => buildPreludes(blocks), [blocks])
 
-  const [page, setPage] = useState(0)
-  const top = useRef<HTMLDivElement>(null)
-  const mounted = useRef(false)
-  const reduced = usePrefersReducedMotion()
+  if (!sections.length) return null
 
-  const total = sections.length
-  const at = Math.min(page, Math.max(0, total - 1))
-
-  // A new page starts at its beginning. Without this you land halfway down a
-  // page you have not read, because the scroll position from the last one is
-  // still there. Skipped on first render -- arriving at the lesson should not
-  // yank the page around.
-  useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true
-      return
-    }
-    top.current?.scrollIntoView({
-      behavior: reduced ? 'auto' : 'smooth',
-      block: 'start',
-    })
-  }, [at, reduced])
-
-  if (!total) return null
-
-  // Only headed sections get a checkpoint, and they are numbered among
-  // themselves -- the opening has no heading to hang one on.
-  const headedIndex = sections.slice(0, at + 1).filter((s) => s.heading).length
-  const section = sections[at]
+  let headed = 0
 
   return (
-    <div className="lesson-body md" ref={top}>
-      {total > 1 && (
-        <div className="ls-progress" aria-hidden>
-          <span style={{ width: `${((at + 1) / total) * 100}%` }} />
-        </div>
-      )}
-
-      <Page
-        // Keyed on the page, so React rebuilds rather than reconciles. Two
-        // sections' code blocks are different blocks; reusing the DOM would
-        // carry one page's Run output onto the next.
-        key={at}
-        section={section}
-        preludes={preludes}
-        checkpoint={section.heading ? checkpointFor?.(headedIndex) : undefined}
-      />
-
-      {total > 1 && (
-        <nav className="ls-pager" aria-label="Pages of this lesson">
-          <button
-            type="button"
-            className="ls-page-btn"
-            onClick={() => setPage(at - 1)}
-            disabled={at === 0}
-          >
-            ← Back
-          </button>
-
-          <ol className="ls-dots">
-            {sections.map((s, i) => (
-              <li key={i}>
-                <button
-                  type="button"
-                  className={i === at ? 'is-at' : i < at ? 'is-past' : undefined}
-                  onClick={() => setPage(i)}
-                  aria-current={i === at ? 'page' : undefined}
-                  aria-label={`Page ${i + 1}${s.heading ? `: ${s.heading}` : ''}`}
-                  title={s.heading ?? 'Start here'}
-                />
-              </li>
-            ))}
-          </ol>
-
-          <span className="ls-page-count">
-            {at + 1}
-            <i>/{total}</i>
-          </span>
-
-          <button
-            type="button"
-            className="ls-page-btn ls-page-next"
-            onClick={() => setPage(at + 1)}
-            disabled={at >= total - 1}
-          >
-            {at >= total - 1 ? 'End of the lesson' : 'Next →'}
-          </button>
-        </nav>
-      )}
+    <div className="lesson-body md">
+      {sections.map((section, i) => {
+        if (section.heading) headed += 1
+        return (
+          <Page
+            key={i}
+            section={section}
+            preludes={preludes}
+            checkpoint={section.heading ? checkpointFor?.(headed) : undefined}
+          />
+        )
+      })}
     </div>
   )
 }

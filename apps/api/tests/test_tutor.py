@@ -19,7 +19,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
-from conftest import CORRECT, login, open_exercise, submit  # noqa: F401
+from conftest import CORRECT, WRONG, login, open_exercise, submit  # noqa: F401
 
 from app.services import tutor
 
@@ -422,9 +422,25 @@ _EXPIRED_QUESTS_ANSWER = (
 )
 
 
+def _earn_the_answer(client, headers, slug="expired-quests"):
+    """Submit enough wrong attempts to unlock the worked answer.
+
+    The endpoint is gated on real submits -- see ANSWER_AFTER_ATTEMPTS in
+    routers/exercises.py -- because handing the answer over on request
+    contradicted the promise on the landing page and made the hint ladder
+    skippable in one click.
+    """
+    from app.routers.exercises import ANSWER_AFTER_ATTEMPTS
+
+    exercise, session_id = open_exercise(client, headers, slug)
+    for _ in range(ANSWER_AFTER_ATTEMPTS):
+        submit(client, headers, exercise, session_id, WRONG)
+
+
 def test_show_answer_when_off_refuses_gently(client, monkeypatch):
     monkeypatch.setattr(tutor, "enabled", lambda: False)
     headers = login(client)
+    _earn_the_answer(client, headers)
     res = client.get("/exercises/expired-quests/solution", headers=headers)
     assert res.status_code == 503
 
@@ -439,6 +455,7 @@ def test_show_answer_returns_a_verified_solution(client, monkeypatch):
     tutor._SOLUTION_CACHE.clear()
 
     headers = login(client)
+    _earn_the_answer(client, headers)
     res = client.get("/exercises/expired-quests/solution", headers=headers)
     assert res.status_code == 200
     assert "def expired_quests" in res.json()["solution"]
@@ -451,6 +468,7 @@ def test_show_answer_strips_markdown_fences(client, monkeypatch):
     tutor._SOLUTION_CACHE.clear()
 
     headers = login(client)
+    _earn_the_answer(client, headers)
     res = client.get("/exercises/expired-quests/solution", headers=headers)
     assert res.status_code == 200
     sol = res.json()["solution"]
@@ -466,9 +484,46 @@ def test_show_answer_rejects_a_wrong_solution(client, monkeypatch):
     tutor._SOLUTION_CACHE.clear()
 
     headers = login(client)
+    _earn_the_answer(client, headers)
     res = client.get("/exercises/expired-quests/solution", headers=headers)
     assert res.status_code == 502
 
 
 def test_show_answer_requires_auth(client):
     assert client.get("/exercises/expired-quests/solution").status_code == 401
+
+
+def test_show_answer_is_gated_on_having_tried(client, monkeypatch):
+    """The landing page promises the answer is not handed over. It has to be true.
+
+    Before this the endpoint answered any signed-in student from the moment
+    the page loaded, which made the whole hint ladder skippable in one click
+    and the promise false.
+    """
+    from app.routers.exercises import ANSWER_AFTER_ATTEMPTS
+
+    monkeypatch.setattr(tutor, "enabled", lambda: True)
+    monkeypatch.setattr(
+        tutor, "_client", lambda: _FakeClient([_text_block(_EXPIRED_QUESTS_ANSWER)], {})
+    )
+    tutor._SOLUTION_CACHE.clear()
+    headers = login(client)
+
+    # Cold: refused, and the refusal says what to do about it.
+    res = client.get("/exercises/expired-quests/solution", headers=headers)
+    assert res.status_code == 403
+    assert str(ANSWER_AFTER_ATTEMPTS) in res.json()["detail"]
+
+    # One short of the threshold: still refused.
+    exercise, session_id = open_exercise(client, headers)
+    for _ in range(ANSWER_AFTER_ATTEMPTS - 1):
+        submit(client, headers, exercise, session_id, WRONG)
+    assert client.get(
+        "/exercises/expired-quests/solution", headers=headers
+    ).status_code == 403
+
+    # The last one opens it.
+    submit(client, headers, exercise, session_id, WRONG)
+    assert client.get(
+        "/exercises/expired-quests/solution", headers=headers
+    ).status_code == 200

@@ -11,6 +11,32 @@ import type { Account, LearnerProfile, OnboardingPlan } from '../lib/types'
  * A right to withdraw that requires emailing a researcher is a right on paper
  * only, and it is the first participant protection an ethics committee looks for.
  */
+// Keys must match ONBOARDING_WORRIES / _TIME / _LEARN_STYLE in
+// apps/api/app/models.py -- the server rejects anything it does not know.
+const WORRIES = [
+  { key: 'maths', label: "I'm not a maths person" },
+  { key: 'stuck', label: 'Getting stuck and giving up' },
+  { key: 'late', label: "I've left it too late" },
+  { key: 'where', label: 'Not knowing what to learn first' },
+  { key: 'time', label: 'Finding the time' },
+  { key: 'asking', label: 'Feeling silly asking questions' },
+  { key: 'none', label: 'Nothing much, honestly' },
+]
+
+const TIME = [
+  { key: 'minutes', label: 'A few minutes here and there' },
+  { key: 'hour', label: 'About an hour a week' },
+  { key: 'few_hours', label: 'A few hours a week' },
+  { key: 'most_days', label: 'Most days' },
+]
+
+const LEARN_STYLE = [
+  { key: 'read', label: 'Reading it through' },
+  { key: 'watch', label: 'Watching someone do it' },
+  { key: 'do', label: 'Trying it and breaking it' },
+  { key: 'mix', label: 'A bit of everything' },
+]
+
 export function AccountPage() {
   const navigate = useNavigate()
   const [account, setAccount] = useState<Account | null>(null)
@@ -157,6 +183,12 @@ function LearnerProfilePanel() {
   const [profile, setProfile] = useState<LearnerProfile | null>(null)
   const [goals, setGoals] = useState('')
   const [ideas, setIdeas] = useState('')
+  // Asked here rather than at signup. They change how the coach talks to you,
+  // but not enough to be worth the length they added to the second signup
+  // step, where every extra question is paid for in people who never finish.
+  const [worries, setWorries] = useState<string[]>([])
+  const [timeAvailable, setTimeAvailable] = useState('')
+  const [learnStyle, setLearnStyle] = useState('')
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -185,6 +217,9 @@ function LearnerProfilePanel() {
       const next = await api.saveLearnerProfile({
         goals: goals.trim(),
         project_ideas: ideas.trim(),
+        worries,
+        time_available: timeAvailable,
+        learn_style: learnStyle,
       })
       setProfile(next)
       setEditing(false)
@@ -227,6 +262,68 @@ function LearnerProfilePanel() {
               maxLength={2000}
             />
           </label>
+
+          <fieldset className="welcome-choices">
+            <legend>Is anything putting you off? Pick any that ring true.</legend>
+            <div className="chips">
+              {WORRIES.map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  className={worries.includes(o.key) ? 'chip is-on' : 'chip'}
+                  aria-pressed={worries.includes(o.key)}
+                  onClick={() =>
+                    setWorries((cur) =>
+                      // "Nothing much" excludes the rest, in both directions.
+                      o.key === 'none'
+                        ? cur.includes('none')
+                          ? []
+                          : ['none']
+                        : cur.filter((k) => k !== 'none').includes(o.key)
+                          ? cur.filter((k) => k !== o.key && k !== 'none')
+                          : [...cur.filter((k) => k !== 'none'), o.key]
+                    )
+                  }
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="welcome-choices">
+            <legend>How much time do you realistically have?</legend>
+            <div className="chips">
+              {TIME.map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  className={timeAvailable === o.key ? 'chip is-on' : 'chip'}
+                  aria-pressed={timeAvailable === o.key}
+                  onClick={() => setTimeAvailable(timeAvailable === o.key ? '' : o.key)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="welcome-choices">
+            <legend>When something is new, what helps most?</legend>
+            <div className="chips">
+              {LEARN_STYLE.map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  className={learnStyle === o.key ? 'chip is-on' : 'chip'}
+                  aria-pressed={learnStyle === o.key}
+                  onClick={() => setLearnStyle(learnStyle === o.key ? '' : o.key)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <div className="actions">
             <button className="primary" onClick={save} disabled={busy}>
               {busy ? 'Saving…' : 'Save'}

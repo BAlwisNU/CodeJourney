@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser
@@ -237,9 +237,15 @@ def request_hint(
     )
 
 
+#: How many real submits before the worked answer is offered. Matched to the
+#: hint ladder: by L4 the student has had the structure spelled out, so this is
+#: the point at which more hints stop adding anything.
+ANSWER_AFTER_ATTEMPTS = 6
+
+
 @router.get("/{slug}/solution", response_model=SolutionResponse)
 def get_solution(slug: str, user: CurrentUser, db: DbSession) -> SolutionResponse:
-    """The full worked answer, when a student chooses to see it.
+    """The full worked answer, after a real attempt at it.
 
     The hint ladder deliberately stops short of the answer; this endpoint is the
     student stepping past that on purpose. Solutions are not stored (the
@@ -247,10 +253,36 @@ def get_solution(slug: str, user: CurrentUser, db: DbSession) -> SolutionRespons
     so the tutor solves the exercise fresh and the answer is VERIFIED against the
     exercise's real tests -- hidden ones included -- before it is returned. A
     student who asks for the answer gets a working answer, not a guess.
+
+    **Gated on having tried.** This used to be available to any signed-in
+    student from the moment the page loaded, which flatly contradicted the
+    promise on the landing page that the answer is never handed over -- and
+    made the whole hint ladder skippable in one click. Requiring real submits
+    first keeps the escape hatch for someone genuinely stuck while making the
+    promise true: nobody is handed the answer instead of working on it.
     """
     exercise = db.scalar(select(Exercise).where(Exercise.slug == slug))
     if exercise is None:
         raise HTTPException(status_code=404, detail="Exercise not found")
+
+    attempts = db.scalar(
+        select(func.count())
+        .select_from(Submission)
+        .where(
+            Submission.user_id == user.id,
+            Submission.exercise_id == exercise.id,
+            Submission.run_mode == RunMode.SUBMIT,
+        )
+    )
+    if (attempts or 0) < ANSWER_AFTER_ATTEMPTS:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"The worked answer opens up after {ANSWER_AFTER_ATTEMPTS} submits. "
+                "The hints get more specific each time you try, and they are the "
+                "part that actually teaches you this."
+            ),
+        )
 
     if not tutor.enabled():
         raise HTTPException(

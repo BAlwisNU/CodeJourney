@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { SeqNode } from '../lib/curriculum'
@@ -52,9 +52,35 @@ export function TopicSequence({
       )
     : 0
 
+  // Whether the row actually overflows, and whether it is scrolled to the end.
+  // The fade is only honest when there is something past the edge, and it has
+  // to come off at the end or the last card stays half-faded for no reason.
+  const track = useRef<HTMLDivElement>(null)
+  const [scroll, setScroll] = useState({ more: false, atEnd: false })
+
+  useEffect(() => {
+    const el = track.current
+    if (!el) return
+    const measure = () => {
+      const more = el.scrollWidth > el.clientWidth + 4
+      setScroll({
+        more,
+        atEnd: !more || el.scrollLeft + el.clientWidth >= el.scrollWidth - 4,
+      })
+    }
+    measure()
+    el.addEventListener('scroll', measure, { passive: true })
+    window.addEventListener('resize', measure)
+    return () => {
+      el.removeEventListener('scroll', measure)
+      window.removeEventListener('resize', measure)
+    }
+  }, [items.length])
+
   return (
     <div
-      className="seq"
+      ref={track}
+      className={`seq${scroll.more ? ' has-more' : ''}${scroll.atEnd ? ' at-end' : ''}`}
       style={maxBranches ? { paddingBottom: 20 + maxBranches * 66 } : undefined}
     >
       <div className="seq-track">

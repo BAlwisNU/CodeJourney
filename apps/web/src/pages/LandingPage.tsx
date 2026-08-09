@@ -166,31 +166,26 @@ export function LandingPage() {
             </Link>
           ) : (
             <>
-              {/* Try-before-signup, ahead of the account buttons: someone who
-                  is not yet convinced should meet the thing itself before they
-                  meet a form. */}
+              {/* One demo, not two. "Demo Lesson" and "Demo account" sat side
+                  by side with nothing to tell them apart, and the difference --
+                  one drops you into a lesson, the other into a populated
+                  dashboard -- is not something a visitor can guess or should
+                  have to. The dashboard version is still reachable from inside
+                  the demo, where it means something. */}
               <button
                 type="button"
                 className="btn btn-ghost btn-demo"
                 onClick={() => void startDemo('lesson')}
                 disabled={demoBusy !== null}
               >
-                {demoBusy === 'lesson' ? 'Opening…' : 'Demo Lesson'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-demo"
-                onClick={() => void startDemo('account')}
-                disabled={demoBusy !== null}
-              >
-                {demoBusy === 'account' ? 'Setting up…' : 'Demo account'}
+                {demoBusy === 'lesson' ? 'Opening…' : 'Try a lesson'}
               </button>
               <span className="nav-divider" aria-hidden />
               <Link className="btn btn-ghost" to="/login">
                 Log in
               </Link>
               <Link className="btn btn-primary" to="/signup">
-                Start free
+                Sign up
               </Link>
             </>
           )}
@@ -214,15 +209,26 @@ export function LandingPage() {
               Build things worth building. When it breaks, you get an
               explanation — not the word <em>wrong</em>.
             </p>
+            {/* The main action writes code, it does not open a form. Nothing
+                here needs an account: Python runs in the tab, and the account
+                is worth offering once there is work worth keeping. */}
             <div className="hero-cta">
-              <Link
-                className="btn btn-primary btn-lg"
-                to={signedIn ? '/exercises' : '/signup'}
-              >
-                {signedIn ? 'Keep going' : 'Start your first project'}
-              </Link>
+              {signedIn ? (
+                <Link className="btn btn-primary btn-lg" to="/exercises">
+                  Keep going
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg"
+                  onClick={() => void startDemo('lesson')}
+                  disabled={demoBusy !== null}
+                >
+                  {demoBusy === 'lesson' ? 'Opening…' : 'Write your first line of Python'}
+                </button>
+              )}
               <span className="muted small">
-                Free · nothing to install · runs in your browser
+                No account · nothing to install · runs in your browser
               </span>
             </div>
           </div>
@@ -325,8 +331,9 @@ export function LandingPage() {
             <div className="rung-body">
               <h3>The answer</h3>
               <p>
-                <strong>Never.</strong> Being handed the solution is the one
-                thing that reliably teaches you nothing.
+                <strong>Not until you have really tried.</strong> Being handed
+                the solution first is the one thing that reliably teaches you
+                nothing, so it only opens up after six real attempts.
               </p>
             </div>
           </li>
@@ -375,13 +382,23 @@ export function LandingPage() {
 
       <section className="band cta-band" data-reveal key="cta">
         <h2>Ready to break something?</h2>
-        <Link
-          className="btn btn-primary btn-lg"
-          to={signedIn ? '/exercises' : '/signup'}
-        >
-          {signedIn ? 'Keep going' : 'Start free'}
-        </Link>
-        <p className="muted small">Takes about a minute to get running.</p>
+        {signedIn ? (
+          <Link className="btn btn-primary btn-lg" to="/exercises">
+            Keep going
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => void startDemo('lesson')}
+            disabled={demoBusy !== null}
+          >
+            {demoBusy === 'lesson' ? 'Opening…' : 'Open a lesson'}
+          </button>
+        )}
+        <p className="muted small">
+          No account needed. You can make one later to keep what you write.
+        </p>
       </section>,
         ]}
       />

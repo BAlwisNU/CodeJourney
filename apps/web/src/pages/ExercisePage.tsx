@@ -375,7 +375,10 @@ export function ExercisePage() {
 
         {hint && <HintPanel level={hint.level} hint={hint.text} />}
 
-        {!submitState?.passed && (
+        {/* Offered only once the hints have run their course. Before that the
+            link is not shown at all rather than shown-and-refused: a control
+            that exists to tell you no is worse than no control. */}
+        {!submitState?.passed && (submitState?.attempt_number ?? 0) >= 6 && (
           <div className="answer-control">
             <button
               type="button"

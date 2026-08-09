@@ -28,11 +28,18 @@ import { api } from '../lib/api'
  * for, which is where a signup funnel loses people. So: everything optional,
  * "Skip for now" a real button, nothing here blocks.
  *
- * It no longer fits on one screen, which the previous version did and said so.
- * That is the deliberate trade: three of the four added questions are a single
- * tap, so this is quicker to complete than the old three-textarea form even
- * though it is taller to look at. If it ever costs completions, the two open
- * questions are what to cut -- the chips are the cheap part.
+ * Two questions, and it fits on one screen again.
+ *
+ * It had six. They were all useful and it was still wrong: this sits between
+ * someone pressing "Create account" and the thing they came for, and length
+ * here is paid for in people who never arrive. What you want to build and how
+ * much you have done are the two that change the teaching from the very first
+ * lesson, so they stay.
+ *
+ * The rest -- what is putting you off, how much time you have, how you like to
+ * learn -- are not gone, they are asked later, in the place where the answer
+ * would actually be used. A question about time means something when you are
+ * choosing what to do next; on a signup form it is a survey.
  *
  * What happens to the answers is stated on the page rather than buried in a
  * policy. Goals and project ideas come back on the account page and are theirs
@@ -46,32 +53,8 @@ const EXPERIENCE = [
   { key: 'rusty', label: "Learnt some once, but it's rusty" },
 ]
 
-// Keys must match ONBOARDING_WORRIES and friends in apps/api/app/models.py.
-// The server rejects anything it does not recognise rather than dropping it
-// quietly, so a drift here fails loudly instead of leaving the coach uninformed.
-const WORRIES = [
-  { key: 'maths', label: "I'm not a maths person" },
-  { key: 'stuck', label: 'Getting stuck and giving up' },
-  { key: 'late', label: "I've left it too late" },
-  { key: 'where', label: 'Not knowing what to learn first' },
-  { key: 'time', label: 'Finding the time' },
-  { key: 'asking', label: 'Feeling silly asking questions' },
-  { key: 'none', label: 'Nothing much, honestly' },
-]
 
-const TIME = [
-  { key: 'minutes', label: 'A few minutes here and there' },
-  { key: 'hour', label: 'About an hour a week' },
-  { key: 'few_hours', label: 'A few hours a week' },
-  { key: 'most_days', label: 'Most days' },
-]
 
-const LEARN_STYLE = [
-  { key: 'read', label: 'Reading it through' },
-  { key: 'watch', label: 'Watching someone do it' },
-  { key: 'do', label: 'Trying it and breaking it' },
-  { key: 'mix', label: 'A bit of everything' },
-]
 
 // The chips under the two open questions. Examples, not options: they append
 // to the box, so several can be combined and then edited.
@@ -98,9 +81,6 @@ export function WelcomePage() {
   const [experience, setExperience] = useState('')
   const [experienceNote, setExperienceNote] = useState('')
   const [projectIdeas, setProjectIdeas] = useState('')
-  const [worries, setWorries] = useState<string[]>([])
-  const [timeAvailable, setTimeAvailable] = useState('')
-  const [learnStyle, setLearnStyle] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -114,26 +94,12 @@ export function WelcomePage() {
     setter(current.trim() ? `${current.replace(/[.,\s]+$/, '')}, ${value}` : value)
   }
 
-  const toggleWorry = (key: string) =>
-    setWorries((current) => {
-      // "Nothing much" excludes the others in both directions. A form that
-      // lets you say you are worried about nothing *and* about maths is a form
-      // that was not paying attention.
-      if (key === 'none') return current.includes('none') ? [] : ['none']
-      const without = current.filter((k) => k !== 'none')
-      return without.includes(key)
-        ? without.filter((k) => k !== key)
-        : [...without, key]
-    })
 
   async function save(answers: {
     goals: string
     experience: string
     experience_note: string
     project_ideas: string
-    worries: string[]
-    time_available: string
-    learn_style: string
   }) {
     setBusy(true)
     setError(null)
@@ -153,9 +119,6 @@ export function WelcomePage() {
       experience,
       experience_note: experienceNote.trim(),
       project_ideas: projectIdeas.trim(),
-      worries,
-      time_available: timeAvailable,
-      learn_style: learnStyle,
     })
   }
 
@@ -174,9 +137,6 @@ export function WelcomePage() {
         experience: '',
         experience_note: '',
         project_ideas: '',
-        worries: [],
-        time_available: '',
-        learn_style: '',
       })
     } catch {
       // Not worth blocking on: the profile row only records that we asked.
@@ -189,9 +149,9 @@ export function WelcomePage() {
       <p className="eyebrow">Step 2 of 3</p>
       <h1>Tell us where you&rsquo;re starting from</h1>
       <p className="muted">
-        Every question is optional and most are one tap. Your answers shape the
-        lessons and examples you get, and help your coach pitch things at the
-        right level — nobody else sees them.
+        Two questions, both optional. They shape the lessons and examples you
+        get, and help your coach pitch things at the right level — nobody else
+        sees them.
       </p>
 
       {error && <p className="panel panel-error small">{error}</p>}
@@ -245,68 +205,6 @@ export function WelcomePage() {
           placeholder="Anything else about where you're starting from (optional)"
           aria-label="Anything else about where you're starting from"
         />
-      </fieldset>
-
-      <fieldset className="welcome-choices">
-        <legend>Is anything putting you off? Pick any that ring true.</legend>
-        <div className="chips">
-          {WORRIES.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              className={worries.includes(option.key) ? 'chip is-on' : 'chip'}
-              aria-pressed={worries.includes(option.key)}
-              onClick={() => toggleWorry(option.key)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <p className="field-hint">
-          Every one of these is normal, and none of them means you can&rsquo;t do
-          this. Saying so just means we can help with it.
-        </p>
-      </fieldset>
-
-      <fieldset className="welcome-choices">
-        <legend>How much time do you realistically have?</legend>
-        <div className="chips">
-          {TIME.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              className={timeAvailable === option.key ? 'chip is-on' : 'chip'}
-              aria-pressed={timeAvailable === option.key}
-              onClick={() =>
-                setTimeAvailable(timeAvailable === option.key ? '' : option.key)
-              }
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <p className="field-hint">
-          There is no right answer. A few minutes at a time is genuinely enough.
-        </p>
-      </fieldset>
-
-      <fieldset className="welcome-choices">
-        <legend>When something is new, what helps most?</legend>
-        <div className="chips">
-          {LEARN_STYLE.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              className={learnStyle === option.key ? 'chip is-on' : 'chip'}
-              aria-pressed={learnStyle === option.key}
-              onClick={() =>
-                setLearnStyle(learnStyle === option.key ? '' : option.key)
-              }
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
       </fieldset>
 
       <label className="field">

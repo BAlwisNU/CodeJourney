@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { type IconName } from '../components/Icon'
-import { LanguageCarousel, type Lang } from '../components/LanguageCarousel'
+import { type Lang } from '../components/LanguageCarousel'
 import { TopicSequence } from '../components/TopicSequence'
 import { PageFlick } from '../components/PageFlick'
 import { api, token } from '../lib/api'
@@ -123,6 +123,23 @@ export function HomePage() {
   const nothingYet = data.total_attempts === 0
   const focusedLang = langs[focused]
 
+  // What the resume card offers. The API already nominates one via
+  // continue_slug; falling back to the first unsolved exercise means a brand
+  // new account still gets a single obvious place to start rather than a wall
+  // of equal choices.
+  const target =
+    data.exercises.find((e) => e.slug === data.continue_slug) ??
+    data.exercises.find((e) => e.status !== 'solved')
+  const resume = target
+    ? {
+        slug: target.slug,
+        title: target.title,
+        concept: target.concept,
+        solved: data.solved,
+        total: data.total_exercises,
+      }
+    : null
+
   return (
     <div className="home">
       <header className="home-bar">
@@ -140,6 +157,7 @@ export function HomePage() {
           <HomeView
             name={data.display_name}
             nothingYet={nothingYet}
+            resume={resume}
             langs={langs}
             focused={focused}
             setFocused={setFocused}
@@ -164,9 +182,17 @@ function HomeView({
   setFocused,
   focusedLang,
   branchesBySlug,
+  resume,
 }: {
   name: string
   nothingYet: boolean
+  resume: {
+    slug: string
+    title: string
+    concept: string
+    solved: number
+    total: number
+  } | null
   langs: Lang[]
   focused: number
   setFocused: (i: number) => void
@@ -187,15 +213,50 @@ function HomeView({
           {nothingYet ? 'Welcome, ' : 'Welcome back, '}
           <span className="grad">{name}</span>
         </h1>
-        <p className="muted">
-          {nothingYet
-            ? 'Pick a language, choose a topic, and write your first program.'
-            : 'Pick a language and pick up where you left off. As many tries as you like.'}
-        </p>
       </div>
 
-      {langs.length > 0 && (
-        <LanguageCarousel langs={langs} focused={focused} onFocus={setFocused} />
+      {/* The one thing this page is for.
+          It used to be a small "Carry on" link inside the language carousel,
+          three scrolls above six near-identical topic rows -- so the question
+          the page exists to answer, "what do I do now?", was the hardest thing
+          on it to find. */}
+      {resume && (
+        <Link className="resume" to={`/exercise/${resume.slug}/plan`}>
+          <span className="resume-eyebrow">
+            {nothingYet ? 'Start here' : 'Pick up where you left off'}
+          </span>
+          <span className="resume-title">{resume.title}</span>
+          <span className="resume-meta muted">
+            {resume.solved} of {resume.total} done
+            {resume.concept ? ` · ${resume.concept}` : ''}
+          </span>
+          <span className="resume-go">
+            {nothingYet ? 'Start →' : 'Continue →'}
+          </span>
+        </Link>
+      )}
+
+      {/* Demoted to a row of pills. It was the largest thing on the page and
+          three of its four options are marked "coming soon", so it spent the
+          best space asking you to choose between one real answer and three
+          disabled ones. */}
+      {langs.length > 1 && (
+        <div className="lang-pills" role="tablist" aria-label="Language">
+          {langs.map((l, i) => (
+            <button
+              key={l.key}
+              role="tab"
+              type="button"
+              aria-selected={i === focused}
+              disabled={l.locked}
+              className={i === focused ? 'lang-pill is-on' : 'lang-pill'}
+              onClick={() => setFocused(i)}
+            >
+              {l.name}
+              {l.locked && <span className="lang-pill-soon">soon</span>}
+            </button>
+          ))}
+        </div>
       )}
 
       {focusedLang && !focusedLang.locked && (

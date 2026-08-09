@@ -4109,3 +4109,148 @@ a.seq-ep:hover {
 
 .welcome-choices .chips { margin-top: 4px; }
 .welcome-choices .field-hint { margin-top: 10px; }
+
+/* --- the world -----------------------------------------------------------
+   A globe you orbit, with each section on a tile standing off its surface.
+   See components/WorldScroll.tsx for the geometry.
+
+   Prefixed `gs-` rather than `world-`: `.world` is already the language
+   accordion further up this file, and it carries overflow:hidden -- which
+   silently kills position:sticky on anything inside it. The stage stopped
+   sticking and every tile scrolled away off the top of the document. */
+
+.gscroll { position: relative; }
+.gs-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  perspective: 2600px;
+  /* We are above the world looking down its shoulder. */
+  perspective-origin: 50% 26%;
+  /* One anchor for both the globe and the ring of tiles. They have to be
+     concentric or the tiles orbit a point the world is not at -- which is
+     exactly what happened when the globe was offset and the ring was not. */
+  --gs-y: 104%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* The world. A lit sphere: highlight up and to the left, terminator falling
+   away to the lower right, and an atmosphere bleeding past the edge. */
+.gs-globe {
+  position: absolute;
+  /* Centred below the frame, so what shows is the upper curve of something
+     much larger than the screen. */
+  top: var(--gs-y);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(150, 178, 255, 0.55), rgba(88, 112, 190, 0.22) 34%, rgba(14, 18, 30, 0.9) 68%),
+    radial-gradient(circle at 70% 78%, rgba(167, 139, 250, 0.22), transparent 52%),
+    #0d111b;
+  box-shadow:
+    inset -26px -30px 70px rgba(0, 0, 0, 0.8),
+    inset 18px 20px 60px rgba(124, 156, 255, 0.16),
+    0 0 90px rgba(124, 156, 255, 0.22),
+    0 0 200px rgba(124, 156, 255, 0.1);
+}
+/* Atmosphere. A second, larger ring just outside the surface. */
+.gs-globe::after {
+  content: '';
+  position: absolute;
+  inset: -7%;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 66%, rgba(124, 156, 255, 0.15) 78%, transparent 84%);
+}
+
+.gs-orbit {
+  position: absolute;
+  /* Same anchor as the globe: concentric, so the tiles ride its surface. */
+  top: var(--gs-y);
+  left: 50%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.gs-tile {
+  position: absolute;
+  /* Small enough that the world stays visible around and behind it -- a tile
+     that fills the frame hides the thing it is supposed to be standing on. */
+  width: min(700px, 52vw);
+  height: min(600px, 68vh);
+  margin-left: calc(min(700px, 52vw) / -2);
+  /* Centred on its point on the ring; the stem below reaches down to the
+     surface. */
+  margin-top: calc(min(600px, 68vh) / -2);
+  transform-style: preserve-3d;
+}
+
+/* The stem: a short bar from the back of the tile toward the surface, which
+   is what makes the tile read as standing on the world rather than hovering
+   in front of it. */
+.gs-stem {
+  position: absolute;
+  left: 50%;
+  bottom: -34px;
+  width: 2px;
+  height: 46px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(124, 156, 255, 0.55), transparent);
+}
+.gs-stem::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(124, 156, 255, 0.85);
+  box-shadow: 0 0 12px rgba(124, 156, 255, 0.9);
+}
+
+.gs-face {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: grid;
+  align-content: center;
+  padding: 26px 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  /* Translucent, so the world shows through behind the panel and the tile
+     stays part of the scene rather than a page pasted over it. */
+  background: rgba(16, 19, 27, 0.82);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+  backdrop-filter: blur(18px) saturate(115%);
+  box-shadow: var(--lift-2);
+}
+
+/* A tile is a fixed box that cannot scroll, so the sections have to fit it. */
+.gs-tile .band,
+.gs-tile .hero { padding: 0; border-top: none; max-width: none; }
+.gs-tile .band > h2 { font-size: clamp(1.4rem, 2.2vw, 1.9rem); margin-bottom: 10px; }
+.gs-tile .hero h1 { font-size: clamp(1.9rem, 3vw, 2.6rem); }
+.gs-tile .section-lede, .gs-tile .lede { margin-bottom: 20px; font-size: 0.98rem; }
+.gs-tile .hero-grid { grid-template-columns: 1fr; gap: 18px; }
+.gs-tile .deck, .gs-tile .hero-stats { display: none; }
+.gs-tile .agent-group { max-height: 22vh; width: auto; margin-inline: auto; }
+.gs-tile .agent-panel { padding: 14px; }
+.gs-tile .agent-mini { display: none; }
+/* The full curriculum does not belong on a tile. On the landing page it is
+   proof that a real syllabus exists, and the language rows plus the one-line
+   example say that in a fifth of the height; the dashboard is where somebody
+   actually reads it. Without this the slide needed 924px of a 598px tile. */
+.gs-tile .tex { display: none; }
+.gs-tile .world-panel { padding-bottom: 4px; }
+.gs-tile .ladder { gap: 2px; font-size: 0.86rem; }
+.gs-tile .ladder li { padding: 4px 0; }
+.gs-tile .rung-body p { margin: 2px 0 0; }
+.gs-tile .tex-branches { gap: 8px; }
+.gs-tile .grid-2 { gap: 10px; }
+.gs-tile .card { padding: 14px; }
+.gs-tile .feature p { font-size: 0.84rem; }
+.gs-tile [data-reveal] { --reveal: 1; }

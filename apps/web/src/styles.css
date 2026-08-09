@@ -3286,6 +3286,8 @@ a.seq-ep:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .ls-progress > span, .ls-dots button, .ls-page-btn { transition: none; }
+  /* The turning surface is dropped entirely under reduced motion -- see the
+     `flat` branch in PlanetScroll -- so there is nothing here to disable. */
   /* No rotation, no drain bar, no slide-in. */
   .agent-panel, .agent-tick { animation: none; }
   .ls { opacity: 1; }
@@ -4109,3 +4111,93 @@ a.seq-ep:hover {
 
 .welcome-choices .chips { margin-top: 4px; }
 .welcome-choices .field-hint { margin-top: 10px; }
+
+/* --- the turning surface -------------------------------------------------
+   Faces of a cylinder lying on its side. See components/PlanetScroll.tsx for
+   the geometry; everything here is presentation. */
+
+.planet { position: relative; }
+.planet-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  /* Long focal length. A short one exaggerates the curve into a fisheye and
+     the text on a tilted face stops being readable. */
+  perspective: 2200px;
+  perspective-origin: 50% 50%;
+  overflow: hidden;
+}
+.planet-rotor {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  /* No transition: the transform is driven directly by scroll position, so
+     easing it would make the surface lag behind the wheel. */
+  will-change: transform;
+}
+.planet-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  /* The face is a window one viewport tall. Nothing on it can scroll, so
+     anything that does not fit is hidden rather than allowed to overflow onto
+     the neighbouring face. */
+  overflow: hidden;
+  padding: 0 24px;
+}
+.planet-face-inner {
+  width: 100%;
+  max-width: 1080px;
+  max-height: 100vh;
+}
+
+/* Slide mode strips the between-section spacing: every section already has a
+   whole screen to itself, so the padding that separated them on a scrolling
+   page is just height it can no longer afford. */
+.planet-face .band,
+.planet-face .hero {
+  padding: 0;
+  border-top: none;
+  max-width: none;
+}
+/* Slides have to fit. These caps are the difference between a section being
+   on the slide and being cut in half by the horizon. */
+.planet-face .agent-group { max-height: 34vh; width: auto; margin-inline: auto; }
+.planet-face .agent-panel { padding: 18px; }
+.planet-face .tex-branch { padding: 12px 14px; }
+.planet-face .ladder { gap: 10px; }
+.planet-face .hero-stats { margin-top: 24px; }
+
+/* The horizon. A wide, shallow glow along the bottom edge, so the surface the
+   faces are turning over reads as curved rather than as an empty stage. */
+.planet-stage::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -62vh;
+  width: 190vw;
+  height: 90vh;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(closest-side, rgba(124, 156, 255, 0.13), rgba(124, 156, 255, 0.04) 62%, transparent 76%);
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* Reveal-on-scroll is off inside the surface, and has to be.
+   [data-reveal] starts at opacity 0 and is switched on by an
+   IntersectionObserver. Inside a sticky, 3D-transformed stage that observer
+   never fires the way it does on a flat page -- the faces do not travel
+   through the viewport, the rotor turns around them -- so every slide after
+   the first stayed invisible. Turning up as the face squares up is what the
+   rotation already does; the reveal was a second answer to the same question.
+
+   No !important needed: the observer only ever sets this to 1, so an inline
+   value winning here changes nothing. */
+.planet-face [data-reveal] { --reveal: 1; }
+
+/* The flat fallback: an ordinary stacked page, spacing restored. */
+.slide-flat + .slide-flat { border-top: 1px solid var(--border); }

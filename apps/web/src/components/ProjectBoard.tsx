@@ -128,10 +128,10 @@ function ProjectCard({
 
 /**
  * @param heading What to call the section, or null on a page whose own title
- *   already says it -- the projects page is titled "What you're building", and
+ *   already says it -- the projects page is titled "Your project lessons", and
  *   the board printing the same words again underneath read as a mistake.
  */
-export function ProjectBoard({ heading = 'What you’re building' }: { heading?: string | null } = {}) {
+export function ProjectBoard({ heading = 'Your project lessons' }: { heading?: string | null } = {}) {
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)

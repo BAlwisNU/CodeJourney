@@ -295,7 +295,7 @@ function HomeView({
 function ProjectsView() {
   return (
     <div className="subview">
-      <h1>What you&rsquo;re building</h1>
+      <h1>Your project lessons</h1>
       <p className="muted">
         Each one is a real thing to make. The lessons under it are the parts you
         need first.

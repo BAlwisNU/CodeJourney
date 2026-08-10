@@ -541,6 +541,11 @@ class TutorChatRequest(BaseModel):
     # persisted per (user, exercise) and reloaded each time, so the browser can't
     # rewrite the history and the chat survives navigating away and back.
     message: str = Field(min_length=1, max_length=8000)
+    #: "reflect" (the default, after an exercise) or "stuck" (in the editor,
+    #: mid-mistake). Chooses which brief the coach is given -- see
+    #: services/tutor.system_for. Anything unrecognised falls back to reflect,
+    #: which is the conservative one: it never has to avoid writing a fix.
+    mode: str = "reflect"
 
 
 class LessonProposal(BaseModel):

@@ -6,6 +6,7 @@ import { FlowNav } from '../components/FlowNav'
 import { HintPanel } from '../components/HintPanel'
 import { Markdown, highlightPython } from '../components/Markdown'
 import { TestResults } from '../components/TestResults'
+import { Tutor } from '../components/Tutor'
 import { api } from '../lib/api'
 import { runInBrowser, warmUp } from '../lib/runner'
 import { useAutosave } from '../lib/useAutosave'
@@ -37,6 +38,10 @@ export function ExercisePage() {
   // product -- and one that cannot say, in the app's own voice, what is about to
   // happen or why the hints are worth trying first.
   const [askingForAnswer, setAskingForAnswer] = useState(false)
+  //: Whether the in-editor conversation is open. Closed by default: the
+  //: editor is for writing, and a chat box that is always there competes
+  //: with the thing it is meant to support.
+  const [thinking, setThinking] = useState(false)
   const answerRef = useRef<HTMLElement | null>(null)
 
   // One hint display, fed by two sources: the ladder pushing one after a failed
@@ -381,6 +386,40 @@ export function ExercisePage() {
             )}
             {hintError && <p className="panel panel-error small">{hintError}</p>}
           </div>
+        )}
+
+        {/* Talking it through, once something has actually gone wrong.
+            The hint ladder is the platform telling you where to look; this is
+            the opposite direction — it asks what you were expecting, and hands
+            you a way of thinking rather than a place to look. Offered only
+            after a failed submit, because before that there is no mistake to
+            reason about and it would just be a chat box in the way.
+            The brief it runs under forbids writing the fix; see
+            services/tutor._STUCK_SYSTEM. */}
+        {exercise && submitState && !submitState.passed && (
+          <section className="think">
+            {!thinking ? (
+              <button type="button" className="think-open" onClick={() => setThinking(true)}>
+                <img src="/agents/coach.webp" alt="" width={30} height={30} />
+                <span>
+                  <strong>Talk it through with your coach</strong>
+                  <span className="muted small">
+                    What were you expecting? No answers given away.
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <>
+                <div className="think-head">
+                  <h3>Talking it through</h3>
+                  <button type="button" className="linkish" onClick={() => setThinking(false)}>
+                    Hide
+                  </button>
+                </div>
+                <Tutor exerciseId={exercise.id} solved={false} mode="stuck" />
+              </>
+            )}
+          </section>
         )}
 
         {hint && <HintPanel level={hint.level} hint={hint.text} />}

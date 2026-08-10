@@ -5585,3 +5585,32 @@ a.seq-ep:hover {
 .tclass-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .tcode-edit { display: grid; gap: 10px; margin-top: 14px; }
 .tcode-edit-actions { display: flex; gap: 14px; align-items: center; }
+
+/* --- talking a mistake through, in the editor ------------------------------
+   Offered only after a failed submit. The hint ladder tells you where to look;
+   this asks what you expected, which is the other half and the one a ladder
+   cannot do. */
+
+.think { margin-top: 22px; }
+.think-open {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  text-align: left;
+  border-radius: var(--radius);
+  border: 1px solid rgba(124, 156, 255, 0.28);
+  background: linear-gradient(180deg, rgba(124, 156, 255, 0.08), rgba(124, 156, 255, 0.02));
+}
+.think-open:hover:not(:disabled) { border-color: rgba(124, 156, 255, 0.5); }
+.think-open img { border-radius: 50%; object-fit: cover; object-position: top center; flex: none; }
+.think-open > span { display: grid; gap: 2px; }
+.think-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+.think-head h3 { margin: 0; font-size: 1.05rem; letter-spacing: var(--track-tight); }

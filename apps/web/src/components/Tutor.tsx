@@ -59,15 +59,33 @@ const OPENING = {
       'My code runs but gives the wrong answer',
     ],
   },
+  // In the editor, straight after getting it wrong. The openers are the
+  // questions a teacher would actually ask, phrased as the student's own
+  // words so pressing one is not an admission of anything.
+  editor: {
+    greeting:
+      "Let's work out what happened. What did you expect your code to do " +
+      "on that check — and what do you think it actually did?",
+    placeholder: 'Tell me what you were going for…',
+    starters: [
+      'I thought it would work, I have no idea why it did not',
+      "I don't understand what the check is asking for",
+      'Walk me through what my code actually does',
+    ],
+  },
 }
 
 export function Tutor({
   exerciseId,
   solved,
+  mode = 'reflect',
   onLessonCreated,
 }: {
   exerciseId: string
   solved: boolean
+  /** 'stuck' gives the coach the in-editor brief: find out how they were
+   *  thinking, hand them a way to think, and never write the fix. */
+  mode?: 'reflect' | 'stuck'
   /** Fired when a branch is built here, so the parent page can link to it. */
   onLessonCreated?: (lesson: GeneratedLesson) => void
 }) {
@@ -81,7 +99,8 @@ export function Tutor({
   const [built, setBuilt] = useState<GeneratedLesson | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const opening = solved ? OPENING.solved : OPENING.stuck
+  const opening =
+    mode === 'stuck' ? OPENING.editor : solved ? OPENING.solved : OPENING.stuck
 
   // Load the saved conversation so it comes back exactly as it was left.
   useEffect(() => {
@@ -122,7 +141,7 @@ export function Tutor({
     try {
       await streamChat(
         '/tutor/chat/stream',
-        { exercise_id: exerciseId, message: text },
+        { exercise_id: exerciseId, message: text, mode },
         {
           onThinking: () => setPhase('thinking'),
           onText: (soFar) => {
@@ -178,7 +197,13 @@ export function Tutor({
       name="Your coach"
       avatar="/agents/coach.webp"
       caption={
-        solved ? 'Talk through how it went' : 'Stuck? Talk it over — no answers given away'
+        mode === 'stuck'
+          ? // A real apostrophe: this is a JS string, not JSX, so an HTML
+            // entity here renders as the literal characters "&rsquo;".
+            'Thinking it through — I won’t write it for you'
+          : solved
+            ? 'Talk through how it went'
+            : 'Stuck? Talk it over — no answers given away'
       }
       greeting={opening.greeting}
       turns={turns}

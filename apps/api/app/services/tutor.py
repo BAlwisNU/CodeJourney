@@ -136,6 +136,16 @@ class TutorContext:
     attempts: int
     last_summary: str | None  # e.g. "2 of 5 checks passing" on the last submit
 
+    #: The specific thing that went wrong last time, when something did: the
+    #: first failing check with its inputs and both answers, or the error in
+    #: plain English. Assembled in the router from the student's own submission.
+    #:
+    #: This is what makes the in-editor conversation about *their* mistake
+    #: rather than about the exercise in general. Without it the coach can only
+    #: say "what do you think is happening?", which is a question a student who
+    #: is already stuck cannot answer.
+    failure: str | None = None
+
     #: What the learner said about themselves when they signed up -- their goals,
     #: how much programming they had done, what they want to build. Optional; it
     #: is a skippable step and most of it may be empty.
@@ -188,6 +198,53 @@ tool call is only an offer they choose to accept.
 You are NOT a grader and you are NOT the exercise's hint system. You never see \
 their private journal. Keep every reply focused on the lesson, their code, and \
 how they're feeling about the material.\
+"""
+
+_STUCK_SYSTEM = """\
+You are a warm, patient programming teacher sitting beside a beginner who is \
+in the middle of an exercise and has just got it wrong. You are not here to fix \
+their code. You are here to find out how they were thinking, and to hand them a \
+way of thinking that gets them unstuck.
+
+**Never write the corrected code, or any part of it.** Not a line, not the one \
+expression they are missing, not "try `x < y`". The moment you do, the exercise \
+is over and they have learned that being stuck is something somebody else \
+solves. If they ask outright, say plainly that you would rather they got there, \
+and give them the next thing to try instead.
+
+Start with their thinking, not their code:
+- "What did you expect that line to give you?" and "What do you think it \
+actually gave you?" are the two most useful questions you have.
+- Get them to predict before they run. A wrong prediction is the whole lesson; \
+a right prediction next to a wrong result narrows the bug to one line.
+- When they tell you their reasoning, say which part of it is sound before you \
+touch the part that is not. Most stuck beginners are eighty per cent right and \
+believe they are zero per cent right.
+
+Hand them ways to think, and name them so they can use them again:
+- **Read it as the computer.** Walk one line at a time with a real value from \
+the failing check, saying what each name holds.
+- **Narrow it down.** Which is the first line where what you expected and what \
+happened stop agreeing?
+- **Check the edge.** Compare the check that passed with the check that failed \
+and ask what is different about the input.
+- **Say it in English first.** If they cannot say the rule in a sentence, the \
+code was never going to come out right.
+- **Read the error as a sentence**, not as noise.
+
+How to talk:
+- Short turns. One question at a time. Never lecture and never dump a list.
+- No jargon a two-week beginner has not met, and gloss it in half a sentence if \
+you must use one.
+- Getting it wrong is the normal condition of programming and you should sound \
+like someone who believes that. Never sympathise about how hard it is; treat \
+the bug as interesting.
+- If they are close, say so. If they have the right idea in the wrong place, \
+say that, and ask where it should go.
+
+You may offer to build extra practice with propose_lesson, but only for someone \
+who has understood this one and wants more of the same idea -- never as a way \
+out of a bug they are in the middle of.\
 """
 
 _PROPOSE_LESSON_TOOL = {
@@ -247,6 +304,8 @@ def _context_block(ctx: TutorContext) -> str:
     ]
     if ctx.last_summary:
         lines.append(f"Most recent check result: {ctx.last_summary}.")
+    if ctx.failure:
+        lines += ["", "What went wrong on their last go:", ctx.failure]
     lines += ["", "The lesson they were given:", ctx.prompt_md.strip()]
     if ctx.latest_code:
         code = ctx.latest_code.strip()[:4000]
@@ -347,7 +406,20 @@ def _pump(stream):
             yield ("text", delta.text)
 
 
-def chat_stream(ctx: TutorContext, history: list[dict]):
+def system_for(ctx: TutorContext, mode: str) -> str:
+    """The brief, and the context it is given, for one conversation.
+
+    Two briefs, because the same coach in two places is doing two different
+    jobs. At Reflect the exercise is behind them and the work is consolidating
+    what happened. In the editor they are mid-mistake, and the work is finding
+    out how they were thinking and handing them a way to think -- which is a
+    conversation that must never write the fix, or the exercise is over.
+    """
+    base = _STUCK_SYSTEM if mode == "stuck" else _SYSTEM
+    return base + "\n\n" + _context_block(ctx)
+
+
+def chat_stream(ctx: TutorContext, history: list[dict], mode: str = "reflect"):
     """The same conversation as `chat`, yielded as it is written.
 
     Measured, the blocking call takes four to six seconds. That is a long time
@@ -368,12 +440,11 @@ def chat_stream(ctx: TutorContext, history: list[dict]):
     Failure degrades exactly as `chat` does -- a friendly line, never a 500.
     The lesson page must not go down because the tutor is having a moment.
     """
-    system = _SYSTEM + "\n\n" + _context_block(ctx)
     try:
         with _client().messages.stream(
             model=settings.anthropic_model,
             max_tokens=_CHAT_MAX_TOKENS,
-            system=system,
+            system=system_for(ctx, mode),
             tools=[_PROPOSE_LESSON_TOOL],
             messages=history,
             output_config={"effort": "low"},
@@ -420,7 +491,9 @@ def _read_reply(response) -> tuple[str, dict | None]:
     return reply, proposal
 
 
-def chat(ctx: TutorContext, history: list[dict]) -> tuple[str, dict | None]:
+def chat(
+    ctx: TutorContext, history: list[dict], mode: str = "reflect"
+) -> tuple[str, dict | None]:
     """Return (reply_text, proposal | None).
 
     `history` is [{role, content}] with roles user/assistant only. Any failure
@@ -432,7 +505,7 @@ def chat(ctx: TutorContext, history: list[dict]) -> tuple[str, dict | None]:
         response = _client().messages.create(
             model=settings.anthropic_model,
             max_tokens=_CHAT_MAX_TOKENS,
-            system=system,
+            system=system_for(ctx, mode),
             tools=[_PROPOSE_LESSON_TOOL],
             messages=history,
             output_config={"effort": "low"},

@@ -104,6 +104,50 @@ def _learner_brief(user_id: str, db: Session) -> tutor.LearnerBrief | None:
     )
 
 
+def _failure_detail(submission: Submission | None) -> str | None:
+    """What actually went wrong last time, in words the coach can talk about.
+
+    The first failing check, with the input and both answers, or the error in
+    plain English if it never got that far. One failure, not all of them: a
+    beginner with five red checks has one bug, and listing five invites the
+    coach to answer five questions at once.
+
+    Hidden checks are named but their data is withheld, exactly as the student
+    sees them. A coach that could quote the hidden case would be handing over
+    the answer key by another route.
+    """
+    if submission is None:
+        return None
+    results = submission.test_results or {}
+
+    error = results.get("error")
+    if error and error.get("type"):
+        where = f" on line {error['line']}" if error.get("line") else ""
+        return f"Their code raised {error['type']}{where}: {error.get('message', '')}"
+
+    for test in results.get("tests", []):
+        if test.get("status") == "pass":
+            continue
+        name = test.get("name", "a check")
+        if test.get("hidden"):
+            return (
+                f'The check "{name}" failed. It is a hidden one, so you do not '
+                "know its input or its answer -- and neither do they. Talk about "
+                "what kind of case it might be."
+            )
+        inner = test.get("error")
+        if inner and inner.get("type"):
+            return (
+                f'The check "{name}" raised {inner["type"]} on input '
+                f'{test.get("args")}: {inner.get("message", "")}'
+            )
+        return (
+            f'The check "{name}" failed. Given {test.get("args")}, it should '
+            f'give {test.get("expected")}, and theirs gave {test.get("actual")}.'
+        )
+    return None
+
+
 def _build_context(user_id: str, exercise: Exercise, db: Session) -> tutor.TutorContext:
     """What the tutor is allowed to know -- from the student's OWN attempts only."""
     attempts = (
@@ -146,6 +190,7 @@ def _build_context(user_id: str, exercise: Exercise, db: Session) -> tutor.Tutor
             )
 
     return tutor.TutorContext(
+        failure=_failure_detail(latest),
         learner=_learner_brief(user_id, db),
         title=exercise.title,
         concept=exercise.concept.value,
@@ -200,7 +245,7 @@ def chat(
     history.append({"role": "user", "content": body.message})
 
     context = _build_context(user.id, exercise, db)
-    reply, proposal_data = tutor.chat(context, history)
+    reply, proposal_data = tutor.chat(context, history, body.mode)
 
     # Persist exactly what was shown -- the user's turn and the reply -- so a
     # return visit renders the conversation as it was left.
@@ -260,7 +305,7 @@ def chat_stream(body: TutorChatRequest, user: CurrentUser, db: DbSession):
     context = _build_context(user.id, exercise, db)
 
     def emit():
-        for kind, payload in tutor.chat_stream(context, history):
+        for kind, payload in tutor.chat_stream(context, history, body.mode):
             if kind == "thinking":
                 # A real signal, not a spinner: the model is reasoning before it
                 # speaks, and saying so beats dots that look identical whether

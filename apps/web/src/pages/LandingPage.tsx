@@ -7,7 +7,6 @@ import { WorldScroll } from '../components/WorldScroll'
 import { HeroDeck } from '../components/HeroDeck'
 import { Icon, type IconName } from '../components/Icon'
 import { ScrollWorld } from '../components/ScrollWorld'
-import { WorldSurface } from '../components/WorldSurface'
 import { Tilt } from '../components/Tilt'
 import { TopicExplorer } from '../components/TopicExplorer'
 import { api, token } from '../lib/api'
@@ -148,14 +147,8 @@ export function LandingPage() {
 
   return (
     <div className="landing">
-      {/* The ground, furthest back: a lit horizon you travel across as you
-          scroll. Everything else in the world sits above it. */}
-      <WorldSurface />
-
       {/* The world the page flies through. Fixed, behind everything, and
-          removed entirely under prefers-reduced-motion. Above the surface now,
-          so its drifting panes of syntax read as things moving through this
-          world's sky rather than debris in empty orbit. */}
+          removed entirely under prefers-reduced-motion. */}
       <ScrollWorld />
 
       {/* Frosted glass between the world and the page. Sits directly after the

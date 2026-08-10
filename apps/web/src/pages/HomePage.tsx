@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { type IconName } from '../components/Icon'
 import { type Lang } from '../components/LanguageCarousel'
 import { ProjectBoard } from '../components/ProjectBoard'
+import { JournalDiary } from '../components/JournalDiary'
 import { TalkView } from '../components/TalkView'
 import { TopicSequence } from '../components/TopicSequence'
 import { PageFlick } from '../components/PageFlick'
@@ -418,6 +419,7 @@ function ProgressView({ data }: { data: Dashboard }) {
   // in the title. A goal here is a thing you decided to build, so it is the
   // projects, measured in pieces rather than percent.
   const [projects, setProjects] = useState<Project[] | null>(null)
+  const [diaryOpen, setDiaryOpen] = useState(false)
   useEffect(() => {
     let cancelled = false
     api
@@ -428,6 +430,18 @@ function ProgressView({ data }: { data: Dashboard }) {
       cancelled = true
     }
   }, [])
+
+  // A journal entry stores an exercise id and nothing else, so the diary needs
+  // these to say which lesson each one was about and to link back to it. The
+  // dashboard already has every exercise, so this costs no extra request.
+  const titles = useMemo(
+    () => new Map(data.exercises.map((e) => [e.id, e.title])),
+    [data.exercises]
+  )
+  const slugs = useMemo(
+    () => new Map(data.exercises.map((e) => [e.id, e.slug])),
+    [data.exercises]
+  )
 
   return (
     <div className="subview">
@@ -543,6 +557,33 @@ function ProgressView({ data }: { data: Dashboard }) {
             {nextUp.status === 'in_progress' ? 'Carry on' : 'Start'}
           </Link>
         </section>
+      )}
+
+      {/* The journal, read back. It is written one lesson at a time and could
+          only be read one lesson at a time, which meant finding an old entry
+          required remembering which exercise you were on the day you wrote it.
+          Last on the page because it is the reflective thing, after the
+          numbers and the next step. */}
+      <button
+        type="button"
+        className="diary-open"
+        onClick={() => setDiaryOpen(true)}
+      >
+        <span>
+          <strong>Read your journal</strong>
+          <span className="muted small">
+            Everything you&rsquo;ve written, in one place
+          </span>
+        </span>
+        <span aria-hidden>→</span>
+      </button>
+
+      {diaryOpen && (
+        <JournalDiary
+          titles={titles}
+          slugs={slugs}
+          onClose={() => setDiaryOpen(false)}
+        />
       )}
     </div>
   )

@@ -4,11 +4,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { type IconName } from '../components/Icon'
 import { type Lang } from '../components/LanguageCarousel'
 import { ProjectBoard } from '../components/ProjectBoard'
+import { TalkView } from '../components/TalkView'
 import { TopicSequence } from '../components/TopicSequence'
 import { PageFlick } from '../components/PageFlick'
 import { api, token } from '../lib/api'
 import { CURRICULUM, buildSequence } from '../lib/curriculum'
-import type { Dashboard, DashboardBranch, ExerciseProgress } from '../lib/types'
+import type { Dashboard, DashboardBranch, ExerciseProgress, Project } from '../lib/types'
 
 /**
  * The home. Three views behind one page, switched by the top-right page-flick:
@@ -64,6 +65,7 @@ const VIEWS = [
   { key: 'home', label: 'Home', icon: 'home' as IconName },
   { key: 'projects', label: 'Projects', icon: 'projects' as IconName },
   { key: 'lessons', label: 'Lessons', icon: 'reorder' as IconName },
+  { key: 'talk', label: 'Ask for help', icon: 'journal' as IconName },
   { key: 'progress', label: 'Progress & goals', icon: 'progress' as IconName },
 ]
 
@@ -179,6 +181,7 @@ export function HomePage() {
             branchesBySlug={branchesBySlug}
           />
         )}
+        {view === 'talk' && <TalkView data={data} />}
         {view === 'progress' && <ProgressView data={data} />}
       </div>
     </div>
@@ -410,6 +413,22 @@ function ProgressView({ data }: { data: Dashboard }) {
   const pct = total ? Math.round((solved / total) * 100) : 0
   const nextUp = data.exercises.find((e) => e.slug === data.continue_slug)
 
+  // The goals half of "Progress & goals", which used to be missing entirely --
+  // the page was three views of the same completion count and the word "goals"
+  // in the title. A goal here is a thing you decided to build, so it is the
+  // projects, measured in pieces rather than percent.
+  const [projects, setProjects] = useState<Project[] | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    api
+      .projects()
+      .then((r) => !cancelled && setProjects(r.projects))
+      .catch(() => !cancelled && setProjects([]))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <div className="subview">
       <h1>Progress &amp; goals</h1>
@@ -434,6 +453,65 @@ function ProgressView({ data }: { data: Dashboard }) {
           <span style={{ width: `${pct}%` }} />
         </div>
       </section>
+
+      {projects !== null && projects.length > 0 && (
+        <section className="panel">
+          <div className="progress-head">
+            <h2>Your goals</h2>
+            <span className="muted small">
+              {projects.filter((p) => p.built).length} of {projects.length} built
+            </span>
+          </div>
+          <ul className="goals">
+            {projects.map((project) => {
+              const done = project.total ? (project.done / project.total) * 100 : 0
+              return (
+                <li key={project.id} className={project.built ? 'goal is-built' : 'goal'}>
+                  <div className="goal-top">
+                    <span className="goal-name">{project.title}</span>
+                    {project.built ? (
+                      <span className="badge badge-quiet">built</span>
+                    ) : (
+                      <span className="muted small">
+                        {project.done} of {project.total} pieces
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="bar bar-sm"
+                    role="progressbar"
+                    aria-valuenow={project.done}
+                    aria-valuemin={0}
+                    aria-valuemax={project.total}
+                    aria-label={project.title}
+                  >
+                    <span style={{ width: `${done}%` }} />
+                  </div>
+                  {/* One link, and which one depends on where the project is:
+                      the next piece while there are pieces left, the build
+                      itself once there are not. */}
+                  <Link
+                    className="goal-go"
+                    to={
+                      project.next_slug
+                        ? `/exercise/${project.next_slug}/plan`
+                        : `/build/${project.id}`
+                    }
+                  >
+                    {project.next_slug
+                      ? project.done === 0
+                        ? 'Start the first piece →'
+                        : 'Carry on →'
+                      : project.built
+                        ? 'Open it →'
+                        : 'Build it →'}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      )}
 
       {data.concepts.length > 0 && (
         <section className="panel">

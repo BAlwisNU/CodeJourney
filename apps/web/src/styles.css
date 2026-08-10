@@ -5342,3 +5342,19 @@ a.seq-ep:hover {
 
 /* The journal's "you already wrote this" line, where the collapse used to be. */
 .journal-state { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; flex-wrap: wrap; }
+
+/* --- Progress & goals: the goals half --------------------------------------
+   A goal is a thing you decided to build, so it is measured in pieces rather
+   than percent -- "3 of 12 pieces" is something you can picture; 25% is not. */
+
+.goals { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 16px; }
+.goal { display: grid; gap: 8px; }
+.goal-top { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.goal-name { font-weight: 600; }
+.goal.is-built .goal-name { color: var(--muted); }
+.goal-go { font-size: 13px; justify-self: start; text-underline-offset: 3px; }
+
+/* --- Ask for help ---------------------------------------------------------- */
+.talk-tabs { margin-bottom: 14px; }
+.talk-context { margin: 0 0 14px; }
+.talk-join { display: grid; gap: 4px; margin-bottom: 20px; }

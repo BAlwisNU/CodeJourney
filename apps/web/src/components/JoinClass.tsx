@@ -13,7 +13,7 @@ import type { MyClass } from '../lib/types'
  * it changes who can see what — so the copy says it plainly rather than burying
  * it in a policy page nobody opens.
  */
-export function JoinClass() {
+export function JoinClass({ onChanged }: { onChanged?: () => void } = {}) {
   const [classes, setClasses] = useState<MyClass[] | null>(null)
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
@@ -40,6 +40,9 @@ export function JoinClass() {
       const joined = await api.joinClass(code.trim())
       setClasses((current) => [...(current ?? []), joined])
       setCode('')
+      // Lets a page that changes shape depending on whether you are in a class
+      // -- the Talk page does -- react without polling for it.
+      onChanged?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -50,6 +53,7 @@ export function JoinClass() {
   async function leave(id: string) {
     await api.leaveClass(id)
     setClasses((current) => (current ?? []).filter((c) => c.id !== id))
+    onChanged?.()
   }
 
   return (

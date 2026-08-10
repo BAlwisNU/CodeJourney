@@ -21,7 +21,6 @@ export function Journal({ exerciseId }: { exerciseId: string }) {
   const [existing, setExisting] = useState<Reflection | null>(null)
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [open, setOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -34,8 +33,6 @@ export function Journal({ exerciseId }: { exerciseId: string }) {
         setTried(entry.what_i_tried)
         setStuck(entry.where_i_got_stuck)
         setFixed(entry.how_i_fixed_it)
-        // Already written something? Show it rather than making them hunt for it.
-        setOpen(true)
       })
       .catch(() => {
         // A journal that fails to load must not block the exercise.
@@ -66,24 +63,21 @@ export function Journal({ exerciseId }: { exerciseId: string }) {
 
   return (
     <section className="panel journal">
-      <button
-        type="button"
-        className="journal-toggle"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        {/* Says what pressing it does. It used to repeat the section's own
-            title back at you, which on the Reflect page meant "Your journal"
-            twice, one line apart. */}
-        <span>
-          <strong>{open ? 'Hide the entry' : existing ? 'Open your entry' : 'Write an entry'}</strong>
-          {existing && <span className="badge badge-quiet">saved</span>}
-        </span>
-        <span aria-hidden>{open ? '−' : '+'}</span>
-      </button>
+      {/* No collapse of its own any more. The "Your journal" tab is the
+          disclosure now, and a second one behind it meant two clicks to reach
+          a text box that the tab had already promised -- press the tab, get a
+          button called "Write an entry", press that, and only then write. The
+          tab IS the button. */}
+      {existing && (
+        <p className="journal-state">
+          <span className="badge badge-quiet">saved</span>
+          <span className="muted small">
+            You wrote this one already — change it and save again whenever you like.
+          </span>
+        </p>
+      )}
 
-      {open && (
-        <div className="journal-body">
+      <div className="journal-body">
           <p className="muted small">
             Writing down what tripped you up is how it sticks. Private to you and
             your instructor &mdash; never read by an AI, and never part of the
@@ -131,8 +125,7 @@ export function Journal({ exerciseId }: { exerciseId: string }) {
             </button>
             {saved && <span className="muted small">Saved.</span>}
           </div>
-        </div>
-      )}
+      </div>
     </section>
   )
 }

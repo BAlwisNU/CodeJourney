@@ -787,30 +787,15 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 .save-saved { color: var(--pass); }
 .save-error { color: var(--hint); }
 
-/* journal */
-.journal { padding: 0; }
-.journal-toggle {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: none;
-  border: none;
-  padding: 16px;
-  font-size: 0.95rem;
-  color: var(--text);
-  cursor: pointer;
-}
-.journal-toggle:hover { border: none; color: var(--accent); }
-.journal-toggle > span:first-child { display: flex; align-items: center; gap: 10px; }
+/* journal
+   The panel's own padding is back. It was zeroed because the collapse button
+   carried its own, and that button is gone -- the "Your journal" tab is the
+   disclosure now, so the fields are simply there when you open it. */
+.journal { padding: 18px; }
 .journal-body {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 0 16px 16px;
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
 }
 
 /* --- the Reflect page ------------------------------------------------------ */
@@ -5354,3 +5339,6 @@ a.seq-ep:hover {
    and it should keep meaning the same thing. */
 .rtab-who { font-size: 12px; color: var(--muted); }
 .rtab-who.is-private { color: var(--pass); }
+
+/* The journal's "you already wrote this" line, where the collapse used to be. */
+.journal-state { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; flex-wrap: wrap; }

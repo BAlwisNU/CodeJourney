@@ -24,9 +24,42 @@ import type { GeneratedLesson, LessonProposal, TutorMessage } from '../lib/types
  * exercise, verified before it is shown.
  */
 
-const GREETING =
-  'Nice work reaching the end of this one. Want to talk it through? ' +
-  'Tell me how it felt — what clicked, and what made you stop and think.'
+/**
+ * What the coach opens with, and what to press if you don't know what to say.
+ *
+ * Two versions, because the same words cannot serve both places this appears.
+ * At the Reflect stage you have just finished something; on the Ask-for-help
+ * page you are very likely stuck in the middle of it, and being congratulated
+ * on "reaching the end of this one" reads as a coach who has not looked.
+ *
+ * The openers matter more than they look. A blank box is the hardest thing to
+ * answer when you do not yet know what you do not know, and "I don't know what
+ * to ask" is itself a good opener -- so it is one of them.
+ */
+const OPENING = {
+  solved: {
+    greeting:
+      'Nice work reaching the end of this one. Want to talk it through? ' +
+      'Tell me how it felt — what clicked, and what made you stop and think.',
+    placeholder: 'Tell me how that one went…',
+    starters: [
+      'It worked, but I am not sure why',
+      'Could I have written that more simply?',
+      'What should I watch out for next time?',
+    ],
+  },
+  stuck: {
+    greeting:
+      "What are you working on? Tell me where you've got to — even " +
+      '"I have no idea where to start" is a fine place to begin.',
+    placeholder: 'What are you stuck on?',
+    starters: [
+      "I don't know where to start",
+      'Can you explain this in simpler words?',
+      'My code runs but gives the wrong answer',
+    ],
+  },
+}
 
 export function Tutor({
   exerciseId,
@@ -48,6 +81,8 @@ export function Tutor({
   const [built, setBuilt] = useState<GeneratedLesson | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const opening = solved ? OPENING.solved : OPENING.stuck
+
   // Load the saved conversation so it comes back exactly as it was left.
   useEffect(() => {
     let cancelled = false
@@ -64,8 +99,9 @@ export function Tutor({
     }
   }, [exerciseId])
 
-  async function send() {
-    const text = draft.trim()
+  async function send(override?: string) {
+    // A starter chip supplies its own text; everything else sends the box.
+    const text = (override ?? draft).trim()
     if (!text || phase !== 'idle') return
 
     setError(null)
@@ -144,14 +180,15 @@ export function Tutor({
       caption={
         solved ? 'Talk through how it went' : 'Stuck? Talk it over — no answers given away'
       }
-      greeting={GREETING}
+      greeting={opening.greeting}
       turns={turns}
       streaming={streaming}
       phase={phase}
       draft={draft}
       onDraft={setDraft}
-      onSend={() => void send()}
-      placeholder="Tell me how that one went…"
+      onSend={(text) => void send(text)}
+      placeholder={opening.placeholder}
+      starters={opening.starters}
       disabled={!configured}
       error={error}
     >

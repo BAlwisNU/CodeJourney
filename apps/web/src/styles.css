@@ -5469,3 +5469,53 @@ a.seq-ep:hover {
 @media (prefers-reduced-motion: reduce) {
   .diary-scrim, .diary { animation: none; }
 }
+
+/* --- openers ---------------------------------------------------------------
+   Shown only before the first message. A blank box is the hardest thing to
+   answer when you do not yet know what you do not know. */
+
+.cv-starters { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 4px 36px; }
+@media (max-width: 560px) { .cv-starters { padding-left: 0; } }
+.cv-starter {
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink, var(--text));
+  font-size: 13.5px;
+  line-height: 1.3;
+  text-align: left;
+}
+.cv-starter:hover:not(:disabled) {
+  border-color: rgba(124, 156, 255, 0.45);
+  background: var(--surface-3);
+}
+.cv-starter:disabled { opacity: 0.4; }
+
+/* --- copy, on any fenced block ---------------------------------------------
+   The lessons' own blocks have had Run and Copy since they were written; code
+   the coach types in a chat bubble had neither, so the one place a student is
+   handed a worked example in answer to their own question was the one place
+   they had to retype it. */
+
+.md-code-wrap { position: relative; }
+.md-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.md-code-wrap:hover .md-copy,
+.md-copy:focus-visible { opacity: 1; }
+.md-copy:hover:not(:disabled) { color: var(--text); border-color: var(--border-lit); }
+/* Touch has no hover, so it would never appear at all. */
+@media (hover: none) { .md-copy { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .md-copy { transition: none; } }

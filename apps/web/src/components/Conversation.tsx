@@ -37,6 +37,7 @@ export function Conversation({
   name,
   avatar,
   caption,
+  starters,
   disabled,
   error,
   children,
@@ -50,11 +51,22 @@ export function Conversation({
   phase: 'idle' | 'thinking' | 'writing'
   draft: string
   onDraft: (value: string) => void
-  onSend: () => void
+  /** Sends `text` when given, otherwise whatever is in the box. */
+  onSend: (text?: string) => void
   placeholder: string
   name: string
   avatar: string
   caption?: string
+  /**
+   * Openers offered before the first message, and only then.
+   *
+   * A blank box is the hardest thing to answer when you do not yet know what
+   * you do not know, which is the exact position a beginner is in. Three
+   * concrete things to press turn "say something" into "pick one", and each
+   * sends immediately rather than filling the box -- an opener you then have
+   * to press send on is two decisions where there was meant to be none.
+   */
+  starters?: string[]
   /** True when there's no API key: the composer is replaced by a note. */
   disabled?: boolean
   error?: string | null
@@ -127,6 +139,24 @@ export function Conversation({
               </span>
             )}
           </Bubble>
+        )}
+
+        {/* Only before the first exchange. Once there is a conversation these
+            would be suggesting how to start one that has already started. */}
+        {starters && starters.length > 0 && turns.length === 0 && !streaming && (
+          <div className="cv-starters">
+            {starters.map((text) => (
+              <button
+                key={text}
+                type="button"
+                className="cv-starter"
+                disabled={phase !== 'idle'}
+                onClick={() => onSend(text)}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
         )}
 
         {children}

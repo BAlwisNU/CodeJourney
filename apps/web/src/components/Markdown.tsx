@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 /**
  * A deliberately small Markdown renderer for lesson and exercise text.
@@ -17,6 +17,52 @@ import type { ReactNode } from 'react'
 
 export function Markdown({ source }: { source: string }) {
   return <div className="md">{render(source)}</div>
+}
+
+/**
+ * A fenced code block, with a way to take the code with you.
+ *
+ * The lessons' own blocks have had Run and Copy since they were written; code
+ * the coach types in a chat bubble had neither, so the one place a student is
+ * handed a worked example in response to their own question was the one place
+ * they had to retype it or select it by hand.
+ *
+ * Copy only, not Run: this renders inside chat bubbles and prose alike, and a
+ * Run button needs an exercise and a harness around it. Copy is the action
+ * that always makes sense.
+ */
+function CodeBlockWithCopy({
+  code,
+  lang,
+  python,
+}: {
+  code: string
+  lang?: string
+  python: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      // Clipboard permission can be refused and the code is on screen anyway --
+      // nothing to recover from, and nothing worth interrupting for.
+    }
+  }
+
+  return (
+    <div className="md-code-wrap">
+      <pre className="md-code" data-lang={lang}>
+        <code>{python ? highlightPython(code) : code}</code>
+      </pre>
+      <button type="button" className="md-copy" onClick={() => void copy()}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  )
 }
 
 /** For short strings -- quiz prompts, options -- where a block layout would be
@@ -47,9 +93,12 @@ function render(source: string): ReactNode[] {
       const code = body.join('\n')
       const python = lang === 'python' || lang === 'py'
       out.push(
-        <pre key={key++} className="md-code" data-lang={python ? 'python' : lang || undefined}>
-          <code>{python ? highlightPython(code) : code}</code>
-        </pre>
+        <CodeBlockWithCopy
+          key={key++}
+          code={code}
+          lang={python ? 'python' : lang || undefined}
+          python={python}
+        />
       )
       continue
     }

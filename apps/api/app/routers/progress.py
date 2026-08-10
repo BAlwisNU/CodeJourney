@@ -32,12 +32,152 @@ from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser
 from ..db import get_db
-from ..models import Exercise, ExerciseSession, RunMode, Submission
-from ..schemas import BranchOut, ConceptProgress, DashboardOut, ExerciseProgress
+from ..models import (
+    Exercise,
+    ExerciseSession,
+    LearnerProject,
+    OnboardingPlan,
+    RunMode,
+    Submission,
+    ThemeVariant,
+)
+from ..schemas import (
+    BranchOut,
+    ConceptProgress,
+    DashboardOut,
+    ExerciseProgress,
+    Recommendation,
+)
 
 router = APIRouter(prefix="/progress", tags=["progress"])
 
 DbSession = Annotated[Session, Depends(get_db)]
+
+
+#: How many to offer. Four is a strip; ten is a syllabus, which is the thing
+#: the dashboard was reorganised to stop being.
+_RECOMMEND = 4
+
+_CONCEPT_NAME = {
+    "lists": "lists",
+    "loops": "loops",
+    "dicts": "dictionaries",
+    "strings": "text",
+    "functions": "functions",
+    "file_io": "files",
+}
+
+
+def _recommend(
+    user_id: str,
+    exercises: list[Exercise],
+    rows: list[ExerciseProgress],
+    continue_slug: str | None,
+    db: Session,
+) -> list[Recommendation]:
+    """A few lessons worth doing next. Never empty for a signed-in account.
+
+    A brand-new account used to reach a dashboard whose two strips -- recent
+    lessons and practice built for you -- were both empty, because it had no
+    history and had accepted no offers. So the page ended after the project
+    cards, on the first visit, which is the one visit that has to land.
+
+    Three sources, best first, and each says why it is recommending something:
+
+      1. **The topics they asked for.** The signup conversation records which
+         concepts serve what they want to build; those lessons come first.
+      2. **What their projects need**, for someone who skipped the chat or
+         whose plan named no topics.
+      3. **The beginning of the curriculum**, which is the right answer for
+         anyone the first two cannot speak for and is never nothing.
+
+    Deliberately not "mastery-ranked": there is no mastery score in this
+    system (the table has no writer), and dressing curriculum order up as
+    personalisation would be a claim the platform cannot back.
+    """
+    done = {row.id for row in rows if row.status == "solved"}
+
+    # Curriculum order is not teaching order at the front of the list. The six
+    # exercises at order_index 1-6 are the study set -- one themed exercise per
+    # concept, the within-subjects instrument -- and the taught ladder starts
+    # at 101 with "Making a list". Trusting order_index alone recommended "How
+    # long is this boss fight?" to someone who had never written a line.
+    #
+    # It takes both conditions, and each was found by watching the wrong thing
+    # come out first:
+    #
+    #   themed variant       the five remaining study exercises, which are one
+    #                        per concept and not a beginner's first anything
+    #   shared pair_id       the control twin of the sixth, which is generic
+    #                        and still sorts to the front (order_index 2)
+    #
+    # What is left is the 61-lesson taught ladder, starting at "Making a list".
+    shared: dict[str, int] = {}
+    for exercise in exercises:
+        if exercise.pair_id:
+            shared[exercise.pair_id] = shared.get(exercise.pair_id, 0) + 1
+    teaching = [
+        ex
+        for ex in exercises
+        if ex.variant is ThemeVariant.GENERIC
+        and not (ex.pair_id and shared.get(ex.pair_id, 0) > 1)
+    ]
+    ladder = teaching or exercises
+
+    def offer(exercise: Exercise, reason: str) -> Recommendation:
+        return Recommendation(
+            slug=exercise.slug,
+            title=exercise.title,
+            concept=exercise.concept.value,
+            reason=reason,
+        )
+
+    # Never re-offer the one the resume card is already offering, and never
+    # something they have finished.
+    def eligible(exercise: Exercise) -> bool:
+        return exercise.id not in done and exercise.slug != continue_slug
+
+    picked: list[Recommendation] = []
+    seen: set[str] = set()
+
+    def take(exercise: Exercise, reason: str) -> None:
+        if exercise.id in seen or not eligible(exercise):
+            return
+        seen.add(exercise.id)
+        picked.append(offer(exercise, reason))
+
+    plan = db.get(OnboardingPlan, user_id)
+    wanted = [t for t in (plan.topics if plan else []) or []]
+    for topic in wanted:
+        for exercise in ladder:
+            if len(picked) >= _RECOMMEND:
+                break
+            if exercise.concept.value == topic:
+                take(exercise, f"You said you wanted {_CONCEPT_NAME.get(topic, topic)}")
+
+    if len(picked) < _RECOMMEND:
+        project_topics: list[str] = []
+        for project in db.scalars(
+            select(LearnerProject).where(LearnerProject.user_id == user_id)
+        ):
+            for topic in project.topics or []:
+                if topic not in project_topics:
+                    project_topics.append(topic)
+        for topic in project_topics:
+            for exercise in ladder:
+                if len(picked) >= _RECOMMEND:
+                    break
+                if exercise.concept.value == topic:
+                    take(exercise, "Your projects need this")
+
+    # The floor: the start of the taught sequence, which is the right answer
+    # for anyone the two better sources cannot speak for.
+    for exercise in ladder:
+        if len(picked) >= _RECOMMEND:
+            break
+        take(exercise, "A good place to start")
+
+    return picked[:_RECOMMEND]
 
 
 @router.get("", response_model=DashboardOut)
@@ -171,6 +311,7 @@ def dashboard(user: CurrentUser, db: DbSession) -> DashboardOut:
     ]
 
     return DashboardOut(
+        recommended=_recommend(user.id, exercises, rows, continue_slug, db),
         display_name=user.display_name,
         role=user.role,
         solved=sum(1 for r in rows if r.status == "solved"),

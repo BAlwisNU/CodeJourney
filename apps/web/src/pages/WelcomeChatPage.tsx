@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Conversation } from '../components/Conversation'
+import { CourseBuilder } from '../components/CourseBuilder'
 import { api } from '../lib/api'
 import { streamChat } from '../lib/stream'
 import type { OnboardingPlan, WelcomeState } from '../lib/types'
@@ -47,6 +48,8 @@ export function WelcomeChatPage() {
   // Set the first time the plan gains something, so the panel can announce
   // itself rather than silently filling in while you're reading the chat.
   const [planFresh, setPlanFresh] = useState(false)
+  //: The project whose lessons are being written, on the way out of signup.
+  const [offer, setOffer] = useState<{ id: string; title: string } | null>(null)
 
   useEffect(() => {
     api
@@ -120,6 +123,31 @@ export function WelcomeChatPage() {
 
   const done = () => navigate('/exercises', { replace: true })
 
+  /**
+   * Finish signing up.
+   *
+   * With a plan recorded, the projects it described already exist, and the
+   * best thing signup can do with its last moment is hand over lessons written
+   * for the first of them rather than a dashboard of borrowed ones. Offered,
+   * not imposed: the skip is right beside it.
+   *
+   * Without a plan -- they said little, or skipped straight past -- there is
+   * nothing to write a course about, so this is just the way out.
+   */
+  async function finish() {
+    if (!plan?.recorded) return done()
+    try {
+      const { projects } = await api.projects()
+      const first = projects.find((p) => !p.has_course)
+      if (!first) return done()
+      setOffer({ id: first.id, title: first.title })
+    } catch {
+      // A dashboard is a better outcome than an error on the last screen of
+      // signing up.
+      done()
+    }
+  }
+
   if (!state.available) {
     return (
       <div className="welcome">
@@ -172,13 +200,30 @@ export function WelcomeChatPage() {
       {/* Always available, from the first second. Nobody is kept in a signup
           flow until a model decides it has heard enough. */}
       <div className="welcome-actions">
-        <button className="primary" onClick={done}>
+        <button className="primary" onClick={() => void finish()}>
           {plan?.recorded ? 'Start learning' : "I'm ready to start"}
         </button>
         <span className="muted small">
           You can carry on this conversation with your coach inside any lesson.
         </span>
       </div>
+
+      {/* The last thing signup does, and the first thing the dashboard should
+          have on it: lessons written for the project they just described.
+          Offered rather than imposed -- it takes a couple of minutes, and
+          somebody who wants to start right now should be able to. */}
+      {offer && (
+        <div className="welcome-course">
+          <CourseBuilder
+            projectId={offer.id}
+            projectTitle={offer.title}
+            onFinished={done}
+          />
+          <button type="button" className="linkish" onClick={done}>
+            Skip — I&rsquo;ll start with the standard lessons
+          </button>
+        </div>
+      )}
     </div>
   )
 }

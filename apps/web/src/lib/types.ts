@@ -84,6 +84,14 @@ export type DashboardBranch = {
   status: 'solved' | 'in_progress' | 'not_started'
 }
 
+/** One lesson worth doing next, and why — the reason is shown. */
+export type Recommendation = {
+  slug: string
+  title: string
+  concept: string
+  reason: string
+}
+
 export type Dashboard = {
   display_name: string
   role: 'student' | 'instructor'
@@ -94,6 +102,7 @@ export type Dashboard = {
   continue_slug: string | null
   exercises: ExerciseProgress[]
   branches: DashboardBranch[]
+  recommended: Recommendation[]
 }
 
 /** One AI-built branch off an exercise, for links on the parent's own page. */

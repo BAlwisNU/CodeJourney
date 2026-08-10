@@ -5575,3 +5575,6 @@ a.seq-ep:hover {
   animation: cv-slide 1.5s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) { .course-wait::after { animation: none; } }
+
+/* The last step of signing up: lessons written for the project just described. */
+.welcome-course { display: grid; gap: 10px; justify-items: start; margin-top: 18px; }

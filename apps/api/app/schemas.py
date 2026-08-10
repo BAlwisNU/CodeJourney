@@ -344,6 +344,20 @@ class BranchOut(BaseModel):
     status: Literal["solved", "in_progress", "not_started"]
 
 
+class Recommendation(BaseModel):
+    """One lesson worth doing next, and why.
+
+    `reason` is shown to the learner, so it has to be true and short. A
+    recommendation that cannot say why it is recommending something is a list
+    of links.
+    """
+
+    slug: str
+    title: str
+    concept: str
+    reason: str
+
+
 class DashboardOut(BaseModel):
     """Note the absences: no time-on-task, no hint depth.
 
@@ -361,6 +375,9 @@ class DashboardOut(BaseModel):
     exercises: list[ExerciseProgress]
     # This student's AI-built branches, each tagged with the lesson it hangs off.
     branches: list[BranchOut]
+    #: A few lessons worth doing next, and never empty for a signed-in account.
+    #: See routers/progress.py for how they are chosen.
+    recommended: list[Recommendation] = []
 
 
 # --- reflections -----------------------------------------------------------

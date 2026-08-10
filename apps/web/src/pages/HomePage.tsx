@@ -269,6 +269,32 @@ function HomeView({
         </section>
       )}
 
+      {/* Never empty, which is the point. This used to be "Made for you" and
+          listed practice the coach had written — real, but only ever populated
+          for someone who had already had a conversation and accepted an offer.
+          A brand-new account saw nothing here, on the one visit that has to
+          land. The server picks these from what they asked for at signup, from
+          what their projects need, and failing both from the start of the
+          curriculum; each says which. */}
+      {data.recommended.length > 0 && (
+        <section className="strip">
+          <div className="strip-head">
+            <h2>Recommended for you</h2>
+            <button type="button" className="linkish" onClick={() => onGoto('lessons')}>
+              All lessons →
+            </button>
+          </div>
+          <div className="strip-grid">
+            {data.recommended.map((r) => (
+              <Link key={r.slug} to={`/exercise/${r.slug}/plan`} className="strip-card">
+                <span className="strip-title">{r.title}</span>
+                <span className="strip-meta muted small">{r.reason}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {madeForYou.length > 0 && (
         <section className="strip">
           <div className="strip-head">

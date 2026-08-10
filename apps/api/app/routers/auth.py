@@ -1,3 +1,4 @@
+import logging
 import random
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -12,7 +13,7 @@ from ..auth import CurrentUser, create_access_token, hash_password, verify_passw
 from ..config import get_settings
 from ..db import get_db
 from ..models import LearnerIntake, LearnerProfile, Role, User
-from ..services import demo
+from ..services import demo, teaching
 from ..schemas import (
     ConsentUpdate,
     DemoRequest,
@@ -24,6 +25,8 @@ from ..schemas import (
     TokenResponse,
     UserOut,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -126,6 +129,21 @@ def register_teacher(body: TeacherRegisterRequest, db: DbSession) -> TokenRespon
     )
     db.add(user)
     db.commit()
+
+    # A class, and its code, exist from the first second.
+    #
+    # A teacher used to sign up and land on an empty dashboard whose only
+    # action was "make your first class" -- a form standing between them and
+    # the one thing they came for, which is a code to read out to a room. The
+    # code is generated rather than asked for, because a teacher has no
+    # opinion about it until they have one, and the name can be changed later.
+    try:
+        teaching.create_classroom(user, f"{user.display_name}'s class", db)
+    except teaching.TeachingError:
+        # A class they can make themselves is a far better outcome than a
+        # failed signup, so this never takes the registration down with it.
+        logger.exception("could not create a first class for a new teacher")
+
     return TokenResponse(access_token=create_access_token(user))
 
 

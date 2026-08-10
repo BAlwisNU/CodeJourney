@@ -385,10 +385,17 @@ export const api = {
   teacherStudentReflections: (userId: string) =>
     request<Reflection[]>(`/teacher/students/${userId}/reflections`),
 
-  createClass: (name: string) =>
+  /** `join_code` is optional — left blank, the server draws one. */
+  createClass: (name: string, join_code = '') =>
     request<Classroom>('/teacher/classes', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, join_code }),
+    }),
+
+  setClassCode: (classroomId: string, join_code: string) =>
+    request<Classroom>(`/teacher/classes/${classroomId}/code`, {
+      method: 'PATCH',
+      body: JSON.stringify({ join_code }),
     }),
 
   /** Throw away a project's written course so it can be built again. */

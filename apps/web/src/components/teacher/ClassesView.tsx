@@ -25,6 +25,24 @@ export function ClassesView({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [savingCode, setSavingCode] = useState(false)
+
+  async function rename(classroomId: string) {
+    setSavingCode(true)
+    setCodeError(null)
+    try {
+      await api.setClassCode(classroomId, draft.trim())
+      setEditing(null)
+      onChanged()
+    } catch (e) {
+      setCodeError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSavingCode(false)
+    }
+  }
 
   async function create(event: React.FormEvent) {
     event.preventDefault()
@@ -66,13 +84,66 @@ export function ClassesView({
               </p>
               <p className="tcode-label">Class code</p>
               <p className="tcode">{classroom.join_code}</p>
-              <button
-                type="button"
-                className="linkish"
-                onClick={() => void copy(classroom.join_code)}
-              >
-                {copied === classroom.join_code ? 'Copied' : 'Copy code'}
-              </button>
+              <div className="tclass-actions">
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => void copy(classroom.join_code)}
+                >
+                  {copied === classroom.join_code ? 'Copied' : 'Copy code'}
+                </button>
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => {
+                    setEditing(classroom.id)
+                    setDraft(classroom.join_code)
+                    setCodeError(null)
+                  }}
+                >
+                  Use my own
+                </button>
+              </div>
+
+              {/* Changing it never removes anybody: membership is a row, not a
+                  password. Which also makes this the way to retire a code that
+                  has escaped into the wrong group chat. */}
+              {editing === classroom.id && (
+                <form
+                  className="tcode-edit"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    void rename(classroom.id)
+                  }}
+                >
+                  <label className="field">
+                    <span className="sr-only">New class code</span>
+                    <input
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value.toUpperCase())}
+                      maxLength={12}
+                      autoFocus
+                      className="join-code"
+                    />
+                    <span className="field-hint">
+                      4&ndash;12 letters or numbers. Students already in stay in.
+                    </span>
+                  </label>
+                  {codeError && <p className="panel panel-error small">{codeError}</p>}
+                  <div className="tcode-edit-actions">
+                    <button className="btn" disabled={savingCode}>
+                      {savingCode ? 'Saving…' : 'Save code'}
+                    </button>
+                    <button
+                      type="button"
+                      className="linkish"
+                      onClick={() => setEditing(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </article>
           ))}
         </div>

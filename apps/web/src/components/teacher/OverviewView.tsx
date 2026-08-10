@@ -19,7 +19,7 @@ export function OverviewView({
 }: {
   data: TeacherHome
   onOpenStudent: (userId: string) => void
-  onGoto: (view: 'students' | 'difficulty' | 'questions') => void
+  onGoto: (view: 'students' | 'difficulty' | 'questions' | 'classes') => void
 }) {
   const flagged = data.students.filter((s) => s.needs_help)
   const asked = data.students.filter((s) => s.open_questions > 0)
@@ -134,12 +134,28 @@ export function OverviewView({
         )}
       </section>
 
-      {data.total_students === 0 && (
-        <Empty title="Nobody has joined yet">
-          <p className="muted">
-            Read your class code out and this page fills up. You can find it
-            under Classes.
+      {/* Before anyone has joined, the code IS the dashboard. A teacher who
+          has just signed up already has a class and a code -- generated for
+          them, so there was no form in the way -- and the useful thing to put
+          in front of them is the six characters they are about to read out,
+          not a link to the tab holding them. */}
+      {data.total_students === 0 && data.classrooms.length > 0 && (
+        <section className="tcard tfirst">
+          <h2>Read this out to your class</h2>
+          <p className="tcode tcode-lg">{data.classrooms[0].join_code}</p>
+          <p className="muted small">
+            They enter it once, on their account page, and appear here. Nothing
+            else on this page fills in until somebody does.
           </p>
+          <button type="button" className="linkish" onClick={() => onGoto('classes')}>
+            Change the code or add another class &rarr;
+          </button>
+        </section>
+      )}
+
+      {data.total_students === 0 && data.classrooms.length === 0 && (
+        <Empty title="No class yet">
+          <p className="muted">Make one under Classes to get a code.</p>
         </Empty>
       )}
     </div>

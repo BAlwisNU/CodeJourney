@@ -56,6 +56,13 @@ class ClassroomOut(BaseModel):
 
 class NewClassroom(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    #: Optional. Left out, one is drawn -- a teacher who has no preference
+    #: should not have to invent one to get a class.
+    join_code: str = Field(default="", max_length=32)
+
+
+class CodeIn(BaseModel):
+    join_code: str = Field(min_length=1, max_length=32)
 
 
 class StudentOut(BaseModel):
@@ -222,10 +229,33 @@ def create_class(
     body: NewClassroom, instructor: Instructor, db: DbSession
 ) -> ClassroomOut:
     try:
-        classroom = teaching.create_classroom(instructor, body.name, db)
+        classroom = teaching.create_classroom(
+            instructor, body.name, db, body.join_code
+        )
     except teaching.TeachingError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
     return _classroom(classroom, {})
+
+
+@router.patch("/classes/{classroom_id}/code", response_model=ClassroomOut)
+def set_class_code(
+    classroom_id: str, body: CodeIn, instructor: Instructor, db: DbSession
+) -> ClassroomOut:
+    """Change a class's code to something the teacher picked.
+
+    Also the way to retire a code that has escaped into the wrong group chat:
+    students already in the class stay in it, and only what a new student
+    would type changes.
+    """
+    try:
+        classroom = teaching.own_classroom(classroom_id, instructor.id, db)
+    except teaching.TeachingError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from None
+    try:
+        classroom = teaching.set_join_code(classroom, body.join_code, db)
+    except teaching.TeachingError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    return _classroom(classroom, teaching.member_counts(instructor.id, db))
 
 
 @router.delete("/classes/{classroom_id}/students/{user_id}", status_code=204)

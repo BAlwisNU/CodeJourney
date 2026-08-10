@@ -69,16 +69,92 @@ def generate_join_code(db: Session) -> str:
 # ---------------------------------------------------------------------------
 
 
-def create_classroom(teacher: User, name: str, db: Session) -> Classroom:
+#: A chosen code has to be typeable on a phone and readable off a whiteboard,
+#: and long enough not to be stumbled into by someone guessing.
+MIN_CHOSEN_CODE = 4
+MAX_CHOSEN_CODE = 12
+
+
+def normalise_code(raw: str) -> str:
+    """Clean up a code a teacher typed, or say why it cannot be used.
+
+    Forgiving about how it was entered -- case, spaces and dashes all go --
+    because the same code gets written on a board, said out loud and pasted
+    into a chat, and none of those agree on formatting.
+
+    Letters and digits only. Note what is NOT enforced: the confusable
+    characters the generator avoids. A random code has no meaning to fall back
+    on, so an O that might be a zero is a genuine trap; "YEAR10" is remembered
+    as a word, and refusing it because it contains a 1 would be pedantry at the
+    expense of the thing that makes a chosen code worth having.
+    """
+    cleaned = "".join(
+        ch for ch in raw.strip().upper() if ch.isalnum()
+    )
+    if not cleaned:
+        raise TeachingError("A class code needs some letters or numbers in it.")
+    if len(cleaned) < MIN_CHOSEN_CODE:
+        raise TeachingError(
+            f"That code is too short — {MIN_CHOSEN_CODE} characters at least, "
+            "so nobody lands in your class by accident."
+        )
+    if len(cleaned) > MAX_CHOSEN_CODE:
+        raise TeachingError(
+            f"That code is too long — {MAX_CHOSEN_CODE} characters at most, "
+            "or it won't get typed correctly."
+        )
+    return cleaned
+
+
+def _claim_code(code: str, db: Session, *, allow: str | None = None) -> str:
+    """Take a chosen code, or explain that somebody already has it.
+
+    `allow` is the classroom already holding it, so re-saving a class without
+    changing its code is not a clash with itself.
+    """
+    taken = db.scalar(select(Classroom).where(Classroom.join_code == code))
+    if taken is not None and taken.id != allow:
+        raise TeachingError(
+            "Another class is already using that code. Try a different one."
+        )
+    return code
+
+
+def create_classroom(
+    teacher: User, name: str, db: Session, code: str | None = None
+) -> Classroom:
+    """Make a class, with a code the teacher chose or one drawn for them.
+
+    Choosing is worth supporting because the code is spoken: "join YEAR10" is
+    a sentence a room can act on, where "join Q69NEK" gets misheard twice and
+    typed wrong three times.
+    """
     cleaned = name.strip()
     if not cleaned:
         raise TeachingError("A class needs a name.")
+    join_code = (
+        _claim_code(normalise_code(code), db) if code and code.strip() else generate_join_code(db)
+    )
     classroom = Classroom(
         teacher_id=teacher.id,
         name=cleaned[:120],
-        join_code=generate_join_code(db),
+        join_code=join_code,
     )
     db.add(classroom)
+    db.commit()
+    db.refresh(classroom)
+    return classroom
+
+
+def set_join_code(classroom: Classroom, code: str, db: Session) -> Classroom:
+    """Change an existing class's code.
+
+    Students already in the class stay in it -- membership is a row, not a
+    password. What changes is only what a new student would type, which is why
+    this is also the way to shut out a code that has escaped into the wrong
+    group chat.
+    """
+    classroom.join_code = _claim_code(normalise_code(code), db, allow=classroom.id)
     db.commit()
     db.refresh(classroom)
     return classroom

@@ -174,6 +174,50 @@ def welcome_chat(body: ChatIn, user: CurrentUser, db: DbSession) -> ChatOut:
 _CONCEPT_KEYS = {c.value for c in Concept}
 
 
+def _record_profile(user_id: str, recorded: dict, db: Session) -> None:
+    """Write the answers the signup form used to collect.
+
+    Same two rows it always wrote -- LearnerProfile and LearnerIntake -- so
+    everything downstream that reads them (the coach's LearnerBrief, the
+    account page, exercise generation) works unchanged and cannot tell whether
+    a form or a conversation produced them.
+
+    Only fields the model actually reported are touched. A later turn that
+    omits something must not blank what an earlier turn heard.
+    """
+    profile = db.get(LearnerProfile, user_id)
+    if profile is None:
+        profile = LearnerProfile(user_id=user_id)
+        db.add(profile)
+
+    goals = str(recorded.get("goals") or "").strip()
+    if goals:
+        profile.goals = goals[:2000]
+    experience = str(recorded.get("experience") or "")
+    if experience in ONBOARDING_EXPERIENCE:
+        profile.experience = experience
+    # `interests` is the model's summary of the person, which is the closest
+    # thing the conversation produces to the form's "what would you build".
+    ideas = str(recorded.get("interests") or "").strip()
+    if ideas and not profile.project_ideas:
+        profile.project_ideas = ideas[:2000]
+
+    intake = db.get(LearnerIntake, user_id)
+    if intake is None:
+        intake = LearnerIntake(user_id=user_id)
+        db.add(intake)
+
+    learn_style = str(recorded.get("learn_style") or "")
+    if learn_style in ONBOARDING_LEARN_STYLE:
+        intake.learn_style = learn_style
+    time_available = str(recorded.get("time_available") or "")
+    if time_available in ONBOARDING_TIME:
+        intake.time_available = time_available
+    worries = [w for w in (recorded.get("worries") or []) if w in ONBOARDING_WORRIES]
+    if worries:
+        intake.worries = ",".join(worries)
+
+
 def _record(user_id: str, recorded: dict | None, db: Session) -> OnboardingPlan | None:
     """Persist what the model concluded, filtered down to what is real.
 
@@ -188,6 +232,12 @@ def _record(user_id: str, recorded: dict | None, db: Session) -> OnboardingPlan 
     if plan is None:
         plan = OnboardingPlan(user_id=user_id)
         db.add(plan)
+
+    # The conversation replaced the form, so what the form used to write is
+    # written from here. Each field is set only when the model actually heard
+    # it: a chat is not obliged to extract all six, and overwriting a real
+    # answer from turn two with a blank on turn five would lose it.
+    _record_profile(user_id, recorded, db)
     plan.interests = str(recorded.get("interests") or "").strip()
     plan.topics = [
         key for key in (recorded.get("topics") or []) if key in _CONCEPT_KEYS

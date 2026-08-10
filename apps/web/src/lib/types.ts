@@ -325,6 +325,9 @@ export type Project = {
   total: number
   /** The next lesson to open, or null when they are all cleared. */
   next_slug: string | null
+  /** True when these lessons were written for this project rather than taken
+   *  from the shared library. */
+  has_course: boolean
 }
 
 // --- teaching --------------------------------------------------------------

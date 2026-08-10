@@ -149,7 +149,12 @@ export function AuthPage({ mode }: { mode: Mode }) {
         // someone who came here to run a class.
         navigate('/teach')
       } else if (isSignup) {
-        navigate('/welcome')
+        // Straight to the conversation. Step two used to be a form -- goals,
+        // experience, how you learn, how much time, what worries you -- and a
+        // beginner's first sight of the product was six fields about
+        // themselves. The coach asks the same things now, one at a time, and
+        // answers back.
+        navigate('/welcome/chat')
       } else {
         // Logging in: the API knows which app this person belongs in, and
         // asking it beats guessing. A failed lookup falls through to the

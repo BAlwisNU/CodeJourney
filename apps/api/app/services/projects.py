@@ -23,6 +23,7 @@ from ..models import (
     Exercise,
     LearnerProject,
     OnboardingPlan,
+    ProjectCourseLesson,
     SkippedExercise,
     ThemeVariant,
 )
@@ -101,8 +102,21 @@ def ensure_projects(user_id: str, db: Session) -> list[LearnerProject]:
     return made
 
 
+def course_for(project_id: str, db: Session) -> list[str]:
+    """Exercise ids of the course written for this project, in teaching order."""
+    return list(
+        db.scalars(
+            select(ProjectCourseLesson.exercise_id)
+            .where(ProjectCourseLesson.project_id == project_id)
+            .order_by(ProjectCourseLesson.order_index)
+        )
+    )
+
+
 def lessons_for(
-    project: LearnerProject, exercises: list[Exercise]
+    project: LearnerProject,
+    exercises: list[Exercise],
+    course: list[str] | None = None,
 ) -> list[Exercise]:
     """The exercises that teach this project's concepts, in teaching order.
 
@@ -120,6 +134,17 @@ def lessons_for(
     project. The discriminator is a shared pair_id, of which there is exactly
     one in the seeded library.
     """
+    # A written course replaces the library route rather than adding to it.
+    # The whole point of one is that it teaches these concepts *in this
+    # project* -- paces and distances rather than quests -- so showing both
+    # would offer the same six ideas twice and bury the bespoke set under the
+    # generic one.
+    if course:
+        by_id = {ex.id: ex for ex in exercises}
+        found = [by_id[eid] for eid in course if eid in by_id]
+        if found:
+            return found
+
     wanted = _clean_topics(project.topics)
     shared: dict[str, int] = {}
     for exercise in exercises:

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { CourseBuilder } from './CourseBuilder'
 import { api } from '../lib/api'
 import type { Project } from '../lib/types'
 
@@ -35,6 +36,7 @@ function ProjectCard({
 }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
+  const [writing, setWriting] = useState(false)
   const complete = project.total > 0 && project.done === project.total
 
   async function toggleKnown(slug: string, known: boolean) {
@@ -90,12 +92,41 @@ function ProjectCard({
         <button type="button" className="linkish" onClick={() => setOpen((v) => !v)}>
           {open ? 'Hide the pieces' : `${project.total} pieces`}
         </button>
+        {project.has_course && (
+          <span className="badge badge-quiet" title="Written for this project">
+            your course
+          </span>
+        )}
         {complete && (
           <button type="button" className="linkish" onClick={() => void toggleBuilt()} disabled={busy === 'built'}>
             {project.built ? 'Not built yet' : 'Mark as built'}
           </button>
         )}
       </div>
+
+      {/* Lessons written for this project, rather than borrowed from the
+          library. Offered once, and only while there is no course yet. */}
+      {!project.has_course && !writing && (
+        <button
+          type="button"
+          className="linkish proj-write"
+          onClick={() => setWriting(true)}
+        >
+          ✨ Write me lessons for this
+        </button>
+      )}
+      {writing && (
+        <CourseBuilder
+          projectId={project.id}
+          projectTitle={project.title}
+          onFinished={async () => {
+            const { projects } = await api.projects()
+            const fresh = projects.find((p) => p.id === project.id)
+            if (fresh) onChanged(fresh)
+            setWriting(false)
+          }}
+        />
+      )}
 
       {open && (
         <ol className="proj-lessons">

@@ -5519,3 +5519,59 @@ a.seq-ep:hover {
 /* Touch has no hover, so it would never appear at all. */
 @media (hover: none) { .md-copy { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .md-copy { transition: none; } }
+
+/* --- a course written for one project -------------------------------------- */
+
+.proj-write { justify-self: start; margin-top: 4px; font-size: 13.5px; }
+
+.course-offer,
+.course-run {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-top: 12px;
+  padding: 16px 18px;
+  border: 1px solid rgba(124, 156, 255, 0.28);
+  background: linear-gradient(180deg, rgba(124, 156, 255, 0.08), rgba(124, 156, 255, 0.02));
+  border-radius: var(--radius);
+}
+.course-offer-title { margin: 0; font-weight: 600; }
+.course-offer p { margin: 0; }
+.course-run-head { margin: 0; font-weight: 600; }
+
+/* Named steps, not a percentage. Writing a course takes minutes and the steps
+   have names; watching them land is the only honest account of the wait. */
+.course-steps { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 7px; width: 100%; }
+.course-step {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 14px;
+  color: var(--muted);
+}
+.course-tick { color: var(--muted); font-size: 12px; }
+.course-step.is-done { color: var(--text); }
+.course-step.is-done .course-tick { color: var(--pass); }
+.course-step.is-skipped { opacity: 0.5; }
+.course-step-concept { text-transform: lowercase; }
+
+/* Before the plan arrives there is nothing to name yet. */
+.course-wait {
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+  position: relative;
+}
+.course-wait::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 38%;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: cv-slide 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { .course-wait::after { animation: none; } }

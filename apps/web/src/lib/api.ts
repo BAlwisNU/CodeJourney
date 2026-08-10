@@ -391,6 +391,10 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
 
+  /** Throw away a project's written course so it can be built again. */
+  deleteCourse: (projectId: string) =>
+    request<void>(`/projects/${projectId}/course`, { method: 'DELETE' }),
+
   removeStudent: (classroomId: string, userId: string) =>
     request<void>(`/teacher/classes/${classroomId}/students/${userId}`, {
       method: 'DELETE',

@@ -41,7 +41,15 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from ..config import get_settings
-from ..models import Concept, Theme, ThemeVariant
+from ..models import (
+    ONBOARDING_EXPERIENCE,
+    ONBOARDING_LEARN_STYLE,
+    ONBOARDING_TIME,
+    ONBOARDING_WORRIES,
+    Concept,
+    Theme,
+    ThemeVariant,
+)
 from .grading import get_runner
 
 logger = logging.getLogger(__name__)
@@ -560,6 +568,31 @@ someone who has just signed up to learn Python. This is not a lesson and not an 
 interview. It is the chat you'd have over coffee with someone who has just told \
 you they want to learn to code.
 
+This conversation replaced a form. Everything the form used to ask you now have \
+to hear in conversation, which means you must actually ask -- but as someone \
+interested, not as a questionnaire read aloud.
+
+Over the conversation, find out:
+
+  * **What they want to be able to do.** Not "learn Python" -- the thing behind \
+it. Make a website for their band, sort out a spreadsheet at work, understand \
+what their colleagues are talking about.
+  * **How much programming they have done.** None at all, a bit of Python once, \
+fluent in something else, or learnt some years ago and forgotten it.
+  * **How they learn best.** Reading it through, watching someone do it, or \
+getting their hands on it and breaking it.
+  * **How much time they realistically have.** A few minutes here and there is \
+a completely different plan from most evenings, and pretending otherwise sets \
+someone up to fail.
+  * **What worries them.** This is the one nobody asks and the one that matters \
+most: the thing that stops people is almost never the syntax. "I'm not a maths \
+person", "I'll get stuck and give up", "I've left it too late". Ask gently, \
+once, and only if the conversation gives you an opening -- never interrogate.
+
+Record what you hear with record_plan as you go, and call it again whenever you \
+learn something new. Do not save a guess: leave a field out rather than invent \
+an answer they did not give.
+
 What you are here to do:
 
   * Find out what they're actually into -- their hobbies, their work, what they \
@@ -619,6 +652,41 @@ _RECORD_PLAN_TOOL = {
                 "description": (
                     "The topics that best serve what they want to build, most "
                     "useful first. Between one and four."
+                ),
+            },
+            # Everything from here down used to be a form on the step before
+            # this one. It is asked in conversation now, so the model has to
+            # write down what it heard -- and every field is optional, because
+            # a chat that refuses to end until all six are filled is the form
+            # again, wearing a chat's clothes.
+            "goals": {
+                "type": "string",
+                "description": (
+                    "In their own words as far as possible: what they want to "
+                    "be able to do. Empty if they have not said."
+                ),
+            },
+            "experience": {
+                "type": "string",
+                "enum": list(ONBOARDING_EXPERIENCE),
+                "description": "How much programming they have done before.",
+            },
+            "learn_style": {
+                "type": "string",
+                "enum": list(ONBOARDING_LEARN_STYLE),
+                "description": "How they said they take in something new.",
+            },
+            "time_available": {
+                "type": "string",
+                "enum": list(ONBOARDING_TIME),
+                "description": "Roughly how much time they have for this.",
+            },
+            "worries": {
+                "type": "array",
+                "items": {"type": "string", "enum": list(ONBOARDING_WORRIES)},
+                "description": (
+                    "Anything they said worries them about learning to code. "
+                    "Only what they actually expressed -- do not guess."
                 ),
             },
             "projects": {
@@ -762,12 +830,24 @@ def _ask_model(
     title: str,
     feedback: str | None,
     learner: "LearnerBrief | None" = None,
+    setting: str = "",
 ) -> dict:
     user = (
         f"Build a beginner practice exercise on the concept '{concept}'.\n"
         f"Working title: {title}\n"
         f"It should specifically drill: {focus}\n"
     )
+    if setting:
+        # A course lesson belongs to a project, and its whole point is that the
+        # data is the project's own. Given first, and stated as binding, because
+        # otherwise the model reaches for the quests and league tables that the
+        # rest of the library is full of.
+        user += (
+            f"\nThis exercise is one step of a course building: {setting}\n"
+            "Set it in THAT world -- the data, the names and the question must "
+            "come from the project, not from a generic example. The function "
+            "should be one the learner could paste straight into it.\n"
+        )
     if learner is not None and not learner.is_empty():
         # The strongest reason to have asked at all: an exercise about the thing
         # they said they wanted to build is the concrete, engaging framing this
@@ -899,6 +979,124 @@ def solve(exercise_id: str, entrypoint: str, prompt_md: str, tests: list) -> str
     raise GenerationError(last_error)
 
 
+# ---------------------------------------------------------------------------
+# Designing a course for one learner's project
+# ---------------------------------------------------------------------------
+
+_PLAN_SYSTEM = """\
+You are designing a short course of Python exercises that teaches a complete \
+beginner exactly what they need in order to build one specific thing.
+
+The course is a ladder. Each rung teaches one idea and produces one small \
+function the learner could actually paste into the finished project -- not a \
+toy about quests or league tables. If the project is a running tracker, the \
+exercises are about paces and distances; if it is a group-chat bot, they are \
+about messages and names.
+
+Rules:
+- Between 4 and 7 lessons. Fewer than four is not a course; more than seven is \
+a term, and nobody finishes it.
+- Ordered so that no lesson needs an idea a later one teaches.
+- Each lesson names ONE concept from the allowed list, and the whole course \
+must not use a concept the project does not need.
+- `focus` is one or two sentences saying precisely what that lesson drills, \
+written for whoever builds the exercise, not for the learner.
+- `title` is what the learner sees. Plain and concrete: "Work out a pace", \
+"Find the longest run". Never "Exercise 3" and never the concept's name alone.
+- Pitch it at the experience level given. For someone who has never written \
+code, lesson one must be genuinely tiny.\
+"""
+
+_COURSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "lessons": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "concept": {"type": "string", "enum": [c.value for c in Concept]},
+                    "focus": {"type": "string"},
+                },
+                "required": ["title", "concept", "focus"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["lessons"],
+    "additionalProperties": False,
+}
+
+#: A course is a real cost -- one model call per lesson plus a harness run --
+#: so the ladder is bounded at both ends. Four is the floor for it to be a
+#: course; seven is where people stop finishing.
+MIN_COURSE = 4
+MAX_COURSE = 7
+
+
+def plan_course(
+    title: str,
+    blurb: str,
+    topics: list[str],
+    learner: "LearnerBrief | None" = None,
+) -> list[dict]:
+    """Design the syllabus for a project. Returns [{title, concept, focus}].
+
+    Planned in one call before anything is built, rather than inventing each
+    lesson as it goes: an ordering can only be right if the whole ladder is
+    visible at once, and a course assembled lesson by lesson tends to teach
+    dictionaries in step two and lists in step five.
+    """
+    if not enabled():
+        raise GenerationError("the tutor is not switched on")
+
+    allowed = topics or [c.value for c in Concept]
+    user = (
+        f"The project: {title}\n"
+        f"What it does: {blurb or '(they only gave the title)'}\n"
+        f"Concepts it needs, and the only ones you may use: {', '.join(allowed)}\n"
+    )
+    if learner is not None and not learner.is_empty():
+        if learner.experience:
+            user += f"Their experience: {learner.experience}\n"
+        if learner.goals:
+            user += f"What they want to be able to do: {learner.goals[:400]}\n"
+        if learner.time_available:
+            user += f"Time they have: {learner.time_available}\n"
+
+    response = _client().messages.create(
+        model=settings.anthropic_model,
+        max_tokens=2000,
+        system=_PLAN_SYSTEM,
+        messages=[{"role": "user", "content": user}],
+        output_config={
+            "effort": "medium",
+            "format": {"type": "json_schema", "schema": _COURSE_SCHEMA},
+        },
+    )
+    text = next((b.text for b in response.content if b.type == "text"), "")
+    if not text:
+        raise GenerationError("the model returned no course")
+
+    known = {c.value for c in Concept}
+    lessons = []
+    for item in json.loads(text).get("lessons", []):
+        concept = str(item.get("concept", ""))
+        heading = str(item.get("title", "")).strip()
+        focus = str(item.get("focus", "")).strip()
+        # A lesson with no concept has nothing to teach and one with no focus
+        # gives the builder nothing to build from; both are dropped rather
+        # than guessed at.
+        if concept in known and heading and focus:
+            lessons.append(
+                {"title": heading[:200], "concept": concept, "focus": focus[:600]}
+            )
+    if len(lessons) < MIN_COURSE:
+        raise GenerationError("the course came back too short to be useful")
+    return lessons[:MAX_COURSE]
+
+
 def generate_exercise(
     concept: str,
     focus: str,
@@ -906,6 +1104,7 @@ def generate_exercise(
     created_by_user_id: str | None = None,
     parent_exercise_id: str | None = None,
     learner: "LearnerBrief | None" = None,
+    setting: str = "",
 ) -> dict:
     """Build and VERIFY a practice exercise, returning a dict ready for
     `Exercise(**spec)`. Raises GenerationError if a sound one can't be produced.
@@ -928,7 +1127,7 @@ def generate_exercise(
 
     for _ in range(_MAX_GEN_ATTEMPTS):
         try:
-            data = _ask_model(concept, focus, title, feedback, learner)
+            data = _ask_model(concept, focus, title, feedback, learner, setting)
             entrypoint = str(data["entrypoint"]).strip()
             if not _IDENTIFIER.match(entrypoint):
                 raise GenerationError("entrypoint is not a valid function name")

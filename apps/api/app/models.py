@@ -517,6 +517,39 @@ class ClassroomMember(Base):
     joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class ProjectCourseLesson(Base):
+    """A lesson written specifically for one learner's project.
+
+    The platform teaches 68 exercises about lists, loops and dictionaries in
+    the abstract. A project is a thing somebody actually wants to build, and
+    this is the join between the two: exercises generated for *this* project,
+    in the order they should be taken, each one set in the project's own world
+    rather than in quests and league tables.
+
+    A table rather than a column on `exercises`, and not because that would be
+    tidier -- it would not. `create_all` builds missing tables and never
+    missing columns, so a project_id column would exist in a fresh checkout
+    and be absent on the deployed droplet, where it would fail at query time
+    rather than at boot.
+
+    The exercise rows themselves are ordinary `Exercise` records scoped to
+    their author, so everything that already knows how to open, grade, hint
+    and branch off an exercise works on these with no changes at all.
+    """
+
+    __tablename__ = "project_course_lessons"
+
+    project_id: Mapped[str] = mapped_column(
+        ForeignKey("learner_projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    exercise_id: Mapped[str] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), primary_key=True
+    )
+    #: Teaching order within the project, which is the order they were built.
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class HelpStatus(str, enum.Enum):
     OPEN = "open"
     ANSWERED = "answered"

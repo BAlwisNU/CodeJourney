@@ -385,6 +385,11 @@ export const api = {
   teacherStudentReflections: (userId: string) =>
     request<Reflection[]>(`/teacher/students/${userId}/reflections`),
 
+  /** A free code, for the "draw me one" button. A suggestion, not a
+   *  reservation — the save is still what claims it. */
+  suggestClassCode: () =>
+    request<{ join_code: string }>('/teacher/classes/suggest-code'),
+
   /** `join_code` is optional — left blank, the server draws one. */
   createClass: (name: string, join_code = '') =>
     request<Classroom>('/teacher/classes', {

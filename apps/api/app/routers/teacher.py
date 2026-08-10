@@ -224,6 +224,29 @@ def list_classes(instructor: Instructor, db: DbSession) -> list[ClassroomOut]:
     ]
 
 
+class SuggestedCode(BaseModel):
+    join_code: str
+
+
+@router.get("/classes/suggest-code", response_model=SuggestedCode)
+def suggest_code(instructor: Instructor, db: DbSession) -> SuggestedCode:
+    """A code no live class is using, for the "draw me one" button.
+
+    Drawn on the server rather than in the browser so the answer is actually
+    free -- a client-side random string is a guess that the save then rejects,
+    which is a worse experience than not offering the button.
+
+    It is a suggestion, not a reservation: nothing is held, and the same code
+    could in principle be taken between this call and the save. At the number
+    of teachers this serves, and against 30^6 possibilities, that race is not
+    worth a lock -- and if it ever fires, the save says so plainly.
+    """
+    try:
+        return SuggestedCode(join_code=teaching.generate_join_code(db))
+    except teaching.TeachingError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
+
+
 @router.post("/classes", response_model=ClassroomOut, status_code=201)
 def create_class(
     body: NewClassroom, instructor: Instructor, db: DbSession

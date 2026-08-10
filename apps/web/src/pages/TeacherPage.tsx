@@ -128,7 +128,10 @@ export function TeacherPage() {
       {firstRun ? (
         <main className="teach-main">
           <div className="teach-head">
-            <h1>Welcome, {data.display_name.split(' ')[0]}</h1>
+            {/* The whole name, not the first word. Teachers put a title in it
+                -- "Ms Hale", "Mr Ellis" -- and taking the first word greeted
+                them as "Ms". */}
+            <h1>Welcome, {data.display_name}</h1>
             <p className="muted">
               One thing to do first: make a class and give your students its
               code. Everything else fills itself in from there.

@@ -22,6 +22,8 @@ export function ClassesView({
   onChanged: () => void
 }) {
   const [name, setName] = useState('')
+  const [code, setCode] = useState('')
+  const [drawing, setDrawing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -49,13 +51,29 @@ export function ClassesView({
     setBusy(true)
     setError(null)
     try {
-      await api.createClass(name.trim())
+      await api.createClass(name.trim(), code.trim())
       setName('')
+      setCode('')
       onChanged()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
+    }
+  }
+
+  /** Ask the server for a code nothing is using, so the button never offers
+   *  something the save is about to refuse. */
+  async function draw() {
+    setDrawing(true)
+    setError(null)
+    try {
+      const { join_code } = await api.suggestClassCode()
+      setCode(join_code)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDrawing(false)
     }
   }
 
@@ -152,8 +170,8 @@ export function ClassesView({
       <section className="tcard tcard-narrow">
         <h2>{classrooms.length ? 'Start another class' : 'Start your first class'}</h2>
         <p className="muted small">
-          You&rsquo;ll get a code to read out. Students enter it once and appear
-          on your dashboard.
+          You choose the code students type. Make it something you can say out
+          loud, or have one drawn for you.
         </p>
         <form className="tnew" onSubmit={create}>
           <label className="field">
@@ -166,8 +184,38 @@ export function ClassesView({
               autoFocus={classrooms.length === 0}
             />
           </label>
+
+          <label className="field">
+            Class code
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              maxLength={12}
+              placeholder="YEAR9"
+              className="join-code"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <span className="field-hint">
+              4&ndash;12 letters or numbers, and it has to be one nobody else is
+              using.
+            </span>
+          </label>
+          <button
+            type="button"
+            className="linkish"
+            onClick={() => void draw()}
+            disabled={drawing}
+          >
+            {drawing ? 'Drawing…' : 'Draw one for me'}
+          </button>
           {error && <p className="panel panel-error small">{error}</p>}
-          <button className="primary" disabled={busy || !name.trim()}>
+          {/* A code is required, not optional-with-a-fallback. Leaving it
+              blank used to mean the server quietly drew one, which is the
+              behaviour this replaced: the teacher either types the code they
+              already had in mind or presses the button to have one drawn, and
+              either way it was their decision. */}
+          <button className="primary" disabled={busy || !name.trim() || !code.trim()}>
             {busy ? 'Creating…' : 'Create class'}
           </button>
         </form>

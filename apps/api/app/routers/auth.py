@@ -130,20 +130,15 @@ def register_teacher(body: TeacherRegisterRequest, db: DbSession) -> TokenRespon
     db.add(user)
     db.commit()
 
-    # A class, and its code, exist from the first second.
+    # No class is made here, deliberately.
     #
-    # A teacher used to sign up and land on an empty dashboard whose only
-    # action was "make your first class" -- a form standing between them and
-    # the one thing they came for, which is a code to read out to a room. The
-    # code is generated rather than asked for, because a teacher has no
-    # opinion about it until they have one, and the name can be changed later.
-    try:
-        teaching.create_classroom(user, f"{user.display_name}'s class", db)
-    except teaching.TeachingError:
-        # A class they can make themselves is a far better outcome than a
-        # failed signup, so this never takes the registration down with it.
-        logger.exception("could not create a first class for a new teacher")
-
+    # Signing up briefly did create one, so a teacher arrived with a code
+    # already drawn. It saved a step and cost the thing that matters more:
+    # the code is what a teacher reads out to a room and writes on a board,
+    # and handing them one they did not choose, for a class named after them
+    # by a machine, makes it somebody else's. Making it is now a deliberate
+    # act -- one click to have a code drawn, or type the one they already
+    # have in mind. See routers/teacher.py.
     return TokenResponse(access_token=create_access_token(user))
 
 

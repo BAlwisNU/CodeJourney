@@ -279,19 +279,15 @@ def enrolled(client):
     return teacher, student
 
 
-def test_a_new_teachers_dashboard_has_a_class_and_no_students(client):
-    """This used to assert the opposite -- that a new teacher had no class and
-    was shown a setup form. That form was the only thing between them and the
-    code they signed up to get, so signup makes the class now. What is still
-    true, and still worth pinning, is that the roster is empty until somebody
-    joins.
-    """
+def test_signing_up_does_not_make_a_class(client):
+    """Signup briefly created one so a teacher arrived with a code already
+    drawn. It saved a step and cost the thing that matters more: a code is what
+    you read out and write on a board, and one you did not choose is somebody
+    else's. Making it is a deliberate act."""
     headers = teacher_headers(client)
     home = client.get("/teacher", headers=headers).json()
-    assert home["has_class"] is True
-    assert home["classrooms"][0]["join_code"]
-    assert home["students"] == []
-    assert home["total_students"] == 0
+    assert home["has_class"] is False
+    assert home["classrooms"] == []
 
 
 def test_solving_an_exercise_moves_the_dashboard(client):
@@ -471,24 +467,48 @@ def test_an_open_question_raises_the_student_up_the_dashboard(client):
 # ---------------------------------------------------------------------------
 
 
-def test_a_new_teacher_arrives_with_a_class_and_a_code(client):
-    """Signing up used to leave a teacher on an empty dashboard whose only
-    action was a form. The one thing they came for is a code to read out, so
-    it exists before they touch anything."""
+def test_a_teacher_can_have_a_free_code_drawn_for_them(client):
+    """The other half of choosing: somebody with no code in mind presses a
+    button rather than inventing one. Drawn on the server so the answer is
+    actually free -- a client-side guess would be rejected by the save."""
     headers = teacher_headers(client)
-    classes = client.get("/teacher/classes", headers=headers).json()
-    assert len(classes) == 1
-    assert classes[0]["name"] == "Ms Okafor's class"
-    assert len(classes[0]["join_code"]) == 6
-    # And the dashboard is past its setup state, not stuck on it.
-    assert client.get("/teacher", headers=headers).json()["has_class"] is True
+    drawn = client.get("/teacher/classes/suggest-code", headers=headers)
+    assert drawn.status_code == 200
+    code = drawn.json()["join_code"]
+    assert len(code) == 6
+    assert not set(code) & set("IO01S5")
+
+    # And it is genuinely free: creating with it succeeds.
+    made = client.post(
+        "/teacher/classes", headers=headers, json={"name": "Year 9", "join_code": code}
+    )
+    assert made.status_code == 201
+    assert made.json()["join_code"] == code
+
+
+def test_a_teacher_creates_a_class_with_the_code_they_chose(client):
+    headers = teacher_headers(client)
+    made = client.post(
+        "/teacher/classes",
+        headers=headers,
+        json={"name": "Year 9 Computing", "join_code": " year-9 "},
+    )
+    assert made.status_code == 201
+    assert made.json()["join_code"] == "YEAR9"
+
+
+def test_suggest_code_is_teachers_only(client):
+    student = make_student(client, "pupil@example.com")
+    assert client.get("/teacher/classes/suggest-code", headers=student).status_code == 403
 
 
 def test_a_teacher_can_use_a_code_of_their_own(client):
     """"Join YEAR10" is a sentence a room can act on; "join Q69NEK" gets
     misheard twice and typed wrong three times."""
     headers = teacher_headers(client)
-    classroom_id = client.get("/teacher/classes", headers=headers).json()[0]["id"]
+    classroom_id = client.post(
+        "/teacher/classes", headers=headers, json={"name": "Year 9"}
+    ).json()["id"]
     response = client.patch(
         f"/teacher/classes/{classroom_id}/code",
         headers=headers,
@@ -502,7 +522,9 @@ def test_a_chosen_code_is_forgiving_about_how_it_was_typed(client):
     """The same code gets written on a board, said aloud and pasted into a
     chat, and none of those agree on formatting."""
     teacher = teacher_headers(client)
-    classroom_id = client.get("/teacher/classes", headers=teacher).json()[0]["id"]
+    classroom_id = client.post(
+        "/teacher/classes", headers=teacher, json={"name": "Year 9"}
+    ).json()["id"]
     client.patch(
         f"/teacher/classes/{classroom_id}/code",
         headers=teacher,
@@ -515,7 +537,9 @@ def test_a_chosen_code_is_forgiving_about_how_it_was_typed(client):
 
 def test_a_code_that_cannot_be_typed_is_refused_with_a_reason(client):
     headers = teacher_headers(client)
-    classroom_id = client.get("/teacher/classes", headers=headers).json()[0]["id"]
+    classroom_id = client.post(
+        "/teacher/classes", headers=headers, json={"name": "Year 9"}
+    ).json()["id"]
 
     for code, expect in [
         ("abc", "too short"),
@@ -536,8 +560,8 @@ def test_two_classes_cannot_share_a_code(client):
     database happened to return first."""
     alice = teacher_headers(client, email="alice@example.com")
     bob = teacher_headers(client, email="bob@example.com")
-    a_id = client.get("/teacher/classes", headers=alice).json()[0]["id"]
-    b_id = client.get("/teacher/classes", headers=bob).json()[0]["id"]
+    a_id = client.post("/teacher/classes", headers=alice, json={"name": "A"}).json()["id"]
+    b_id = client.post("/teacher/classes", headers=bob, json={"name": "B"}).json()["id"]
 
     assert (
         client.patch(
@@ -554,7 +578,9 @@ def test_two_classes_cannot_share_a_code(client):
 
 def test_re_saving_your_own_code_is_not_a_clash_with_yourself(client):
     headers = teacher_headers(client)
-    classroom_id = client.get("/teacher/classes", headers=headers).json()[0]["id"]
+    classroom_id = client.post(
+        "/teacher/classes", headers=headers, json={"name": "Year 9"}
+    ).json()["id"]
     client.patch(
         f"/teacher/classes/{classroom_id}/code", headers=headers, json={"join_code": "YEAR10"}
     )
@@ -568,7 +594,9 @@ def test_changing_the_code_keeps_the_students_already_in(client):
     """Membership is a row, not a password -- which is what makes this the way
     to retire a code that escaped into the wrong group chat."""
     teacher = teacher_headers(client)
-    classroom = client.get("/teacher/classes", headers=teacher).json()[0]
+    classroom = client.post(
+        "/teacher/classes", headers=teacher, json={"name": "Year 9"}
+    ).json()
     student = make_student(client, "pupil@example.com", "Priya")
     client.post("/classes/join", headers=student, json={"code": classroom["join_code"]})
     assert client.get("/teacher", headers=teacher).json()["total_students"] == 1
@@ -592,7 +620,7 @@ def test_changing_the_code_keeps_the_students_already_in(client):
 def test_a_teacher_cannot_rename_another_teachers_code(client):
     alice = teacher_headers(client, email="alice@example.com")
     bob = teacher_headers(client, email="bob@example.com")
-    a_id = client.get("/teacher/classes", headers=alice).json()[0]["id"]
+    a_id = client.post("/teacher/classes", headers=alice, json={"name": "A"}).json()["id"]
     assert (
         client.patch(
             f"/teacher/classes/{a_id}/code", headers=bob, json={"join_code": "STOLEN"}

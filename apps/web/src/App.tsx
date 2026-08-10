@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { token } from './lib/api'
+import { useIsTeacher } from './lib/session'
 import { HomePage } from './pages/HomePage'
+import { TeacherPage } from './pages/TeacherPage'
 import { ExercisePage } from './pages/ExercisePage'
 import { LandingPage } from './pages/LandingPage'
 import { DemoBanner } from './components/DemoBanner'
@@ -29,6 +31,32 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
       {children}
     </>
   )
+}
+
+/**
+ * Send each account to the app it belongs in.
+ *
+ * A teacher opening /exercises gets the teaching dashboard, and a student
+ * opening /teach gets their own. Not a security control — the API refuses
+ * every teacher endpoint to a student regardless, and that is where the real
+ * check lives. This exists so nobody lands on a page built around a question
+ * they were not asking.
+ *
+ * Renders nothing while the answer is in flight. Showing the student app for a
+ * beat and swapping it is worse than a short wait.
+ */
+function ForRole({
+  teacher,
+  children,
+}: {
+  teacher: boolean
+  children: React.ReactNode
+}) {
+  const isTeacher = useIsTeacher()
+  if (isTeacher === null) return null
+  if (teacher && !isTeacher) return <Navigate to="/exercises" replace />
+  if (!teacher && isTeacher) return <Navigate to="/teach" replace />
+  return <>{children}</>
 }
 
 export function App() {
@@ -102,11 +130,27 @@ export function App() {
         }
       />
 
+      {/* The teaching app. A whole separate top-level page rather than a tab
+          inside the student dashboard — a teacher and a student are not doing
+          versions of the same thing. */}
+      <Route
+        path="/teach"
+        element={
+          <RequireAuth>
+            <ForRole teacher>
+              <TeacherPage />
+            </ForRole>
+          </RequireAuth>
+        }
+      />
+
       <Route
         path="/exercises"
         element={
           <RequireAuth>
-            <HomePage />
+            <ForRole teacher={false}>
+              <HomePage />
+            </ForRole>
           </RequireAuth>
         }
       />

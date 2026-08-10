@@ -48,6 +48,25 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-5"
 
+    # --- becoming a teacher --------------------------------------------------
+    #
+    # A teacher account can read its students' progress, their hint depth, and
+    # their private journals. That last one is why this cannot be a checkbox on
+    # the signup form: anyone who ticked it would be able to read strangers'
+    # writing about struggling, which is exactly what routers/reflections.py
+    # exists to protect.
+    #
+    # So signing up as a teacher requires a code the deployment holds. Unset =>
+    # the teacher option is not offered and /auth/register/teacher refuses, the
+    # same posture as the tutor and the OAuth providers: an unconfigured feature
+    # is absent, never half-open.
+    #
+    # This is a gate, not an identity check. It says "someone running this
+    # deployment gave you this code", which is the right claim for a class
+    # tool. An institution wanting real verification should put SSO in front of
+    # it -- see university_issuer below.
+    teacher_signup_code: str = ""
+
     # --- "Continue with Google" / "Continue with Microsoft" -----------------
     #
     # Both are off until a client id AND secret are set for them. An
@@ -113,6 +132,10 @@ class Settings(BaseSettings):
     @property
     def tutor_enabled(self) -> bool:
         return bool(self.anthropic_api_key.strip())
+
+    @property
+    def teacher_signup_enabled(self) -> bool:
+        return bool(self.teacher_signup_code.strip())
 
     def oauth_client(self, provider: str) -> tuple[str, str] | None:
         """The (client_id, secret) pair for a provider, or None if unconfigured.

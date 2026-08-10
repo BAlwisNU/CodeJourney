@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { JoinClass } from '../components/JoinClass'
 import { api, token } from '../lib/api'
 import type { Account, LearnerProfile, OnboardingPlan } from '../lib/types'
 
@@ -85,6 +86,8 @@ export function AccountPage() {
         <h2>Name</h2>
         <p className="muted">{account.display_name}</p>
       </section>
+
+      <JoinClass />
 
       <LearnerProfilePanel />
 

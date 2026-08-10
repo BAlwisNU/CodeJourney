@@ -1,7 +1,13 @@
 import type {
   Project,
   Account,
+  AskState,
   BranchLink,
+  Classroom,
+  HelpRequest,
+  MyClass,
+  TeacherHome,
+  TeacherStudentDetail,
   Dashboard,
   Draft,
   GeneratedLesson,
@@ -344,6 +350,88 @@ export const api = {
   portfolio: () => request<Portfolio>('/portfolio'),
 
   instructor: () => request<InstructorOverview>('/instructor'),
+
+  // --- teaching ------------------------------------------------------------
+  //
+  // Grouped rather than scattered, and named for what a teacher would call
+  // them. `teacherHome` is one request on purpose: five would mean five
+  // spinners resolving in an order nobody chose.
+
+  /** Whether this deployment offers teacher accounts. Says only yes or no —
+   *  a server with it switched off shouldn't advertise that it exists. */
+  teacherSignupAvailable: () =>
+    request<{ enabled: boolean }>('/auth/register/teacher/available'),
+
+  registerTeacher: (
+    email: string,
+    password: string,
+    display_name: string,
+    teacher_code: string
+  ) =>
+    request<{ access_token: string }>('/auth/register/teacher', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, display_name, teacher_code }),
+    }),
+
+  /** The whole dashboard. Pass a classroom id to narrow to one class. */
+  teacherHome: (classroomId?: string) =>
+    request<TeacherHome>(
+      classroomId ? `/teacher?classroom_id=${classroomId}` : '/teacher'
+    ),
+
+  teacherStudent: (userId: string) =>
+    request<TeacherStudentDetail>(`/teacher/students/${userId}`),
+
+  teacherStudentReflections: (userId: string) =>
+    request<Reflection[]>(`/teacher/students/${userId}/reflections`),
+
+  createClass: (name: string) =>
+    request<Classroom>('/teacher/classes', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  removeStudent: (classroomId: string, userId: string) =>
+    request<void>(`/teacher/classes/${classroomId}/students/${userId}`, {
+      method: 'DELETE',
+    }),
+
+  /** The teacher's queue, oldest first — newest-first buries whoever has been
+   *  waiting longest. */
+  helpInbox: (classroomId?: string) =>
+    request<HelpRequest[]>(
+      classroomId ? `/help/inbox?classroom_id=${classroomId}` : '/help/inbox'
+    ),
+
+  answerHelp: (id: string, answer: string) =>
+    request<HelpRequest>(`/help/${id}/answer`, {
+      method: 'POST',
+      body: JSON.stringify({ answer }),
+    }),
+
+  // --- the student's side of all this --------------------------------------
+
+  myClasses: () => request<MyClass[]>('/classes/mine'),
+
+  joinClass: (code: string) =>
+    request<MyClass>('/classes/join', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    }),
+
+  leaveClass: (id: string) =>
+    request<void>(`/classes/${id}`, { method: 'DELETE' }),
+
+  myQuestions: () => request<AskState>('/help/mine'),
+
+  askTeacher: (body: string, exercise_slug?: string) =>
+    request<HelpRequest>('/help', {
+      method: 'POST',
+      body: JSON.stringify({ body, exercise_slug: exercise_slug ?? null }),
+    }),
+
+  closeQuestion: (id: string) =>
+    request<HelpRequest>(`/help/${id}/close`, { method: 'POST' }),
 
   health: () =>
     request<{ python_version: string; pyodide_version: string }>('/health'),

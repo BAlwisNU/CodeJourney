@@ -446,6 +446,140 @@ STARTER_PROJECTS: list[dict] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Teaching: classes, membership, and questions students raise
+# ---------------------------------------------------------------------------
+#
+# Everything below is NEW TABLES, never new columns, and that is not a stylistic
+# preference. There is no migration tool: schema is created with
+# `create_all`, which builds missing tables but never missing columns. A new
+# column reaches a fresh checkout and never reaches the deployed instance, where
+# it fails at query time rather than at boot. Tables are safe; columns are not.
+# The same constraint shaped LearnerIntake, LearnerProject and SkippedExercise.
+
+
+#: Alphabet for class join codes. I, O, 0, 1, S and 5 are absent on purpose --
+#: a code gets read off a whiteboard and typed by a teenager, and every pair
+#: that looks alike is a support message the teacher has to answer.
+JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRTUVWXYZ2346789"
+JOIN_CODE_LENGTH = 6
+
+
+class Classroom(Base):
+    """A teacher's class, and the unit "my students" is scoped to.
+
+    Before this existed the instructor dashboard selected every student row in
+    the database. That is correct for exactly one teacher and wrong for two: the
+    second teacher to sign up would see the first teacher's students, their
+    progress, and -- because instructors may read journals -- their private
+    reflections. A class is the boundary that makes "my students" mean
+    something.
+
+    Joining is by code rather than by invitation email. A teacher reads six
+    characters out in a room; asking them to collect thirty email addresses
+    first is how a tool goes unused.
+    """
+
+    __tablename__ = "classrooms"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    teacher_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+
+    name: Mapped[str] = mapped_column(String(120))
+    #: Unique across the platform, so a student typing a code cannot land in
+    #: the wrong room. Uppercase, from JOIN_CODE_ALPHABET.
+    join_code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
+
+    #: Archived rather than deleted. A finished class still holds the term's
+    #: work, and deleting it would take a student's own history with it.
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ClassroomMember(Base):
+    """One student in one class.
+
+    Composite primary key, so joining twice is a no-op rather than a duplicate
+    row. A student may be in more than one class -- a course and a club -- and
+    each teacher sees only their own.
+    """
+
+    __tablename__ = "classroom_members"
+
+    classroom_id: Mapped[str] = mapped_column(
+        ForeignKey("classrooms.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class HelpStatus(str, enum.Enum):
+    OPEN = "open"
+    ANSWERED = "answered"
+    #: The student marked it resolved, or worked it out themselves.
+    CLOSED = "closed"
+
+
+class HelpRequest(Base):
+    """A question a student asked their teacher.
+
+    Distinct from every other channel in the platform, and the distinction is
+    the point:
+
+      * The **hint ladder** is automatic and escalates on failure counts.
+      * The **L5 instructor flag** is the platform noticing someone is stuck.
+      * The **AI tutor** is a machine, and some questions are not for a machine.
+      * **This** is a student deciding, in their own words, to ask a person.
+
+    That last one is the only channel where the student sets the agenda, which
+    is why it is stored rather than inferred, and why the teacher dashboard
+    opens on it.
+
+    NOT the private journal, and must never be confused with it. The journal is
+    written for the student and is never machine-read; this is addressed to a
+    teacher and is meant to be read. Keeping them in separate tables with
+    separate endpoints is what stops one becoming the other.
+    """
+
+    __tablename__ = "help_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    student_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    #: Which class this was asked in. Nullable: a student who has not joined one
+    #: can still ask, and the question waits until they do rather than being
+    #: refused at the moment they most need help.
+    classroom_id: Mapped[str | None] = mapped_column(
+        ForeignKey("classrooms.id"), nullable=True, index=True
+    )
+    #: The lesson they were on, when they asked from inside one. Nullable
+    #: because a general question is a legitimate question.
+    exercise_id: Mapped[str | None] = mapped_column(
+        ForeignKey("exercises.id"), nullable=True
+    )
+
+    body: Mapped[str] = mapped_column(Text)
+    status: Mapped[HelpStatus] = mapped_column(
+        Enum(HelpStatus), default=HelpStatus.OPEN, index=True
+    )
+
+    answer: Mapped[str] = mapped_column(Text, default="")
+    answered_by_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    answered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
 class OAuthAccount(Base):
     """A Google or Microsoft identity linked to a CodeJourney account.
 

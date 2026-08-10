@@ -326,3 +326,106 @@ export type Project = {
   /** The next lesson to open, or null when they are all cleared. */
   next_slug: string | null
 }
+
+// --- teaching --------------------------------------------------------------
+//
+// Mirrors routers/teacher.py, routers/classes.py and routers/help.py. The three
+// stay separate here for the same reason they are separate there: membership,
+// analytics and questions are different concerns that happen to share a page.
+
+/** A class, as its teacher sees it — with the code to read out. */
+export type Classroom = {
+  id: string
+  name: string
+  join_code: string
+  students: number
+  created_at: string
+}
+
+/** A class, as a student in it sees it. No join code: it isn't theirs to share. */
+export type MyClass = {
+  id: string
+  name: string
+  teacher_name: string
+}
+
+export type TeacherStudent = {
+  user_id: string
+  display_name: string
+  solved: number
+  total_exercises: number
+  attempts: number
+  max_hint_level: number
+  last_active_at: string | null
+  /** At the bottom of the hint ladder on something still unsolved. */
+  needs_help: boolean
+  /** What they're stuck on — the cell that turns a flag into an action. */
+  stuck_on: string | null
+  open_questions: number
+}
+
+/**
+ * One difficulty measurement, for an exercise or a whole concept.
+ * `struggled` counts students who never solved it or needed an L3+ hint.
+ */
+export type Difficulty = {
+  key: string
+  label: string
+  attempted: number
+  solved: number
+  struggled: number
+  struggle_rate: number
+  avg_attempts_to_solve: number | null
+  avg_hint_level: number
+  top_error?: string | null
+}
+
+export type TeacherHome = {
+  display_name: string
+  classrooms: Classroom[]
+  /** False for a brand-new teacher: the dashboard opens on setup, not on
+   *  empty tables, which read as broken rather than as new. */
+  has_class: boolean
+  students: TeacherStudent[]
+  total_students: number
+  needs_help: number
+  open_questions: number
+  concepts: Difficulty[]
+  hardest: Difficulty[]
+  common_errors: { error_type: string; count: number }[]
+}
+
+export type TeacherStudentDetail = {
+  user_id: string
+  display_name: string
+  solved: number
+  total_exercises: number
+  attempts: number
+  max_hint_level: number
+  last_active_at: string | null
+  stuck_on: string | null
+  hardest: Difficulty[]
+}
+
+/** A question a student asked a person, not the machine. */
+export type HelpRequest = {
+  id: string
+  body: string
+  status: 'open' | 'answered' | 'closed'
+  answer: string
+  created_at: string
+  answered_at: string | null
+  student_name?: string | null
+  student_id?: string | null
+  exercise_title?: string | null
+  exercise_slug?: string | null
+  classroom_name?: string | null
+  answered_by?: string | null
+}
+
+export type AskState = {
+  /** False until they've joined a class — there's nobody to send it to. */
+  can_ask: boolean
+  teachers: string[]
+  requests: HelpRequest[]
+}

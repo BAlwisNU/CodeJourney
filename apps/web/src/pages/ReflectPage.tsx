@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
+import { AskTeacher } from '../components/AskTeacher'
 import { FlowNav } from '../components/FlowNav'
 import { Journal } from '../components/Journal'
 import { Tutor } from '../components/Tutor'
@@ -98,6 +99,17 @@ export function ReflectPage() {
           <span className="reflect-who">Your coach can read this</span>
         </div>
         <Tutor exerciseId={exercise.id} solved onLessonCreated={handleLessonCreated} />
+      </section>
+
+      {/* Three readers, narrowing: a model, then a person, then nobody. The
+          order is the point -- it puts "ask an actual human" between the
+          machine that answers instantly and the page nothing reads at all. */}
+      <section className="reflect-part">
+        <div className="reflect-part-head">
+          <h2>Ask a person</h2>
+          <span className="reflect-who">Your teacher can read this</span>
+        </div>
+        <AskTeacher exerciseSlug={slug} />
       </section>
 
       <section className="reflect-part">

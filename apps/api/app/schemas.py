@@ -58,6 +58,17 @@ class RegisterRequest(BaseModel):
         return cleaned
 
 
+class TeacherRegisterRequest(RegisterRequest):
+    """Signing up as a teacher: the ordinary fields, plus the deployment's code.
+
+    Inherits rather than repeats, so the email normalisation and the bcrypt
+    length ceiling stay in one place. `consent_to_research` comes along for the
+    ride and is ignored by the endpoint -- a teacher is not a participant.
+    """
+
+    teacher_code: str = Field(min_length=1, max_length=200)
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str

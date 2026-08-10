@@ -10,8 +10,10 @@ from .models import Base
 from sqlalchemy.orm import Session
 from .routers import (
     auth,
+    classes,
     drafts,
     exercises,
+    help,
     instructor,
     learn,
     oauth,
@@ -21,6 +23,7 @@ from .routers import (
     projects,
     reflections,
     submissions,
+    teacher,
     tutor,
 )
 
@@ -65,6 +68,11 @@ app.include_router(reflections.router)
 app.include_router(learn.router)
 app.include_router(portfolio.router)
 app.include_router(instructor.router)
+# Teaching. `instructor` stays the programme-wide research view; these three are
+# the class-scoped teaching surface -- see routers/teacher.py for the split.
+app.include_router(teacher.router)
+app.include_router(classes.router)
+app.include_router(help.router)
 app.include_router(tutor.router)
 
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
-import { DEMO_KIND_KEY, api, token } from './api'
+import { DEMO_KIND_KEY, token } from './api'
+import { forgetAccount, loadAccount } from './session'
 
 /**
  * Whether the signed-in account is a demo, and which button minted it.
@@ -40,26 +41,16 @@ export const demoMarker = {
  */
 export function endDemo(): void {
   token.clear()
-  cache = null
+  forgetAccount()
 }
 
-let cache: { token: string; answer: Promise<DemoKind> } | null = null
-
 function load(): Promise<DemoKind> {
-  const key = token.get() ?? ''
-  // Nobody is signed in: no request to make, and /auth/me would 401.
-  if (!key) return Promise.resolve(null)
-  if (cache?.token === key) return cache.answer
-
-  const answer = api
-    .me()
-    .then((account) => (account.is_demo ? (account.demo_kind as DemoKind) : null))
-    // Silent: every page already handles its own auth failures, and this only
-    // decides whether to show a banner and hide one link.
-    .catch<DemoKind>(() => null)
-
-  cache = { token: key, answer }
-  return answer
+  // The account itself is cached in lib/session, keyed on the token and shared
+  // with the router's role check — so the banner and the layout decision cost
+  // one /auth/me between them rather than one each.
+  return loadAccount().then((account) =>
+    account?.is_demo ? (account.demo_kind as DemoKind) : null
+  )
 }
 
 export function useDemoKind(): DemoKind {

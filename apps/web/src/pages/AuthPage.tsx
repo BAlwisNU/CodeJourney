@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { ProviderMark } from '../components/ProviderMark'
 import { API_BASE, api, token } from '../lib/api'
+import { forgetAccount, loadAccount } from '../lib/session'
 
 /**
  * Sign up and sign in.
@@ -54,6 +55,29 @@ export function AuthPage({ mode }: { mode: Mode }) {
   const [displayName, setDisplayName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
+  // Which kind of account. Learners are the overwhelming majority, so that is
+  // the default and the teacher option is one click away rather than a decision
+  // everyone has to make before they can start typing.
+  const [asTeacher, setAsTeacher] = useState(false)
+  const [teacherCode, setTeacherCode] = useState('')
+
+  // Whether this deployment offers teacher accounts at all. Until the API says
+  // yes, the choice isn't drawn -- a server with it switched off shouldn't
+  // advertise a door that is locked.
+  const [teachersWelcome, setTeachersWelcome] = useState(false)
+  useEffect(() => {
+    let live = true
+    api
+      .teacherSignupAvailable()
+      .then((r) => live && setTeachersWelcome(r.enabled))
+      .catch(() => {
+        /* Not offered. The learner form below is unaffected. */
+      })
+    return () => {
+      live = false
+    }
+  }, [])
+
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
 
@@ -84,6 +108,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
     if (isSignup) {
       if (!displayName.trim()) found.displayName = 'What should we call you?'
       if (confirm !== password) found.confirm = "These two don't match."
+      if (asTeacher && !teacherCode.trim())
+        found.teacherCode = 'Teacher accounts need the code for your school.'
     }
 
     return found
@@ -100,15 +126,40 @@ export function AuthPage({ mode }: { mode: Mode }) {
       // No consent argument: new accounts start opted out, and consent is given
       // (or withdrawn) later on /account. The API still accepts the flag for the
       // mobile client and for tests.
-      const response = isSignup
-        ? await api.register(email.trim(), password, displayName.trim())
-        : await api.login(email.trim(), password)
+      let response
+      if (isSignup && asTeacher) {
+        response = await api.registerTeacher(
+          email.trim(),
+          password,
+          displayName.trim(),
+          teacherCode.trim()
+        )
+      } else if (isSignup) {
+        response = await api.register(email.trim(), password, displayName.trim())
+      } else {
+        response = await api.login(email.trim(), password)
+      }
       token.set(response.access_token)
-      // Signing up has a second step; logging in does not.
-      navigate(isSignup ? '/welcome' : '/exercises')
+      // The account is new, so nothing cached about the previous one applies.
+      forgetAccount()
+
+      if (isSignup && asTeacher) {
+        // Teachers skip /welcome entirely: it asks what you want to learn and
+        // what you'd like to build, which is not the question being put to
+        // someone who came here to run a class.
+        navigate('/teach')
+      } else if (isSignup) {
+        navigate('/welcome')
+      } else {
+        // Logging in: the API knows which app this person belongs in, and
+        // asking it beats guessing. A failed lookup falls through to the
+        // student app, which is where all but a handful of accounts live.
+        const account = await loadAccount()
+        navigate(account?.role === 'instructor' ? '/teach' : '/exercises')
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      // Map the two API errors people actually hit onto the field they need to
+      // Map the API errors people actually hit onto the field they need to
       // fix, rather than dropping a generic banner at the top of the form.
       if (message.includes('already registered')) {
         setErrors({
@@ -116,6 +167,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
         })
       } else if (message.includes('Invalid credentials')) {
         setErrors({ form: "That email and password don't match an account." })
+      } else if (message.includes('teacher code')) {
+        setErrors({ teacherCode: message })
       } else {
         setErrors({ form: message })
       }
@@ -133,9 +186,40 @@ export function AuthPage({ mode }: { mode: Mode }) {
       <h1>{isSignup ? 'Create your account' : 'Welcome back'}</h1>
       <p className="muted">
         {isSignup
-          ? 'You need an account so your work is saved as you go.'
+          ? asTeacher
+            ? 'A teacher account gives you a class code and a dashboard of how your students are getting on.'
+            : 'You need an account so your work is saved as you go.'
           : 'Log in to pick up where you left off.'}
       </p>
+
+      {/* Only on signup, and only where the deployment offers it. Logging in
+          needs no choice: the account already knows which it is. */}
+      {isSignup && teachersWelcome && (
+        <div className="role-pick" role="radiogroup" aria-label="What are you here for?">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!asTeacher}
+            className={asTeacher ? 'role-opt' : 'role-opt is-on'}
+            onClick={() => setAsTeacher(false)}
+          >
+            <span className="role-opt-title">I&rsquo;m learning</span>
+            <span className="role-opt-note">Lessons, projects, and a coach.</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={asTeacher}
+            className={asTeacher ? 'role-opt is-on' : 'role-opt'}
+            onClick={() => setAsTeacher(true)}
+          >
+            <span className="role-opt-title">I&rsquo;m teaching</span>
+            <span className="role-opt-note">
+              A class to run and students to keep an eye on.
+            </span>
+          </button>
+        </div>
+      )}
 
       {expired && (
         <p className="panel panel-hint small">
@@ -149,7 +233,19 @@ export function AuthPage({ mode }: { mode: Mode }) {
         <p className="panel panel-error small">{errors.form ?? oauthError}</p>
       )}
 
-      {providers.length > 0 && (
+      {/* Hidden for teacher signup, because those buttons do not do what they
+          appear to: /auth/oauth/…/start mints a STUDENT account, and there is no
+          way to carry the teacher code through the provider round trip. A
+          teacher pressing Google would end up with the wrong kind of account and
+          nothing on screen explaining why. */}
+      {isSignup && asTeacher && providers.length > 0 && (
+        <p className="oauth-setup-note small">
+          Teacher accounts are made with an email address and your school&rsquo;s
+          code. Google, Microsoft and the rest sign you up as a student.
+        </p>
+      )}
+
+      {providers.length > 0 && !(isSignup && asTeacher) && (
         <>
           {/* The verb lives here rather than on each tile. Six buttons reading
               "Sign in with X" is six repetitions of the same three words, and at
@@ -216,7 +312,11 @@ export function AuthPage({ mode }: { mode: Mode }) {
         <Field
           label="What should we call you?"
           error={errors.displayName}
-          hint="Shown to you and your instructor. A first name is fine."
+          hint={
+            asTeacher
+              ? 'What your students will see. “Ms Okafor” rather than a first name.'
+              : 'Shown to you and your teacher. A first name is fine.'
+          }
         >
           <input
             value={displayName}
@@ -270,6 +370,24 @@ export function AuthPage({ mode }: { mode: Mode }) {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             autoComplete="new-password"
+          />
+        </Field>
+      )}
+
+      {/* A teacher account can see its students' progress and read their
+          journals, so it cannot be a checkbox anyone can tick. The code comes
+          from whoever set CodeJourney up for the school. */}
+      {isSignup && asTeacher && (
+        <Field
+          label="Teacher code"
+          error={errors.teacherCode}
+          hint="From whoever set up CodeJourney for your school."
+        >
+          <input
+            value={teacherCode}
+            onChange={(e) => setTeacherCode(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
           />
         </Field>
       )}

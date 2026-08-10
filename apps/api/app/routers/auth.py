@@ -1,14 +1,17 @@
 import random
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, create_access_token, hash_password, verify_password
+from ..config import get_settings
 from ..db import get_db
-from ..models import LearnerIntake, LearnerProfile, User
+from ..models import LearnerIntake, LearnerProfile, Role, User
 from ..services import demo
 from ..schemas import (
     ConsentUpdate,
@@ -17,6 +20,7 @@ from ..schemas import (
     LearnerProfileOut,
     LoginRequest,
     RegisterRequest,
+    TeacherRegisterRequest,
     TokenResponse,
     UserOut,
 )
@@ -49,6 +53,76 @@ def register(body: RegisterRequest, db: DbSession) -> TokenResponse:
         # Stamped only on an explicit opt-in. Everyone gets the full platform
         # either way; consent governs analysis, not access.
         consented_at=_now() if body.consent_to_research else None,
+    )
+    db.add(user)
+    db.commit()
+    return TokenResponse(access_token=create_access_token(user))
+
+
+class TeacherSignupOpen(BaseModel):
+    """Whether this deployment offers teacher accounts at all."""
+
+    enabled: bool
+
+
+@router.get("/register/teacher/available", response_model=TeacherSignupOpen)
+def teacher_signup_available() -> TeacherSignupOpen:
+    """Read by the signup page to decide whether to draw the teacher option.
+
+    Deliberately says only yes or no. A deployment with teacher signup switched
+    off should not advertise that it exists and would let you in with the right
+    string.
+    """
+    return TeacherSignupOpen(enabled=get_settings().teacher_signup_enabled)
+
+
+@router.post("/register/teacher", response_model=TokenResponse, status_code=201)
+def register_teacher(body: TeacherRegisterRequest, db: DbSession) -> TokenResponse:
+    """Create a teacher account.
+
+    A separate endpoint rather than a `role` field on /register, on purpose. The
+    privilege being granted here -- reading other people's progress, hint depth
+    and private journals -- should not be reachable by adding one key to the
+    body of the ordinary signup call. A distinct route means the check cannot be
+    skipped by a client that forgets it, and it keeps the student path, which is
+    the one almost everybody takes, free of a field almost nobody fills in.
+
+    No counterbalance group and no research consent: a teacher is not a study
+    participant, and stamping them as one would put staff rows in the Week 8
+    analysis.
+    """
+    settings = get_settings()
+    if not settings.teacher_signup_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Teacher accounts aren't set up on this server. Whoever runs it "
+                "needs to set TEACHER_SIGNUP_CODE."
+            ),
+        )
+    # compare_digest so a wrong code cannot be narrowed down by timing it.
+    if not secrets.compare_digest(
+        body.teacher_code.strip(), settings.teacher_signup_code.strip()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "That teacher code isn't right. Ask whoever set up CodeJourney "
+                "for your school."
+            ),
+        )
+
+    existing = db.scalar(select(User).where(User.email == body.email))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
+        )
+
+    user = User(
+        email=body.email,
+        password_hash=hash_password(body.password),
+        display_name=body.display_name,
+        role=Role.INSTRUCTOR,
     )
     db.add(user)
     db.commit()

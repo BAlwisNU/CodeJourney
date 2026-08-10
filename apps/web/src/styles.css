@@ -1949,23 +1949,24 @@ a.seq-ep:hover {
    two together left nothing of the world visible behind the content -- which
    is the opposite of the point. Kept, at less than half strength, for the
    bright shard it was written for. */
+/* Lighter again now the surface is behind it. The radial vignette was tuned
+   for a black void, and over a lit horizon it read as a hole punched in the
+   sky -- .ws-veil does the legibility work now, once, for both layers. */
 .sw-veil {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(
-      100deg,
-      rgba(11, 13, 19, 0.32) 0%,
-      rgba(11, 13, 19, 0.18) 34%,
-      rgba(11, 13, 19, 0) 62%
-    ),
-    radial-gradient(
-      95% 75% at 50% 42%,
-      rgba(11, 13, 19, 0.2) 0%,
-      rgba(11, 13, 19, 0.6) 62%,
-      rgba(11, 13, 19, 0.88) 100%
-    );
+  background: linear-gradient(
+    100deg,
+    rgba(11, 13, 19, 0.2) 0%,
+    rgba(11, 13, 19, 0.1) 34%,
+    rgba(11, 13, 19, 0) 62%
+  );
 }
+
+/* The fly-through is the sky's weather now, not the whole world. At full
+   strength its dark globe and starfield painted straight over the horizon;
+   at this weight the drifting syntax reads as passing overhead. */
+.sw-canvas { opacity: 0.42; }
 
 /* Everything that isn't the world sits above it. */
 /* Every section rides above the world. Three children are exempt, and each
@@ -1977,7 +1978,12 @@ a.seq-ep:hover {
    chrome -- it needs position:sticky, which this rule was quietly turning
    back into position:relative, so the bar scrolled away however many times
    the sticky was declared. */
-.landing > *:not(.sw):not(.landing-glass):not(.landing-nav) {
+/* .ws-surface is the third backdrop layer, and belongs on the same exemption
+   list for the same reason: as a direct child of .landing this rule was
+   overriding its `position: fixed` with `position: relative`, which collapsed
+   it to 1032x0 and painted it at z-index 1. The picture was loading and being
+   laid out as a zero-height block in the content column. */
+.landing > *:not(.sw):not(.ws-surface):not(.landing-glass):not(.landing-nav) {
   position: relative;
   z-index: 1;
 }
@@ -5314,3 +5320,116 @@ a.seq-ep:hover {
   text-underline-offset: 3px;
 }
 .plan-foot-alt:hover { color: var(--text); }
+
+/* ===========================================================================
+   The world's surface
+   ===========================================================================
+
+   Behind everything on the landing page, below the fly-through canvas. The
+   page used to open on near-black deep space; it now opens on a lit horizon at
+   sunrise, which is the difference between "this looks difficult" and "come in".
+
+   Fixed, so scrolling walks the camera across the world rather than dragging
+   the picture off the top of the page. */
+
+.ws-surface {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  /* The plate's own deep indigo, so there is never a flash of page background
+     before it decodes, and never a hard edge above it on a tall window. */
+  background: #10162b;
+  contain: layout paint;
+}
+
+.ws-sky {
+  position: absolute;
+  inset: -6% 0 40%;
+  background: linear-gradient(180deg, #0d1226 0%, #1b2445 46%, #3a3a55 82%, #6b5a5a 100%);
+  will-change: transform;
+}
+
+/* The sun, breathing on its own clock. Independent of scroll on purpose: a
+   world that only moves when you move reads as a picture being dragged, and a
+   world with one thing alive in it reads as a place. */
+.ws-sun {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: min(72vw, 900px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 214, 150, 0.5) 0%,
+    rgba(255, 186, 120, 0.22) 34%,
+    rgba(255, 170, 110, 0) 68%
+  );
+  animation: ws-breathe 11s ease-in-out infinite;
+}
+@keyframes ws-breathe {
+  0%, 100% { opacity: 0.72; transform: translate(-50%, -50%) scale(0.97); }
+  50%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.04); }
+}
+
+.ws-ground {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center 62%;
+  background-size: cover;
+  transform: scale(1.08);
+  will-change: transform;
+}
+
+/* Fireflies drifting up off the near hills. */
+.ws-motes { position: absolute; inset: 58% 0 0; }
+.ws-motes span {
+  position: absolute;
+  bottom: -10px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 226, 170, 0.9);
+  box-shadow: 0 0 8px 2px rgba(255, 206, 140, 0.45);
+  animation-name: ws-rise;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes ws-rise {
+  0%   { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  14%  { opacity: 0.9; }
+  70%  { opacity: 0.7; }
+  100% { transform: translate(26px, -46vh) scale(1); opacity: 0; }
+}
+
+/* Keeps type readable over a lit picture. Darker down the left, where every
+   heading and paragraph sits, and heavier toward the bottom so the page's
+   later sections sit on something calm rather than on grass. */
+.ws-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(8, 10, 18, 0.72) 0%,
+      rgba(8, 10, 18, 0.46) 38%,
+      rgba(8, 10, 18, 0.16) 70%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(8, 10, 18, 0.5) 0%,
+      rgba(8, 10, 18, 0.2) 26%,
+      rgba(8, 10, 18, 0.62) 72%,
+      rgba(8, 10, 18, 0.88) 100%
+    );
+}
+
+.ws-surface.is-still .ws-sun,
+.ws-surface.is-still .ws-motes span { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ws-sun, .ws-motes span { animation: none !important; }
+}

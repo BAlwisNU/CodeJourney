@@ -276,7 +276,12 @@ function HomeView({
           land. The server picks these from what they asked for at signup, from
           what their projects need, and failing both from the start of the
           curriculum; each says which. */}
-      {data.recommended.length > 0 && (
+      {/* Defended against an API a version behind. During any deploy there is
+          a window where the browser has new code and the server has old, and
+          `recommended` simply is not in the old payload -- reading .length off
+          undefined white-screened the dashboard, which is the page everybody
+          lands on. */}
+      {(data.recommended ?? []).length > 0 && (
         <section className="strip">
           <div className="strip-head">
             <h2>Recommended for you</h2>
@@ -285,7 +290,7 @@ function HomeView({
             </button>
           </div>
           <div className="strip-grid">
-            {data.recommended.map((r) => (
+            {(data.recommended ?? []).map((r) => (
               <Link key={r.slug} to={`/exercise/${r.slug}/plan`} className="strip-card">
                 <span className="strip-title">{r.title}</span>
                 <span className="strip-meta muted small">{r.reason}</span>

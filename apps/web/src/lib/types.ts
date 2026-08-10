@@ -102,7 +102,8 @@ export type Dashboard = {
   continue_slug: string | null
   exercises: ExerciseProgress[]
   branches: DashboardBranch[]
-  recommended: Recommendation[]
+  /** Absent from an API older than this field. Read defensively. */
+  recommended?: Recommendation[]
 }
 
 /** One AI-built branch off an exercise, for links on the parent's own page. */
@@ -335,8 +336,8 @@ export type Project = {
   /** The next lesson to open, or null when they are all cleared. */
   next_slug: string | null
   /** True when these lessons were written for this project rather than taken
-   *  from the shared library. */
-  has_course: boolean
+   *  from the shared library. Absent on an older API. */
+  has_course?: boolean
 }
 
 // --- teaching --------------------------------------------------------------

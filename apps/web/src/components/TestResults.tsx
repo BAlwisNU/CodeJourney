@@ -16,10 +16,13 @@ export function TestResults({
   translatedError?: string | null
 }) {
   if (!result) {
+    // Says what will appear here, rather than repeating the Run/Submit
+    // explanation printed a few hundred pixels above. Two statements of the
+    // same reassurance made both of them skippable.
     return (
       <p className="muted">
-        Hit <strong>Run</strong> when you want to see what your code does. As many
-        times as you like — nothing here is graded.
+        Your results appear here — each check, whether it passed, and what your
+        code actually gave back.
       </p>
     )
   }

@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
 
 import { FlowNav } from '../components/FlowNav'
 import { Checkpoint } from '../components/lesson/Checkpoint'
 import { LessonBody } from '../components/lesson/LessonBody'
+import { ReadingProgress } from '../components/lesson/ReadingProgress'
 import { LessonVideo } from '../components/lesson/LessonVideo'
 import { ListLab } from '../components/lesson/ListLab'
 import { Parsons } from '../components/Parsons'
 import { api } from '../lib/api'
 import { splitQuestions } from '../lib/lessonQuiz'
 import {
+  calloutToneFor,
   firstListInLesson,
   parseBlocks,
   readingMinutes,
@@ -61,6 +63,8 @@ export function PlanPage() {
   // Which of the learner's projects need this lesson. Silence is a legitimate
   // answer -- they may have arrived here some other way.
   const [wantedBy, setWantedBy] = useState<Project[]>([])
+  //: The scrolling lesson panel, measured by ReadingProgress.
+  const readingRef = useRef<HTMLElement | null>(null)
 
   const current: View = view === 'watch' || view === 'interactive' ? view : 'read'
 
@@ -119,8 +123,15 @@ export function PlanPage() {
   // The lesson asks the first few as checkpoints; the quiz page shows the
   // rest. Both pages read the same function so a question cannot be asked
   // twice or dropped between them.
-  const sectionCount = toSections(blocks).filter((s) => s.heading).length
-  const { inline } = splitQuestions(lesson?.questions ?? [], sectionCount)
+  // Only the sections that render as a heading. A section whose title reads as
+  // an aside ("One thing to watch") is drawn as a callout with no <h3>, so
+  // counting it made the tally reach "3 of 4" at the bottom of the page and
+  // stop -- the reader is told there is a section left that they have in fact
+  // already passed.
+  const sectionNames = toSections(blocks)
+    .filter((s) => s.heading && !calloutToneFor(s.heading))
+    .map((s) => s.heading as string)
+  const { inline } = splitQuestions(lesson?.questions ?? [], sectionNames.length)
 
   const hasInteractive = Boolean(lab || parsons)
   const available = VIEWS.filter(
@@ -193,13 +204,16 @@ export function PlanPage() {
 
       {current === 'read' &&
         (lesson ? (
-          <section className="panel lesson">
+          <section className="panel lesson" ref={readingRef}>
             <div className="lesson-top">
               <h2>{lesson.title}</h2>
               <span className="lesson-time muted small">
                 {readingMinutes(blocks)} min read
               </span>
             </div>
+            {/* Position, not navigation. The reading is one scroll on purpose;
+                what it lacked was any sense of how much was left. */}
+            <ReadingProgress target={readingRef} sections={sectionNames} />
             {/* LessonBody strips the body's own leading heading itself -- it
                 would repeat the title beside it. */}
             <LessonBody
@@ -279,10 +293,20 @@ export function PlanPage() {
           </div>
         ))}
 
+      {/* The lesson ends at the editor, not at another set of questions.
+          Checkpoints have already been answered while reading, one per section,
+          at the moment each idea was fresh -- so the quiz is offered here as
+          the second option rather than standing between the reading and the
+          thing the reading was for. */}
       <div className="plan-foot">
-        <Link className="btn btn-primary btn-lg" to={`/exercise/${slug}/quiz`}>
-          I&rsquo;m ready — take the quiz →
+        <Link className="btn btn-primary btn-lg" to={`/exercise/${slug}`}>
+          I&rsquo;m ready — let me write it →
         </Link>
+        {(lesson?.questions.length ?? 0) > 0 && (
+          <Link className="plan-foot-alt" to={`/exercise/${slug}/quiz`}>
+            Or test yourself first
+          </Link>
+        )}
       </div>
     </div>
   )

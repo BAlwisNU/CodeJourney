@@ -128,11 +128,17 @@ export function LandingPage() {
       token.set(access_token)
       // After token.set, which clears any previous marker.
       demoMarker.set(kind)
-      // The lesson demo starts at Plan, which is step 1 of its flow -- the
-      // lesson, the quiz and the warm-up come before an empty editor. Dropping
-      // someone straight into the editor skips the part that explains what
-      // they are about to write.
-      navigate(kind === 'lesson' ? '/exercise/lists-make/plan' : '/exercises')
+      // The lesson demo opens at the editor, because that is what the button
+      // promised. It says "Write your first line of Python" and used to land on
+      // the reading -- measured, 4.7 screens of it before an editor appeared.
+      // For a visitor deciding whether this is worth an account, the moment
+      // that matters is "I wrote Python and it ran", and every screen in front
+      // of it is a chance to leave.
+      //
+      // The lesson is not skipped, only unstacked: the editor carries the brief
+      // beside it, and Read & Watch is step 1 in the nav at the top of the page,
+      // one click away for anyone who wants it first.
+      navigate(kind === 'lesson' ? '/exercise/lists-make' : '/exercises')
     } catch (err) {
       setDemoError(err instanceof Error ? err.message : String(err))
       setDemoBusy(null)

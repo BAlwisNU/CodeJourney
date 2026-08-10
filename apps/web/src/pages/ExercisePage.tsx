@@ -286,6 +286,13 @@ export function ExercisePage() {
             fontSize: 14,
             scrollBeyondLastLine: false,
             tabSize: 4,
+            // The starter code's docstring is the task, and it was running off
+            // the right edge with only a horizontal scrollbar to find it --
+            // """Return the names of quests that aren't done and are past thei|
+            // A beginner reading their own editor should not have to scroll
+            // sideways to discover what they were asked to do.
+            wordWrap: 'on',
+            padding: { top: 14, bottom: 14 },
           }}
         />
 
@@ -306,9 +313,14 @@ export function ExercisePage() {
           </button>
         </div>
 
+        {/* One explanation, not two. TestResults said the same thing again a
+            few hundred pixels below ("Hit Run when you want to see what your
+            code does... nothing here is graded"), so a student read the same
+            reassurance twice and neither one felt worth reading. */}
         <p className="muted small">
-          Run is instant and private. Submit is the one that counts — and you can
-          submit as many times as you want. Your code saves itself as you type.
+          <strong>Run</strong> is instant and private. <strong>Submit</strong> is
+          the one that counts, as many times as you like. Your code saves itself
+          as you type.
         </p>
 
         {error && <p className="panel panel-error">{error}</p>}

@@ -22,18 +22,31 @@ export type Stage = 'plan' | 'quiz' | 'create' | 'reflect'
 // do before a lesson rather than inside one -- by the time this nav is on
 // screen the project is already chosen, so the step was never the current one
 // on any page. Getting back to the list is what the exit at the end is for.
+// Three numbered stages, not four.
+//
+// The quiz used to be one of them, which meant a student was tested twice
+// before writing a single line: four checkpoint questions inline while reading,
+// then a whole numbered stage of more. The reading's checkpoints already do the
+// checking, at the moment each idea is fresh. The quiz page still exists and is
+// still reachable -- offered at the end of the reading and shown here when you
+// are on it -- it is just no longer a toll gate between the lesson and the
+// editor.
 const STAGES: { key: Stage; label: string; sub: string }[] = [
   // The stage key stays 'plan' -- it is the route (/exercise/:slug/plan) and
   // the value stored against every sitting. Only the label a learner reads
   // changed: "Read & Watch" says what you actually do here, where "Plan"
   // described the teaching model rather than the activity.
   { key: 'plan', label: 'Read & Watch', sub: 'Lesson and warm-up' },
-  { key: 'quiz', label: 'Quiz', sub: 'Check what stuck' },
   // The stage key stays 'create' -- it is the value stored against every
   // sitting, and the label is the only part a learner reads.
   { key: 'create', label: 'Code & test', sub: 'Write it, run it, fix it' },
   { key: 'reflect', label: 'Reflect', sub: 'What you learned' },
 ]
+
+//: Shown only while the learner is actually on it, so the quiz never advertises
+//: itself as a step they have to pass through, but someone who took it can
+//: still see where they are.
+const QUIZ_STAGE = { key: 'quiz' as Stage, label: 'Quiz', sub: 'Optional check' }
 
 export function FlowNav({
   current,
@@ -47,7 +60,11 @@ export function FlowNav({
   // via "Demo Lesson" is not signed in and has nothing to go back to.
   const navigate = useNavigate()
   const lessonDemo = useDemoKind() === 'lesson'
-  const stages = STAGES
+  // Slotted in after the reading only when that is where you are, so the nav
+  // still tells the truth about your position without making the quiz look
+  // compulsory to everyone who never opened it.
+  const stages =
+    current === 'quiz' ? [STAGES[0], QUIZ_STAGE, ...STAGES.slice(1)] : STAGES
 
   return (
     <nav className="flow" aria-label="Where you are">

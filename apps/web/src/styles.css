@@ -124,8 +124,25 @@ code, pre {
 }
 
 /* layout */
-.exercise { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 24px; }
+/* The brief gets the wider half, not the narrower one.
+   It was 1fr against the editor's 1.3fr -- 490px holding prose AND the sample
+   data, against 637px holding six lines of starter code and 420px of empty
+   space. Measured at 1440px the data overflowed its box by 48 and 119 pixels,
+   so the dictionary a student is asked to filter was cut off mid-value. The
+   column with the content that needs width now has it. */
+.exercise { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; }
 @media (max-width: 900px) { .exercise { grid-template-columns: 1fr; } }
+
+/* And the sample data wraps rather than scrolling off the edge.
+   These blocks are data to read, not code whose column alignment carries
+   meaning, and a beginner does not think to drag a code block sideways -- the
+   overflow was silent, with no scrollbar showing. Lesson code blocks keep
+   their horizontal scroll, where indentation is the point. */
+.prompt-body .md-code,
+.prompt-body pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 /* The prompt is prose with code in it, not code. It was set entirely in the
    mono face -- the same leftover the lesson body had, from when both were raw
@@ -5239,3 +5256,61 @@ a.seq-ep:hover {
 @media (prefers-reduced-motion: reduce) {
   .answer-working-bar > span { animation: none; width: 100%; opacity: 0.5; }
 }
+
+/* --- reading position ------------------------------------------------------
+   Sticky under the lesson's title so it is visible for the whole scroll. It
+   reports where you are and gives you nothing to click: the pagination that
+   used to live here was removed for adding a third layer of navigation, and
+   this must not quietly become that again. */
+
+.readbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 0 18px;
+  padding: 10px 0 12px;
+  background: linear-gradient(var(--surface) 72%, transparent);
+  display: grid;
+  gap: 8px;
+}
+.readbar-track {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.readbar-track > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 0.12s linear;
+}
+.readbar-where {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.readbar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.readbar-count { flex: none; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .readbar-track > span { transition: none; }
+}
+
+/* The quiz, offered rather than imposed. */
+.plan-foot-alt {
+  color: var(--muted);
+  font-size: 14px;
+  text-underline-offset: 3px;
+}
+.plan-foot-alt:hover { color: var(--text); }

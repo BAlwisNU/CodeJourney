@@ -15,17 +15,10 @@ export function TestResults({
   result: HarnessResult | null
   translatedError?: string | null
 }) {
-  if (!result) {
-    // Says what will appear here, rather than repeating the Run/Submit
-    // explanation printed a few hundred pixels above. Two statements of the
-    // same reassurance made both of them skippable.
-    return (
-      <p className="muted">
-        Your results appear here — each check, whether it passed, and what your
-        code actually gave back.
-      </p>
-    )
-  }
+  // Nothing at all before the first run. A line describing what will appear
+  // here is a line explaining an empty space, and the space explains itself
+  // the moment anybody presses Run.
+  if (!result) return null
 
   if (result.phase === 'syntax_error') {
     return (

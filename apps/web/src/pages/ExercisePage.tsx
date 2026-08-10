@@ -318,15 +318,10 @@ export function ExercisePage() {
           </button>
         </div>
 
-        {/* One explanation, not two. TestResults said the same thing again a
-            few hundred pixels below ("Hit Run when you want to see what your
-            code does... nothing here is graded"), so a student read the same
-            reassurance twice and neither one felt worth reading. */}
-        <p className="muted small">
-          <strong>Run</strong> is instant and private. <strong>Submit</strong> is
-          the one that counts, as many times as you like. Your code saves itself
-          as you type.
-        </p>
+        {/* No standing explanation of the two buttons. They are labelled Run
+            and Submit, the autosave says "saved" for itself, and a paragraph
+            that is on screen every second of every exercise stops being read
+            after the first one. */}
 
         {error && <p className="panel panel-error">{error}</p>}
 

@@ -838,10 +838,11 @@ button.link { background: none; border: none; color: var(--accent); padding: 0; 
 }
 .reflect-who.is-private { color: var(--pass); }
 
-/* Each panel's own header is redundant once the section above it is titled --
-   "Talk it through" then "Your tutor" is the same sentence twice. */
-.reflect-part .chat-head { display: none; }
-.reflect-part .chat-thread { border-top: none; }
+/* The conversation's own header used to be hidden here as redundant -- "Talk it
+   through" followed by "Your tutor" was the same sentence twice. It carries a
+   face and a name now, which is a different thing from a section label, so it
+   stays. The card just loses its outer border to the section that frames it. */
+.reflect-part .cv { border: none; background: none; }
 
 
 /* --- AI-built practice branches in the sequence ---------------------------- */
@@ -2527,9 +2528,12 @@ a.seq-ep:hover {
    ========================================================================== */
 
 .welcome-chat { max-width: 1000px; margin: 5vh auto 0; display: flex; flex-direction: column; gap: 20px; }
-.welcome-chat header { display: flex; flex-direction: column; gap: 8px; }
-.welcome-chat h1 { font-size: 1.7rem; margin: 0; }
-.welcome-chat header .muted { margin: 0; max-width: 62ch; }
+/* Direct child only. As a descendant selector this also matched the
+   conversation's own <header> nested inside, stacking the coach's face, name
+   and status into a centred column instead of a row. */
+.welcome-chat > header { display: flex; flex-direction: column; gap: 8px; }
+.welcome-chat > header h1 { font-size: 1.7rem; margin: 0; }
+.welcome-chat > header .muted { margin: 0; max-width: 62ch; }
 
 .welcome-chat-grid {
   display: grid;
@@ -2543,45 +2547,6 @@ a.seq-ep:hover {
   .welcome-chat-grid { grid-template-columns: 1fr; }
   .wc-plan { order: -1; }
 }
-
-.wc-thread {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 18px;
-  /* Tall enough to feel like a conversation, capped so the composer stays on
-     screen without scrolling the page. */
-  max-height: 62vh;
-  overflow-y: auto;
-}
-
-.wc-msg { border-radius: var(--radius); padding: 11px 14px; max-width: 90%; }
-.wc-msg p { margin: 0 0 8px; line-height: 1.6; }
-.wc-msg p:last-child { margin-bottom: 0; }
-.wc-assistant { background: var(--surface-2); border: 1px solid var(--border); align-self: flex-start; }
-.wc-user {
-  background: rgba(124, 156, 255, 0.14);
-  border: 1px solid rgba(124, 156, 255, 0.32);
-  align-self: flex-end;
-}
-.wc-thinking { align-self: flex-start; font-style: italic; }
-
-.wc-composer { display: flex; gap: 8px; position: sticky; bottom: 0; padding-top: 6px; background: var(--surface); }
-.wc-composer input {
-  flex: 1;
-  min-width: 0;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 11px 12px;
-  color: var(--text);
-  font-size: 0.95rem;
-  font-family: inherit;
-}
-.wc-composer input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .wc-plan {
   background: var(--surface);
@@ -2709,140 +2674,6 @@ a.seq-ep:hover {
    room, laid out like any chat: a scrolling thread with the composer beneath.
    ========================================================================== */
 
-.chat {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-2);
-}
-.chat-head > div { display: flex; flex-direction: column; line-height: 1.3; }
-.chat-avatar,
-.chat-who {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.chat-thread {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 22px 18px;
-  /* Grows with the conversation instead of reserving room for one. At 320 a
-     single opening line sat at the top of a third of a screen of nothing,
-     which reads as something failing to load. */
-  min-height: 150px;
-  max-height: 58vh;
-  overflow-y: auto;
-  scroll-behavior: smooth;
-}
-
-.chat-turn { display: flex; gap: 12px; align-items: flex-start; }
-/* The learner's turns sit right and tinted; the tutor's sit left and plain,
-   which is the arrangement every chat client has trained people to read. */
-.chat-turn.user { justify-content: flex-end; }
-.chat-turn.user .chat-bubble {
-  background: rgba(124, 156, 255, 0.14);
-  border: 1px solid rgba(124, 156, 255, 0.3);
-  max-width: 78%;
-}
-.chat-turn.assistant .chat-bubble {
-  background: transparent;
-  border: none;
-  padding-left: 0;
-  max-width: 100%;
-}
-.chat-bubble {
-  border-radius: var(--radius);
-  padding: 10px 14px;
-  line-height: 1.62;
-  min-width: 0;
-}
-.chat-bubble p { margin: 0; }
-.chat-bubble p + p { margin-top: 10px; }
-.chat-bubble pre {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
-  overflow-x: auto;
-}
-
-.chat-thinking { display: flex; gap: 5px; align-items: center; padding-top: 16px; }
-.chat-thinking .dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--muted);
-  animation: pulse 1.1s ease-in-out infinite;
-}
-.chat-thinking .dot:nth-child(2) { animation-delay: 0.15s; }
-.chat-thinking .dot:nth-child(3) { animation-delay: 0.3s; }
-@keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
-
-.chat-offer {
-  border: 1px solid var(--border-lit);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  padding: 14px 16px;
-}
-.chat-offer-title { margin: 0 0 4px; font-weight: 600; }
-
-/* The composer. Sticky to the bottom of the card so it stays put while the
-   thread scrolls behind it. */
-.chat-composer {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  padding: 12px 14px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-2);
-}
-.chat-composer textarea {
-  flex: 1;
-  min-width: 0;
-  resize: none;
-  max-height: 200px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 11px 13px;
-  color: var(--text);
-  font: inherit;
-  line-height: 1.5;
-}
-.chat-composer textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.chat-send {
-  flex: none;
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  border: none;
-  background: var(--accent);
-  color: #0b1020;
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.chat-send:disabled { opacity: 0.35; cursor: default; }
-.chat-off { padding: 14px 18px; border-top: 1px solid var(--border); margin: 0; }
 
 /* The line between the conversation and the journal.
    Deliberately short and centred rather than edge to edge: a full-width rule
@@ -2850,8 +2681,12 @@ a.seq-ep:hover {
    boundary between two things with different rules about who can see them. */
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-thread { scroll-behavior: auto; }
-  .chat-thinking .dot { animation: none; opacity: 0.6; }
+  .cv-thread { scroll-behavior: auto; }
+  .cv-dots i,
+  .cv-bubble.is-live .md > :last-child::after,
+  .cv-pulse,
+  .cv-building-bar > span { animation: none; }
+  .cv-dots i { opacity: 0.6; }
 }
 
 /* ==========================================================================
@@ -5053,4 +4888,354 @@ a.seq-ep:hover {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   max-width: 200px;
+}
+
+/* ===========================================================================
+   Conversations with a model
+   ===========================================================================
+
+   One set of styles for the reflect tutor and the signup chat, which were two
+   different qualities of the same thing. Three ideas hold it together:
+
+     a face      the platform has four illustrated coaches sitting unused in
+                 public/agents; a monogram was never going to feel like someone
+     one bubble  the waiting state and the streaming reply are the SAME element,
+                 so thinking becoming words is a change of content rather than
+                 one box being swapped for another mid-sentence
+     nothing     no gradients on bubbles, no shadows stacked on shadows. The
+     shouting    text is the content; the chrome should get out of its way */
+
+.cv {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* --- who you are talking to ---------------------------------------------- */
+
+.cv-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.cv-head > div { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+.cv-head strong { font-size: 14.5px; letter-spacing: var(--track-tight); }
+.cv-face {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  background: var(--surface-3);
+}
+
+/* Says which of the two waits you are in, because they feel different and
+   pretending otherwise is what made the old three dots uninformative. */
+.cv-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.cv-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: cv-breathe 1.4s ease-in-out infinite;
+}
+@keyframes cv-breathe {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+
+/* --- the thread ----------------------------------------------------------- */
+
+.cv-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 16px;
+  /* Tall enough to feel like a conversation, capped so the composer stays put
+     rather than marching down the page as the thread grows. */
+  max-height: 58vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+.cv-turn { display: flex; gap: 10px; align-items: flex-start; }
+.cv-turn.is-mine { justify-content: flex-end; }
+.cv-turn-face {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top center;
+  margin-top: 2px;
+  background: var(--surface-3);
+}
+
+.cv-bubble {
+  max-width: 78%;
+  padding: 11px 14px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  font-size: 15px;
+  line-height: 1.62;
+  /* Long tokens in code answers must not push the bubble past the thread. */
+  overflow-wrap: anywhere;
+}
+/* Tucked corner on the speaker's side — the one bit of bubble shaping worth
+   having, because it points at who is talking without a label. */
+.cv-turn:not(.is-mine) .cv-bubble { border-top-left-radius: 5px; }
+.cv-turn.is-mine .cv-bubble {
+  border-top-right-radius: 5px;
+  background: rgba(124, 156, 255, 0.13);
+  border-color: rgba(124, 156, 255, 0.24);
+}
+.cv-bubble p { margin: 0; }
+.cv-bubble p + p { margin-top: 10px; }
+.cv-bubble ul, .cv-bubble ol { margin: 8px 0; padding-left: 1.2em; }
+.cv-bubble pre {
+  margin: 10px 0 0;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-size: 12.5px;
+}
+.cv-bubble.is-live { min-height: 42px; }
+
+/* The cursor that says more is coming.
+   A pseudo-element on the last paragraph, not a sibling element: a span after a
+   block <p> would sit on its own line and read as a pressed enter key. */
+.cv-bubble.is-live .md > :last-child::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  vertical-align: -0.15em;
+  background: var(--accent);
+  animation: cv-blink 1s steps(2, start) infinite;
+}
+@keyframes cv-blink { 50% { opacity: 0; } }
+
+.cv-dots { display: inline-flex; gap: 5px; align-items: center; height: 20px; }
+.cv-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: cv-breathe 1.2s ease-in-out infinite;
+}
+.cv-dots i:nth-child(2) { animation-delay: 0.16s; }
+.cv-dots i:nth-child(3) { animation-delay: 0.32s; }
+
+.cv-error {
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(251, 113, 133, 0.1);
+  border: 1px solid rgba(251, 113, 133, 0.28);
+  color: var(--fail);
+  font-size: 14px;
+}
+
+/* --- the offer of practice ------------------------------------------------ */
+/* The one moment the coach proposes doing work on your behalf. It gets a card
+   rather than a line of muted text, because it is a decision worth making. */
+
+.cv-offer {
+  border: 1px solid rgba(124, 156, 255, 0.3);
+  background: linear-gradient(
+    180deg,
+    rgba(124, 156, 255, 0.09),
+    rgba(124, 156, 255, 0.03)
+  );
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: grid;
+  gap: 7px;
+  justify-items: start;
+}
+.cv-offer-eyebrow {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.cv-offer h4 { margin: 0; font-size: 1.05rem; letter-spacing: var(--track-tight); }
+.cv-offer-focus { margin: 0; font-size: 14px; line-height: 1.55; }
+.cv-offer p { margin: 0; }
+.cv-offer-actions { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+.cv-offer.is-built { border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.07); }
+.cv-offer.is-built .cv-offer-eyebrow { color: var(--pass); }
+
+/* Building takes ten to twenty seconds, because the server writes the exercise
+   and then proves it solvable through the real marker. An indeterminate bar
+   that keeps moving is honest here; a percentage would be invented. */
+.cv-building { display: grid; gap: 8px; width: 100%; margin-top: 4px; }
+.cv-building-bar {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.cv-building-bar > span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: cv-slide 1.5s ease-in-out infinite;
+}
+@keyframes cv-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(365%); }
+}
+
+/* --- the composer --------------------------------------------------------- */
+
+.cv-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--hairline);
+  background: var(--surface);
+}
+.cv-composer textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  max-height: 180px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 11px 15px;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.cv-composer textarea::placeholder { color: var(--faint); }
+.cv-composer textarea:focus {
+  outline: none;
+  border-color: rgba(124, 156, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(124, 156, 255, 0.12);
+}
+.cv-send {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #0b0e16;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.cv-send:hover:not(:disabled) { background: var(--accent); transform: translateY(-1px); }
+.cv-send:disabled { opacity: 0.28; cursor: default; }
+.cv-off { padding: 14px 16px; border-top: 1px solid var(--hairline); margin: 0; }
+
+/* --- the plan, on signup -------------------------------------------------- */
+
+.wc-plan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wc-plan-new {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--pass);
+  background: rgba(52, 211, 153, 0.12);
+  padding: 3px 7px;
+  border-radius: 999px;
+}
+.wc-plan.is-live { border-color: rgba(124, 156, 255, 0.22); }
+.wc-plan section { display: grid; gap: 8px; }
+.wc-plan-foot { margin-top: auto; padding-top: 6px; }
+.wc-plan-empty { display: grid; gap: 14px; }
+
+/* The shape of what is coming, so an empty panel reads as "not yet" rather
+   than as a box that failed to load. */
+.wc-ghost { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.wc-ghost li {
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    var(--surface-3) 50%,
+    var(--surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: cv-shimmer 2.4s ease-in-out infinite;
+}
+.wc-ghost li:nth-child(2) { width: 74%; animation-delay: 0.2s; }
+.wc-ghost li:nth-child(3) { width: 52%; animation-delay: 0.4s; }
+@keyframes cv-shimmer {
+  0%   { background-position: 150% 0; }
+  100% { background-position: -50% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wc-ghost li { animation: none; }
+}
+
+/* --- asking for, and waiting on, the worked answer ------------------------ */
+/* Replaces a window.confirm(). An OS dialog cannot speak in the product's
+   voice, and this is the one moment where what it says matters most. */
+
+.answer-ask {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 16px 18px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.06);
+  border-radius: var(--radius);
+}
+.answer-ask-title { margin: 0; font-weight: 650; }
+.answer-ask p { margin: 0; max-width: 56ch; }
+.answer-ask-actions { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+
+.answer-working { display: grid; gap: 9px; max-width: 46ch; }
+.answer-working p { margin: 0; }
+.answer-working-bar {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.answer-working-bar > span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--hint);
+  animation: cv-slide 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .answer-working-bar > span { animation: none; width: 100%; opacity: 0.5; }
 }

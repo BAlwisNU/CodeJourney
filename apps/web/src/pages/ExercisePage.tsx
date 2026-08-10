@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 
 import { FlowNav } from '../components/FlowNav'
 import { HintPanel } from '../components/HintPanel'
-import { Markdown } from '../components/Markdown'
+import { Markdown, highlightPython } from '../components/Markdown'
 import { TestResults } from '../components/TestResults'
 import { api } from '../lib/api'
 import { runInBrowser, warmUp } from '../lib/runner'
@@ -32,6 +32,11 @@ export function ExercisePage() {
   const [answer, setAnswer] = useState<string | null>(null)
   const [answerBusy, setAnswerBusy] = useState(false)
   const [answerError, setAnswerError] = useState<string | null>(null)
+  // The speed bump before the reveal. It used to be window.confirm(), which is
+  // an OS dialog dropped into the middle of the most considered moment in the
+  // product -- and one that cannot say, in the app's own voice, what is about to
+  // happen or why the hints are worth trying first.
+  const [askingForAnswer, setAskingForAnswer] = useState(false)
   const answerRef = useRef<HTMLElement | null>(null)
 
   // One hint display, fed by two sources: the ladder pushing one after a failed
@@ -134,14 +139,7 @@ export function ExercisePage() {
   }
 
   async function handleShowAnswer() {
-    // A gentle speed bump, not a wall. Seeing the answer is allowed; a moment's
-    // pause just nudges them to try the hints first, which is where the learning
-    // actually happens.
-    const ok = window.confirm(
-      "This shows the full worked answer. You'll get more out of the exercise " +
-        'if you try the hints first — reveal it anyway?'
-    )
-    if (!ok) return
+    setAskingForAnswer(false)
     setAnswerBusy(true)
     setAnswerError(null)
     try {
@@ -380,14 +378,50 @@ export function ExercisePage() {
             that exists to tell you no is worse than no control. */}
         {!submitState?.passed && (submitState?.attempt_number ?? 0) >= 6 && (
           <div className="answer-control">
-            <button
-              type="button"
-              className="link"
-              onClick={handleShowAnswer}
-              disabled={answerBusy}
-            >
-              {answerBusy ? 'Writing it out…' : 'Stuck? Show me the answer'}
-            </button>
+            {answerBusy ? (
+              // The wait is real work, not a spinner's worth of nothing: the
+              // server solves the exercise fresh and runs that answer through
+              // the marker -- hidden tests included -- before it is shown. Saying
+              // so turns a delay into the reason the answer can be trusted.
+              <div className="answer-working">
+                <span className="answer-working-bar" aria-hidden>
+                  <span />
+                </span>
+                <p className="muted small">
+                  Working it out, then running it through the marker so
+                  you&rsquo;re not handed a guess…
+                </p>
+              </div>
+            ) : askingForAnswer ? (
+              <div className="answer-ask">
+                <p className="answer-ask-title">Show the worked answer?</p>
+                <p className="muted small">
+                  It&rsquo;s yours to see — you&rsquo;ve earned it. Just know the
+                  hints get more specific each time you try, and that is the part
+                  that actually teaches you this one.
+                </p>
+                <div className="answer-ask-actions">
+                  <button type="button" className="btn" onClick={handleShowAnswer}>
+                    Show me anyway
+                  </button>
+                  <button
+                    type="button"
+                    className="linkish"
+                    onClick={() => setAskingForAnswer(false)}
+                  >
+                    I&rsquo;ll keep trying
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="link"
+                onClick={() => setAskingForAnswer(true)}
+              >
+                Stuck? Show me the answer
+              </button>
+            )}
             {answerError && <p className="panel panel-error small">{answerError}</p>}
           </div>
         )}
@@ -398,7 +432,12 @@ export function ExercisePage() {
               The worked answer
               <span className="badge badge-quiet">checked against the tests</span>
             </h3>
-            <pre className="answer-code">{answer}</pre>
+            {/* Highlighted with the same renderer the lessons use. A worked
+                answer shown as flat grey monospace is the one code block in the
+                product a student most needs to read line by line. */}
+            <pre className="answer-code md-code" data-lang="python">
+              <code>{highlightPython(answer)}</code>
+            </pre>
             <div className="actions">
               <button type="button" className="primary" onClick={loadAnswerIntoEditor}>
                 Put it in my editor

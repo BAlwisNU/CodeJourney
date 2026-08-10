@@ -314,6 +314,104 @@ def _learner_lines(learner: "LearnerBrief | None") -> list[str]:
     return ["", _LEARNER_GUIDANCE, "", *facts]
 
 
+def _pump(stream):
+    """Raw stream events, reduced to the two the interface cares about.
+
+    Yields ``("thinking", None)`` once, the first time a thinking block starts,
+    then ``("text", chunk)`` for each text delta.
+
+    Not `stream.text_stream`, which hides the thinking phase entirely. Measured
+    on a real turn: the model thinks for about a second and a half before it
+    says anything, and that pause is most of the wait. Reporting it lets the
+    interface say "thinking" and mean it, instead of showing three dots that
+    animate identically whether the model is reasoning or the network died.
+    """
+    thinking_announced = False
+    for event in stream:
+        if event.type != "content_block_delta":
+            continue
+        delta = event.delta
+        kind = getattr(delta, "type", "")
+        if kind == "thinking_delta" and not thinking_announced:
+            thinking_announced = True
+            yield ("thinking", None)
+        elif kind == "text_delta" and delta.text:
+            yield ("text", delta.text)
+
+
+def chat_stream(ctx: TutorContext, history: list[dict]):
+    """The same conversation as `chat`, yielded as it is written.
+
+    Measured, the blocking call takes four to six seconds. That is a long time
+    to watch three dots, and it is the single thing that made this feel like a
+    form submission rather than someone talking back. Streaming puts the first
+    words on screen in well under a second, which is most of the difference
+    between the two.
+
+    Yields ``("text", chunk)`` many times, then exactly one terminal event:
+
+        ("done", {"reply": str, "proposal": dict | None})
+        ("error", message)
+
+    The proposal can only arrive at the end, and that is a property of the API
+    rather than a shortcut: a tool call is assembled from deltas and is not a
+    decision until the message completes. The caller persists on `done`.
+
+    Failure degrades exactly as `chat` does -- a friendly line, never a 500.
+    The lesson page must not go down because the tutor is having a moment.
+    """
+    system = _SYSTEM + "\n\n" + _context_block(ctx)
+    try:
+        with _client().messages.stream(
+            model=settings.anthropic_model,
+            max_tokens=_CHAT_MAX_TOKENS,
+            system=system,
+            tools=[_PROPOSE_LESSON_TOOL],
+            messages=history,
+            output_config={"effort": "low"},
+        ) as stream:
+            yield from _pump(stream)
+            final = stream.get_final_message()
+    except Exception:  # noqa: BLE001 -- external dependency; never crash the page
+        logger.exception("tutor chat stream failed")
+        yield (
+            "error",
+            "I'm having trouble reaching my brain just now — give it a moment "
+            "and try again. Meanwhile, how did that exercise feel to you?",
+        )
+        return
+
+    reply, proposal = _read_reply(final)
+    yield ("done", {"reply": reply, "proposal": proposal})
+
+
+def _read_reply(response) -> tuple[str, dict | None]:
+    """Pull the spoken text and any offer out of a finished message.
+
+    Shared by the streaming and blocking paths so the two cannot disagree about
+    what the model said -- including the recovery below, which matters more than
+    it looks: a tool call with no text is an offer that arrives mute, and the
+    student sees a card appear with nobody having spoken.
+    """
+    parts: list[str] = []
+    proposal: dict | None = None
+    for block in response.content:
+        if block.type == "text":
+            parts.append(block.text)
+        elif block.type == "tool_use" and block.name == "propose_lesson":
+            proposal = dict(block.input)
+
+    reply = "\n\n".join(p.strip() for p in parts if p.strip()).strip()
+    if not reply and proposal:
+        reply = (
+            f"{proposal.get('rationale', '').strip()} "
+            "Want me to put together a bit of practice on that?"
+        ).strip()
+    if not reply:
+        reply = "Tell me a little about how that one went for you."
+    return reply, proposal
+
+
 def chat(ctx: TutorContext, history: list[dict]) -> tuple[str, dict | None]:
     """Return (reply_text, proposal | None).
 
@@ -339,25 +437,7 @@ def chat(ctx: TutorContext, history: list[dict]) -> tuple[str, dict | None]:
             None,
         )
 
-    reply_parts: list[str] = []
-    proposal: dict | None = None
-    for block in response.content:
-        if block.type == "text":
-            reply_parts.append(block.text)
-        elif block.type == "tool_use" and block.name == "propose_lesson":
-            proposal = dict(block.input)
-
-    reply = "\n\n".join(p.strip() for p in reply_parts if p.strip()).strip()
-    if not reply and proposal:
-        # The model offered a lesson but forgot to speak. Synthesise a friendly
-        # line from the rationale so the offer never arrives mute.
-        reply = (
-            f"{proposal.get('rationale', '').strip()} "
-            "Want me to put together a bit of practice on that?"
-        ).strip()
-    if not reply:
-        reply = "Tell me a little about how that one went for you."
-    return reply, proposal
+    return _read_reply(response)
 
 
 # ---------------------------------------------------------------------------
@@ -586,16 +666,7 @@ WELCOME_GREETING = (
 )
 
 
-def welcome_chat(
-    learner: "LearnerBrief | None", history: list[dict]
-) -> tuple[str, dict | None]:
-    """One turn of the signup conversation. Returns (reply, plan | None).
-
-    The plan comes back only on turns where the model chose to record one, and
-    the caller persists it. As with chat() above, any failure reaching the model
-    degrades to something friendly -- this sits in the middle of signing up, and
-    a 500 here loses the account, not just the message.
-    """
+def _welcome_system(learner: "LearnerBrief | None") -> str:
     system = _WELCOME_SYSTEM
     if learner is not None and not learner.is_empty():
         # What they typed on the form a moment ago. Without this the first
@@ -604,23 +675,10 @@ def welcome_chat(
         system += "\n\n" + "\n".join(
             ["They already told us this when they signed up:", *_learner_facts(learner)]
         )
+    return system
 
-    try:
-        response = _client().messages.create(
-            model=settings.anthropic_model,
-            max_tokens=_CHAT_MAX_TOKENS,
-            system=system,
-            tools=[_RECORD_PLAN_TOOL],
-            messages=history,
-            output_config={"effort": "low"},
-        )
-    except Exception:  # noqa: BLE001 -- external dependency; never crash signup
-        logger.exception("welcome chat call failed")
-        return (
-            "Sorry — I lost my train of thought there. Could you say that again?",
-            None,
-        )
 
+def _read_welcome(response) -> tuple[str, dict | None]:
     reply = "".join(block.text for block in response.content if block.type == "text")
     plan = next(
         (
@@ -638,6 +696,64 @@ def welcome_chat(
             "curious about?"
         )
     return reply, plan
+
+
+def welcome_chat_stream(learner: "LearnerBrief | None", history: list[dict]):
+    """The signup conversation, streamed. Same event shape as `chat_stream`.
+
+    Worth streaming even more than the tutor is: this sits in the middle of
+    signing up, where a multi-second pause with nothing moving is the moment
+    someone decides the thing is broken and closes the tab.
+
+    Terminal event is ``("done", {"reply": str, "plan": dict | None})``.
+    """
+    try:
+        with _client().messages.stream(
+            model=settings.anthropic_model,
+            max_tokens=_CHAT_MAX_TOKENS,
+            system=_welcome_system(learner),
+            tools=[_RECORD_PLAN_TOOL],
+            messages=history,
+            output_config={"effort": "low"},
+        ) as stream:
+            yield from _pump(stream)
+            final = stream.get_final_message()
+    except Exception:  # noqa: BLE001 -- external dependency; never crash signup
+        logger.exception("welcome chat stream failed")
+        yield ("error", "Sorry — I lost my train of thought there. Could you say that again?")
+        return
+
+    reply, plan = _read_welcome(final)
+    yield ("done", {"reply": reply, "plan": plan})
+
+
+def welcome_chat(
+    learner: "LearnerBrief | None", history: list[dict]
+) -> tuple[str, dict | None]:
+    """One turn of the signup conversation. Returns (reply, plan | None).
+
+    The plan comes back only on turns where the model chose to record one, and
+    the caller persists it. As with chat() above, any failure reaching the model
+    degrades to something friendly -- this sits in the middle of signing up, and
+    a 500 here loses the account, not just the message.
+    """
+    try:
+        response = _client().messages.create(
+            model=settings.anthropic_model,
+            max_tokens=_CHAT_MAX_TOKENS,
+            system=_welcome_system(learner),
+            tools=[_RECORD_PLAN_TOOL],
+            messages=history,
+            output_config={"effort": "low"},
+        )
+    except Exception:  # noqa: BLE001 -- external dependency; never crash signup
+        logger.exception("welcome chat call failed")
+        return (
+            "Sorry — I lost my train of thought there. Could you say that again?",
+            None,
+        )
+
+    return _read_welcome(response)
 
 
 def _ask_model(

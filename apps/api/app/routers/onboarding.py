@@ -10,9 +10,11 @@ ANTHROPIC_API_KEY is set it is skipped automatically, because a signup flow must
 not dead-end on a missing API key.
 """
 
+import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -164,35 +166,112 @@ def welcome_chat(body: ChatIn, user: CurrentUser, db: DbSession) -> ChatOut:
 
     db.add(OnboardingMessage(user_id=user.id, role="assistant", content=reply))
 
-    plan = db.get(OnboardingPlan, user.id)
-    if recorded is not None:
-        if plan is None:
-            plan = OnboardingPlan(user_id=user.id)
-            db.add(plan)
-        plan.interests = str(recorded.get("interests") or "").strip()
-        # The tool constrains these to the Concept enum, but a model can still
-        # return something outside it, and an unknown topic key would render as
-        # a dead link on the account page.
-        plan.topics = [
-            key for key in (recorded.get("topics") or []) if key in _CONCEPT_KEYS
-        ]
-        plan.projects = [
-            {
-                "title": str(item.get("title") or "").strip()[:120],
-                "blurb": str(item.get("blurb") or "").strip()[:400],
-                "topics": [
-                    key for key in (item.get("topics") or []) if key in _CONCEPT_KEYS
-                ],
-            }
-            for item in (recorded.get("projects") or [])
-            if item.get("title")
-        ][:4]
-
+    plan = _record(user.id, recorded, db)
     db.commit()
     return ChatOut(reply=reply, plan=_plan_out(plan))
 
 
 _CONCEPT_KEYS = {c.value for c in Concept}
+
+
+def _record(user_id: str, recorded: dict | None, db: Session) -> OnboardingPlan | None:
+    """Persist what the model concluded, filtered down to what is real.
+
+    The tool schema constrains topics to the Concept enum, but a model can still
+    return something outside it, and an unknown topic key renders as a dead link
+    on the account page. Shared by both the blocking and streaming turns so the
+    two cannot filter differently.
+    """
+    plan = db.get(OnboardingPlan, user_id)
+    if recorded is None:
+        return plan
+    if plan is None:
+        plan = OnboardingPlan(user_id=user_id)
+        db.add(plan)
+    plan.interests = str(recorded.get("interests") or "").strip()
+    plan.topics = [
+        key for key in (recorded.get("topics") or []) if key in _CONCEPT_KEYS
+    ]
+    plan.projects = [
+        {
+            "title": str(item.get("title") or "").strip()[:120],
+            "blurb": str(item.get("blurb") or "").strip()[:400],
+            "topics": [
+                key for key in (item.get("topics") or []) if key in _CONCEPT_KEYS
+            ],
+        }
+        for item in (recorded.get("projects") or [])
+        if item.get("title")
+    ][:4]
+    return plan
+
+
+@router.post("/welcome/chat/stream")
+def welcome_chat_stream(body: ChatIn, user: CurrentUser, db: DbSession):
+    """One turn of the signup conversation, streamed.
+
+    Newline-delimited JSON, matching /tutor/chat/stream -- see that endpoint for
+    why not Server-Sent Events. Line shapes:
+
+        {"type": "text", "value": "..."}
+        {"type": "done", "reply": "...", "plan": {...}}
+        {"type": "error", "message": "..."}
+
+    Streaming matters more here than anywhere else in the product. This sits in
+    the middle of signing up, and several seconds of nothing moving is the
+    moment a new person decides the thing is broken and closes the tab.
+    """
+    if not tutor.enabled():
+        raise HTTPException(
+            status_code=503, detail="The welcome chat isn't set up on this server."
+        )
+
+    history = _history(user.id, db)
+    if len(history) >= _MAX_TURNS:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "That's a good long chat — let's get you started. You can "
+                "always talk more with the tutor inside a lesson."
+            ),
+        )
+
+    said = body.message.strip()
+    turns = [{"role": m.role, "content": m.content} for m in history]
+    turns.append({"role": "user", "content": said})
+    brief = _brief(user.id, db)
+
+    def emit():
+        for kind, payload in tutor.welcome_chat_stream(brief, turns):
+            if kind == "thinking":
+                # A real signal, not a spinner: the model is reasoning before it
+                # speaks, and saying so beats dots that look identical whether
+                # it is thinking or the connection has died.
+                yield json.dumps({"type": "thinking"}) + "\n"
+            elif kind == "text":
+                yield json.dumps({"type": "text", "value": payload}) + "\n"
+            elif kind == "error":
+                # Nothing is written. Their turn is not saved either, so the
+                # retry is a clean retry rather than a duplicate.
+                yield json.dumps({"type": "error", "message": payload}) + "\n"
+            else:
+                db.add(OnboardingMessage(user_id=user.id, role="user", content=said))
+                db.add(
+                    OnboardingMessage(
+                        user_id=user.id, role="assistant", content=payload["reply"]
+                    )
+                )
+                plan = _record(user.id, payload["plan"], db)
+                db.commit()
+                yield json.dumps(
+                    {
+                        "type": "done",
+                        "reply": payload["reply"],
+                        "plan": _plan_out(plan).model_dump(),
+                    }
+                ) + "\n"
+
+    return StreamingResponse(emit(), media_type="application/x-ndjson")
 
 
 @router.get("/plan", response_model=PlanOut)

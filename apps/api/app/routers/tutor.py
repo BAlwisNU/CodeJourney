@@ -12,9 +12,11 @@ services/tutor.py for the boundary and routers/reflections.py for the rule it
 keeps intact.
 """
 
+import json
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -216,6 +218,89 @@ def chat(
 
     proposal = LessonProposal(**proposal_data) if proposal_data else None
     return TutorChatResponse(reply=reply, proposal=proposal, configured=True)
+
+
+@router.post("/chat/stream")
+def chat_stream(body: TutorChatRequest, user: CurrentUser, db: DbSession):
+    """The same turn as /tutor/chat, delivered as it is written.
+
+    Newline-delimited JSON rather than Server-Sent Events, for one concrete
+    reason: SSE in the browser means `EventSource`, which cannot set an
+    `Authorization` header, and this API is bearer-token only (see auth.py on
+    why there are no cookies). NDJSON over a plain POST works with `fetch`,
+    carries the header, and needs no framing beyond a line break.
+
+    Three line shapes, and every stream ends with exactly one of the last two:
+
+        {"type": "text",  "value": "..."}    a fragment of the reply
+        {"type": "done",  "reply": "...", "proposal": {...} | null}
+        {"type": "error", "message": "..."}
+
+    The turn is persisted here, on `done`, and not before -- the same rows the
+    blocking endpoint writes. A stream the student navigated away from mid-reply
+    therefore saves nothing, which is the right outcome: they never read it.
+    """
+    exercise = db.get(Exercise, body.exercise_id)
+    if exercise is None:
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    if not tutor.enabled():
+        def off():
+            yield json.dumps({"type": "text", "value": _OFF_MESSAGE}) + "\n"
+            yield json.dumps(
+                {"type": "done", "reply": _OFF_MESSAGE, "proposal": None,
+                 "configured": False}
+            ) + "\n"
+
+        return StreamingResponse(off(), media_type="application/x-ndjson")
+
+    saved = _saved_messages(user.id, exercise.id, db)
+    history = [{"role": m.role, "content": m.content} for m in saved[-_HISTORY_WINDOW:]]
+    history.append({"role": "user", "content": body.message})
+    context = _build_context(user.id, exercise, db)
+
+    def emit():
+        for kind, payload in tutor.chat_stream(context, history):
+            if kind == "thinking":
+                # A real signal, not a spinner: the model is reasoning before it
+                # speaks, and saying so beats dots that look identical whether
+                # it is thinking or the connection has died.
+                yield json.dumps({"type": "thinking"}) + "\n"
+            elif kind == "text":
+                yield json.dumps({"type": "text", "value": payload}) + "\n"
+            elif kind == "error":
+                # Persist nothing. The student saw a apology, not an answer, and
+                # replaying it as tutor speech on their next visit would be a
+                # lie about what was said.
+                yield json.dumps({"type": "error", "message": payload}) + "\n"
+            else:
+                db.add(
+                    TutorChatMessage(
+                        user_id=user.id,
+                        exercise_id=exercise.id,
+                        role="user",
+                        content=body.message,
+                    )
+                )
+                db.add(
+                    TutorChatMessage(
+                        user_id=user.id,
+                        exercise_id=exercise.id,
+                        role="assistant",
+                        content=payload["reply"],
+                    )
+                )
+                db.commit()
+                yield json.dumps(
+                    {
+                        "type": "done",
+                        "reply": payload["reply"],
+                        "proposal": payload["proposal"],
+                        "configured": True,
+                    }
+                ) + "\n"
+
+    return StreamingResponse(emit(), media_type="application/x-ndjson")
 
 
 @router.post("/lesson", response_model=GeneratedLessonResponse, status_code=201)

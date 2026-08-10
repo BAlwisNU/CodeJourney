@@ -1,30 +1,32 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { Conversation } from './Conversation'
 import { api } from '../lib/api'
+import { streamChat } from '../lib/stream'
 import type { GeneratedLesson, LessonProposal, TutorMessage } from '../lib/types'
-import { Markdown } from './Markdown'
 
 /**
  * The reflection tutor.
  *
- * A friendly-teacher chat at the Reflect stage. It talks with the student about
- * how the exercise went, reads how secure they feel, and can offer to build a
- * fresh practice exercise -- either more of the whole topic or a targeted drill
- * on something it noticed.
+ * A friendly-teacher chat at the Reflect stage. It talks about how the exercise
+ * went, reads how secure the student feels, and can offer to build fresh
+ * practice — either more of the whole topic or a targeted drill on something it
+ * noticed.
  *
- * This is a DIFFERENT thing from the journal below it. The tutor sees the lesson
- * and the code the student wrote; it never sees the private tried/stuck/fixed
- * journal. That boundary is enforced on the server (apps/api/app/services/tutor.py,
- * routers/reflections.py) -- this component simply never has the journal to send.
+ * A DIFFERENT thing from the journal below it. The tutor sees the lesson and the
+ * code they wrote; it never sees the private tried/stuck/fixed journal. That is
+ * enforced on the server (services/tutor.py, routers/reflections.py) — this
+ * component simply never has the journal to send.
  *
- * The greeting is shown locally and costs nothing; the model is only called when
- * the student actually says something.
+ * The chat itself is Conversation, shared with signup. What lives here is the
+ * one thing only this surface does: turning an offer of practice into a real
+ * exercise, verified before it is shown.
  */
 
 const GREETING =
-  "Nice work reaching the end of this one. Want to talk it through? " +
-  "Tell me how it felt — what clicked, and what made you stop and think."
+  'Nice work reaching the end of this one. Want to talk it through? ' +
+  'Tell me how it felt — what clicked, and what made you stop and think.'
 
 export function Tutor({
   exerciseId,
@@ -36,68 +38,86 @@ export function Tutor({
   /** Fired when a branch is built here, so the parent page can link to it. */
   onLessonCreated?: (lesson: GeneratedLesson) => void
 }) {
-  // Only the real exchange with the model. The greeting above is local and is
-  // never sent -- the model didn't say it, so it doesn't belong in the history.
-  const [messages, setMessages] = useState<TutorMessage[]>([])
+  const [turns, setTurns] = useState<TutorMessage[]>([])
   const [draft, setDraft] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [phase, setPhase] = useState<'idle' | 'thinking' | 'writing'>('idle')
+  const [streaming, setStreaming] = useState<string | null>(null)
   const [configured, setConfigured] = useState(true)
   const [proposal, setProposal] = useState<LessonProposal | null>(null)
   const [building, setBuilding] = useState(false)
   const [built, setBuilt] = useState<GeneratedLesson | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const scroller = useRef<HTMLDivElement | null>(null)
 
-  // Load the saved conversation so it comes back exactly as it was left. If
-  // there's history, open the panel on arrival rather than making them hunt for
-  // it -- same courtesy the journal extends to a started entry.
+  // Load the saved conversation so it comes back exactly as it was left.
   useEffect(() => {
     let cancelled = false
     api
       .tutorHistory(exerciseId)
       .then((saved) => {
-        if (cancelled || saved.length === 0) return
-        setMessages(saved)
+        if (!cancelled && saved.length) setTurns(saved)
       })
       .catch(() => {
-        /* a failed history load must never block the chat */
+        /* A failed history load must never block the chat. */
       })
     return () => {
       cancelled = true
     }
   }, [exerciseId])
 
-  function scrollToEnd() {
-    // After the DOM paints the new bubble, keep the latest turn in view.
-    requestAnimationFrame(() => {
-      const el = scroller.current
-      if (el) el.scrollTop = el.scrollHeight
-    })
-  }
-
   async function send() {
     const text = draft.trim()
-    if (!text || busy) return
+    if (!text || phase !== 'idle') return
+
     setError(null)
     setProposal(null)
-    const next = [...messages, { role: 'user' as const, content: text }]
-    setMessages(next)
     setDraft('')
-    setBusy(true)
-    scrollToEnd()
+    setTurns((prior) => [...prior, { role: 'user', content: text }])
+    setPhase('thinking')
+    setStreaming(null)
+
+    // Held rather than committed inside onDone. The terminal line is parsed the
+    // moment it arrives, which is *before* the smoothing buffer has finished
+    // revealing the text it belongs to -- committing there left the finished
+    // turn on screen while the streaming copy carried on drawing underneath it,
+    // and the reply appeared twice. streamChat resolves after the drain, so
+    // this is the first safe moment.
+    let finished: Record<string, unknown> | null = null
+
     try {
-      const res = await api.tutorChat(exerciseId, text)
-      setConfigured(res.configured)
-      setMessages([...next, { role: 'assistant', content: res.reply }])
-      setProposal(res.proposal)
-      scrollToEnd()
+      await streamChat(
+        '/tutor/chat/stream',
+        { exercise_id: exerciseId, message: text },
+        {
+          onThinking: () => setPhase('thinking'),
+          onText: (soFar) => {
+            setPhase('writing')
+            setStreaming(soFar)
+          },
+          onDone: (payload) => {
+            finished = payload
+          },
+          onError: (message) => setError(message),
+        }
+      )
+
+      if (finished) {
+        const payload = finished as Record<string, unknown>
+        setConfigured(payload.configured !== false)
+        setProposal((payload.proposal as LessonProposal | null) ?? null)
+        setTurns((prior) => [
+          ...prior,
+          { role: 'assistant', content: String(payload.reply ?? '') },
+        ])
+      }
+      setStreaming(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
-      // Roll the unsent turn back so they can retry without losing their words.
-      setMessages(messages)
+      // Give them their words back rather than making them retype.
+      setTurns((prior) => prior.slice(0, -1))
       setDraft(text)
+      setStreaming(null)
     } finally {
-      setBusy(false)
+      setPhase('idle')
     }
   }
 
@@ -118,147 +138,96 @@ export function Tutor({
   }
 
   return (
-    <section className="chat" aria-label="Tutor conversation">
-      <header className="chat-head">
-        <span className="chat-avatar" aria-hidden>
-          {'{ }'}
-        </span>
-        <div>
-          <strong>Your tutor</strong>
+    <Conversation
+      name="Your coach"
+      avatar="/agents/coach.webp"
+      caption={
+        solved ? 'Talk through how it went' : 'Stuck? Talk it over — no answers given away'
+      }
+      greeting={GREETING}
+      turns={turns}
+      streaming={streaming}
+      phase={phase}
+      draft={draft}
+      onDraft={setDraft}
+      onSend={() => void send()}
+      placeholder="Tell me how that one went…"
+      disabled={!configured}
+      error={error}
+    >
+      {proposal && !built && (
+        <OfferCard proposal={proposal} building={building} onBuild={build} onDismiss={() => setProposal(null)} />
+      )}
+      {built && (
+        <div className="cv-offer is-built">
+          <p className="cv-offer-eyebrow">Built and checked</p>
+          <h4>{built.title}</h4>
+          <p className="muted small">
+            I wrote it, then ran my own answer through the marker to be sure it
+            works. It&rsquo;s yours whenever you want it.
+          </p>
+          <Link className="btn btn-primary" to={`/exercise/${built.slug}`}>
+            Open it →
+          </Link>
+        </div>
+      )}
+    </Conversation>
+  )
+}
+
+/**
+ * The offer of practice.
+ *
+ * Presented as a thing with a name and a reason rather than a line of muted
+ * text with two buttons under it. It is the one moment in the conversation
+ * where the coach proposes doing work on the student's behalf, and it should
+ * look like a decision worth making.
+ *
+ * "Not now" is as easy to reach as accepting. The model was told the tool is an
+ * offer and never an action; the interface has to agree with that.
+ */
+function OfferCard({
+  proposal,
+  building,
+  onBuild,
+  onDismiss,
+}: {
+  proposal: LessonProposal
+  building: boolean
+  onBuild: () => void
+  onDismiss: () => void
+}) {
+  return (
+    <div className={building ? 'cv-offer is-building' : 'cv-offer'}>
+      <p className="cv-offer-eyebrow">
+        {proposal.scope === 'concept' ? 'A drill on one thing' : 'More of this topic'}
+      </p>
+      <h4>{proposal.title}</h4>
+      <p className="cv-offer-focus">{proposal.focus}</p>
+      {proposal.rationale && <p className="muted small">{proposal.rationale}</p>}
+
+      {building ? (
+        // The wait is 10-20 seconds, because the server writes the exercise and
+        // then proves it solvable through the real marker before handing it
+        // over. Saying so is better than a spinner: the delay is the feature.
+        <div className="cv-building">
+          <span className="cv-building-bar" aria-hidden>
+            <span />
+          </span>
           <span className="muted small">
-            {solved
-              ? 'Talk through how it went'
-              : 'Stuck? Talk it over — no answers given away'}
+            Writing it, then checking my own answer passes…
           </span>
         </div>
-      </header>
-
-      <div className="chat-thread" ref={scroller}>
-        <article className="chat-turn assistant">
-          <span className="chat-who" aria-hidden>
-            {'{ }'}
-          </span>
-          <div className="chat-bubble">
-            <Markdown source={GREETING} />
-          </div>
-        </article>
-
-        {messages.map((m, i) => (
-          <article key={i} className={`chat-turn ${m.role === 'user' ? 'user' : 'assistant'}`}>
-            {m.role === 'assistant' && (
-              <span className="chat-who" aria-hidden>
-                {'{ }'}
-              </span>
-            )}
-            <div className="chat-bubble">
-              {m.role === 'user' ? <p>{m.content}</p> : <Markdown source={m.content} />}
-            </div>
-          </article>
-        ))}
-
-        {busy && (
-          <article className="chat-turn assistant" aria-live="polite">
-            <span className="chat-who" aria-hidden>
-              {'{ }'}
-            </span>
-            <div className="chat-bubble chat-thinking">
-              <span className="dot" />
-              <span className="dot" />
-              <span className="dot" />
-            </div>
-          </article>
-        )}
-
-        {proposal && !built && (
-          <div className="chat-offer">
-            <p className="chat-offer-title">
-              {proposal.scope === 'concept'
-                ? 'Want a targeted practice exercise?'
-                : 'Want more practice on this topic?'}
-            </p>
-            <p className="muted small">
-              <strong>{proposal.title}</strong> — {proposal.focus}
-            </p>
-            <div className="actions">
-              <button type="button" className="primary" onClick={build} disabled={building}>
-                {building ? 'Building it…' : 'Build it for me'}
-              </button>
-              <button
-                type="button"
-                className="link"
-                onClick={() => setProposal(null)}
-                disabled={building}
-              >
-                Not now
-              </button>
-            </div>
-            {building && (
-              <p className="muted small">
-                Writing the exercise and checking it&rsquo;s solvable…
-              </p>
-            )}
-          </div>
-        )}
-
-        {built && (
-          <div className="chat-offer">
-            <p>
-              Done — I built <strong>{built.title}</strong> for you and checked it works.
-            </p>
-            <Link className="primary button-link" to={`/exercise/${built.slug}`}>
-              Open the practice exercise →
-            </Link>
-          </div>
-        )}
-
-        {error && <p className="panel panel-error small">{error}</p>}
-      </div>
-
-      {configured ? (
-        <form
-          className="chat-composer"
-          onSubmit={(e) => {
-            e.preventDefault()
-            send()
-          }}
-        >
-          <textarea
-            rows={1}
-            value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value)
-              // Grow with the text, up to the cap in the stylesheet. A fixed
-              // two-row box makes anything longer than a sentence feel like
-              // writing through a letterbox.
-              const el = e.currentTarget
-              el.style.height = 'auto'
-              el.style.height = `${Math.min(el.scrollHeight, 200)}px`
-            }}
-            onKeyDown={(e) => {
-              // Enter sends; Shift+Enter for a newline, like every chat.
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                send()
-              }
-            }}
-            placeholder="Type how it went…"
-            disabled={busy}
-          />
-          <button
-            type="submit"
-            className="chat-send"
-            disabled={busy || !draft.trim()}
-            aria-label="Send"
-          >
-            ↑
-          </button>
-        </form>
       ) : (
-        <p className="muted small chat-off">
-          The tutor isn&rsquo;t switched on yet, but your journal below is always
-          here.
-        </p>
+        <div className="cv-offer-actions">
+          <button type="button" className="btn btn-primary" onClick={onBuild}>
+            Build it for me
+          </button>
+          <button type="button" className="linkish" onClick={onDismiss}>
+            Not now
+          </button>
+        </div>
       )}
-    </section>
+    </div>
   )
 }

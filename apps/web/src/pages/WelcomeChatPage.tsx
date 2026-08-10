@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Markdown } from '../components/Markdown'
+import { Conversation } from '../components/Conversation'
 import { api } from '../lib/api'
+import { streamChat } from '../lib/stream'
 import type { OnboardingPlan, WelcomeState } from '../lib/types'
 
 /**
@@ -11,19 +12,18 @@ import type { OnboardingPlan, WelcomeState } from '../lib/types'
  * Not a quiz and not a lesson. The mentor asks what someone is into, talks
  * through things they could make that fit, takes any idea they already have
  * seriously, and suggests a couple they might not have considered. What it
- * concludes appears in the panel beside the conversation as it goes, so the
- * chat visibly produces something rather than disappearing into a database.
+ * concludes appears beside the conversation as it goes, so the chat visibly
+ * produces something rather than disappearing into a database.
  *
- * Three things this page has to get right, all of them about not trapping
- * anyone in a signup flow:
+ * Three things this page has to get right, all about not trapping anyone in a
+ * signup flow:
  *
- *  - "Start learning" is always available, from the first second. Nobody is
- *    held here until a model is satisfied.
- *  - If the server has no API key, there is no chat box at all -- just a note
- *    and the way onward. A signup that dead-ends on missing configuration is
- *    worse than no third step.
- *  - The conversation is saved server-side per turn, so closing the tab and
- *    coming back to /welcome/chat resumes it rather than starting over.
+ *  - "Start learning" is available from the first second. Nobody is held here
+ *    until a model is satisfied.
+ *  - No API key means no chat box at all — just a note and the way onward. A
+ *    signup that dead-ends on missing configuration is worse than no third step.
+ *  - The conversation is saved per turn, so closing the tab and coming back
+ *    resumes it rather than starting over.
  */
 
 const TOPIC_LABELS: Record<string, string> = {
@@ -39,48 +39,79 @@ export function WelcomeChatPage() {
   const navigate = useNavigate()
   const [state, setState] = useState<WelcomeState | null>(null)
   const [plan, setPlan] = useState<OnboardingPlan | null>(null)
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([])
+  const [turns, setTurns] = useState<{ role: string; content: string }[]>([])
   const [draft, setDraft] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [phase, setPhase] = useState<'idle' | 'thinking' | 'writing'>('idle')
+  const [streaming, setStreaming] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const endRef = useRef<HTMLDivElement>(null)
+  // Set the first time the plan gains something, so the panel can announce
+  // itself rather than silently filling in while you're reading the chat.
+  const [planFresh, setPlanFresh] = useState(false)
 
   useEffect(() => {
     api
       .welcomeState()
       .then((result) => {
         setState(result)
-        setMessages(result.messages)
+        setTurns(result.messages)
         setPlan(result.plan)
       })
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
 
-  // Keep the newest turn in view, but only once there is a conversation --
-  // scrolling on first paint would yank the page for no reason.
-  useEffect(() => {
-    if (messages.length) endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length, busy])
-
-  async function send(event: React.FormEvent) {
-    event.preventDefault()
+  async function send() {
     const said = draft.trim()
-    if (!said || busy) return
+    if (!said || phase !== 'idle') return
 
-    // Shown immediately. Waiting for the server to echo it back makes typing
-    // feel laggy in the one place we want the conversation to feel easy.
-    setMessages((prior) => [...prior, { role: 'user', content: said }])
-    setDraft('')
-    setBusy(true)
     setError(null)
+    setDraft('')
+    setTurns((prior) => [...prior, { role: 'user', content: said }])
+    setPhase('thinking')
+    setStreaming(null)
+
+    // Held rather than committed inside onDone -- see the note in Tutor.tsx.
+    // The terminal line arrives before the smoothing buffer has finished
+    // drawing the text it describes, so committing there renders the reply
+    // twice. streamChat resolves after the drain.
+    let finished: Record<string, unknown> | null = null
+
     try {
-      const result = await api.welcomeChat(said)
-      setMessages((prior) => [...prior, { role: 'assistant', content: result.reply }])
-      setPlan(result.plan)
+      await streamChat(
+        '/onboarding/welcome/chat/stream',
+        { message: said },
+        {
+          onThinking: () => setPhase('thinking'),
+          onText: (soFar) => {
+            setPhase('writing')
+            setStreaming(soFar)
+          },
+          onDone: (payload) => {
+            finished = payload
+          },
+          onError: (message) => setError(message),
+        }
+      )
+
+      if (finished) {
+        const payload = finished as Record<string, unknown>
+        setTurns((prior) => [
+          ...prior,
+          { role: 'assistant', content: String(payload.reply ?? '') },
+        ])
+        const next = payload.plan as OnboardingPlan | undefined
+        if (next) {
+          if (next.recorded && !plan?.recorded) setPlanFresh(true)
+          setPlan(next)
+        }
+      }
+      setStreaming(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      setTurns((prior) => prior.slice(0, -1))
+      setDraft(said)
+      setStreaming(null)
     } finally {
-      setBusy(false)
+      setPhase('idle')
     }
   }
 
@@ -114,106 +145,28 @@ export function WelcomeChatPage() {
         <p className="eyebrow">Step 3 of 3</p>
         <h1>What would you like to build?</h1>
         <p className="muted">
-          A quick chat, so the lessons and examples you get are about things you
-          actually care about. Say as much or as little as you like.
+          A few minutes with your coach, so the lessons you get are about things
+          you actually care about. Say as much or as little as you like.
         </p>
       </header>
 
       <div className="welcome-chat-grid">
-        <section className="wc-thread" aria-label="Conversation">
-          <article className="wc-msg wc-assistant">
-            <Markdown source={state.greeting} />
-          </article>
+        <Conversation
+          name="Your coach"
+          avatar="/agents/coach.webp"
+          caption="Getting to know you"
+          greeting={state.greeting}
+          turns={turns}
+          streaming={streaming}
+          phase={phase}
+          draft={draft}
+          onDraft={setDraft}
+          onSend={() => void send()}
+          placeholder="Tell me a bit about yourself…"
+          error={error}
+        />
 
-          {messages.map((message, index) => (
-            <article
-              key={index}
-              className={
-                message.role === 'user' ? 'wc-msg wc-user' : 'wc-msg wc-assistant'
-              }
-            >
-              {message.role === 'user' ? (
-                <p>{message.content}</p>
-              ) : (
-                <Markdown source={message.content} />
-              )}
-            </article>
-          ))}
-
-          {busy && (
-            <p className="wc-thinking muted small" role="status">
-              Thinking…
-            </p>
-          )}
-          {error && <p className="panel panel-error small">{error}</p>}
-          <div ref={endRef} />
-
-          <form className="wc-composer" onSubmit={send}>
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Tell them a bit about yourself…"
-              maxLength={4000}
-              disabled={busy}
-              aria-label="Your message"
-              autoFocus
-            />
-            <button className="primary" disabled={busy || !draft.trim()}>
-              Send
-            </button>
-          </form>
-        </section>
-
-        <aside className="wc-plan" aria-label="What we've worked out">
-          <h2>Your plan so far</h2>
-
-          {!plan?.recorded ? (
-            <p className="muted small">
-              As you chat, the ideas you settle on will appear here — topics
-              worth starting with, and projects that fit them.
-            </p>
-          ) : (
-            <>
-              {plan.interests && <p className="wc-interests">{plan.interests}</p>}
-
-              {plan.topics.length > 0 && (
-                <>
-                  <h3>Good places to start</h3>
-                  <ul className="wc-topics">
-                    {plan.topics.map((topic) => (
-                      <li key={topic}>{TOPIC_LABELS[topic] ?? topic}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-
-              {plan.projects.length > 0 && (
-                <>
-                  <h3>Things you could build</h3>
-                  <ul className="wc-projects">
-                    {plan.projects.map((project) => (
-                      <li key={project.title}>
-                        <strong>{project.title}</strong>
-                        <span>{project.blurb}</span>
-                        {project.topics.length > 0 && (
-                          <span className="wc-project-topics">
-                            {project.topics
-                              .map((t) => TOPIC_LABELS[t] ?? t)
-                              .join(' · ')}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </>
-          )}
-
-          <p className="muted small">
-            Saved to your account. You can see it any time on your account page.
-          </p>
-        </aside>
+        <PlanPanel plan={plan} fresh={planFresh} writing={phase !== 'idle'} />
       </div>
 
       {/* Always available, from the first second. Nobody is kept in a signup
@@ -223,9 +176,96 @@ export function WelcomeChatPage() {
           {plan?.recorded ? 'Start learning' : "I'm ready to start"}
         </button>
         <span className="muted small">
-          You can carry on this conversation with the tutor inside any lesson.
+          You can carry on this conversation with your coach inside any lesson.
         </span>
       </div>
     </div>
+  )
+}
+
+/**
+ * What the conversation has worked out so far.
+ *
+ * The reason the chat is worth having: it visibly produces something. Before,
+ * this was a tall box with a placeholder at the top and a footnote at the
+ * bottom and a great deal of nothing between them — which made the panel look
+ * broken until the model happened to call its tool.
+ *
+ * Now it shows the shape of what it will hold, so the empty state reads as
+ * "not yet" rather than "nothing here".
+ */
+function PlanPanel({
+  plan,
+  fresh,
+  writing,
+}: {
+  plan: OnboardingPlan | null
+  fresh: boolean
+  writing: boolean
+}) {
+  const recorded = Boolean(plan?.recorded)
+
+  return (
+    <aside className={recorded ? 'wc-plan is-live' : 'wc-plan'} aria-live="polite">
+      <div className="wc-plan-head">
+        <h2>Your plan</h2>
+        {recorded && fresh && <span className="wc-plan-new">Updated</span>}
+      </div>
+
+      {!recorded ? (
+        <div className="wc-plan-empty">
+          <p className="muted small">
+            {writing
+              ? 'Listening…'
+              : 'As you talk, this fills in — the topics worth starting with, and projects that fit what you are into.'}
+          </p>
+          {/* The shape of what is coming, so an empty panel reads as "not yet"
+              rather than as a box that failed to load. */}
+          <ul className="wc-ghost" aria-hidden>
+            <li />
+            <li />
+            <li />
+          </ul>
+        </div>
+      ) : (
+        <>
+          {plan?.interests && <p className="wc-interests">{plan.interests}</p>}
+
+          {plan!.topics.length > 0 && (
+            <section>
+              <h3>Start with</h3>
+              <ul className="wc-topics">
+                {plan!.topics.map((topic) => (
+                  <li key={topic}>{TOPIC_LABELS[topic] ?? topic}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {plan!.projects.length > 0 && (
+            <section>
+              <h3>Things you could build</h3>
+              <ul className="wc-projects">
+                {plan!.projects.map((project) => (
+                  <li key={project.title}>
+                    <strong>{project.title}</strong>
+                    <span>{project.blurb}</span>
+                    {project.topics.length > 0 && (
+                      <span className="wc-project-topics">
+                        {project.topics.map((t) => TOPIC_LABELS[t] ?? t).join(' · ')}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
+
+      <p className="wc-plan-foot muted small">
+        Saved to your account, and yours to change later.
+      </p>
+    </aside>
   )
 }

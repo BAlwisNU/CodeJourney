@@ -20,8 +20,34 @@ import type { BranchLink, Exercise, GeneratedLesson } from '../lib/types'
  * Practice the tutor builds here is a branch off THIS lesson, so its links show
  * on arrival and update the moment a new one is made.
  */
+/**
+ * The two writing surfaces, and who reads each.
+ *
+ * `private` is not decoration: the journal is the one thing in the platform no
+ * model ever sees, and the label saying so is the promise being kept in public.
+ */
+const REFLECT_TABS = [
+  {
+    key: 'teacher' as const,
+    label: 'Ask your teacher',
+    who: 'Your teacher can read this',
+    private: false,
+  },
+  {
+    key: 'journal' as const,
+    label: 'Your journal',
+    who: 'Nothing reads this but you',
+    private: true,
+  },
+]
+
+type Pane = (typeof REFLECT_TABS)[number]['key']
+
 export function ReflectPage() {
   const { slug = '' } = useParams()
+  // Opens on the journal: it is the step the lesson flow is actually asking
+  // for, and asking a teacher is the thing you go and do when you need it.
+  const [pane, setPane] = useState<Pane>('journal')
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [branches, setBranches] = useState<BranchLink[]>([])
@@ -101,23 +127,52 @@ export function ReflectPage() {
         <Tutor exerciseId={exercise.id} solved onLessonCreated={handleLessonCreated} />
       </section>
 
-      {/* Three readers, narrowing: a model, then a person, then nobody. The
-          order is the point -- it puts "ask an actual human" between the
-          machine that answers instantly and the page nothing reads at all. */}
-      <section className="reflect-part">
-        <div className="reflect-part-head">
-          <h2>Ask a person</h2>
-          <span className="reflect-who">Your teacher can read this</span>
-        </div>
-        <AskTeacher exerciseSlug={slug} />
-      </section>
+      {/* The two places you write for yourself, or for one person, sharing one
+          panel. Three stacked sections meant the journal sat below a screenful
+          of other things and was reached by whoever was already committed.
 
+          The reader label moves with the tab and is never dropped. It is the
+          most important thing on this page -- the whole promise is that the
+          journal is not machine-read (routers/reflections.py) -- so "who sees
+          this" has to be answerable before you type, not after you go looking
+          for it. */}
       <section className="reflect-part">
-        <div className="reflect-part-head">
-          <h2>Your journal</h2>
-          <span className="reflect-who is-private">Nothing reads this but you</span>
+        <nav className="rtabs" role="tablist" aria-label="Where to write">
+          {REFLECT_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              id={`rtab-${tab.key}`}
+              aria-selected={pane === tab.key}
+              aria-controls={`rpane-${tab.key}`}
+              className={pane === tab.key ? 'rtab is-on' : 'rtab'}
+              onClick={() => setPane(tab.key)}
+            >
+              <strong>{tab.label}</strong>
+              <span className={tab.private ? 'rtab-who is-private' : 'rtab-who'}>
+                {tab.who}
+              </span>
+            </button>
+          ))}
+        </nav>
+
+        <div
+          role="tabpanel"
+          id={`rpane-${pane}`}
+          aria-labelledby={`rtab-${pane}`}
+        >
+          {/* Both stay mounted. The journal autosaves a draft and the ask box
+              holds a half-typed question; unmounting on a tab change would
+              throw either away, which is the one thing a page about writing
+              things down must never do. */}
+          <div hidden={pane !== 'teacher'}>
+            <AskTeacher exerciseSlug={slug} showHeading={false} />
+          </div>
+          <div hidden={pane !== 'journal'}>
+            <Journal exerciseId={exercise.id} />
+          </div>
         </div>
-        <Journal exerciseId={exercise.id} />
       </section>
     </div>
   )

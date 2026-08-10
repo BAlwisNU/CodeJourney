@@ -19,7 +19,15 @@ import type { AskState } from '../lib/types'
  * this one says plainly that a human will read it and that it will not be
  * instant.
  */
-export function AskTeacher({ exerciseSlug }: { exerciseSlug?: string }) {
+export function AskTeacher({
+  exerciseSlug,
+  showHeading = true,
+}: {
+  exerciseSlug?: string
+  /** False where the surrounding tab is already labelled "Ask your teacher" --
+   *  the same words twice, a line apart, read as a mistake. */
+  showHeading?: boolean
+}) {
   const [state, setState] = useState<AskState | null>(null)
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
@@ -44,7 +52,7 @@ export function AskTeacher({ exerciseSlug }: { exerciseSlug?: string }) {
   if (!state.can_ask) {
     return (
       <section className="panel ask">
-        <h2>Ask your teacher</h2>
+        {showHeading && <h2>Ask your teacher</h2>}
         <p className="muted small">
           You&rsquo;re not in a class yet. If you have a class code, add it on
           your <Link to="/account">account page</Link> and you can ask your
@@ -88,7 +96,7 @@ export function AskTeacher({ exerciseSlug }: { exerciseSlug?: string }) {
 
   return (
     <section className="panel ask">
-      <h2>Ask your teacher</h2>
+      {showHeading && <h2>Ask your teacher</h2>}
       <p className="muted small">
         {state.teachers.length === 1
           ? `${state.teachers[0]} will see this.`

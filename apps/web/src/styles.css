@@ -5314,3 +5314,43 @@ a.seq-ep:hover {
   text-underline-offset: 3px;
 }
 .plan-foot-alt:hover { color: var(--text); }
+
+/* --- Reflect: where to write ------------------------------------------------
+   Two tabs sharing one panel, replacing two stacked sections. Each carries its
+   own reader label rather than relying on a heading above it: on this page
+   "who sees this" is the promise being kept, and it has to be answerable
+   before you type. */
+
+.rtabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+@media (max-width: 560px) { .rtabs { grid-template-columns: 1fr; } }
+
+.rtab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  text-align: left;
+}
+.rtab strong { color: var(--text); font-size: 15px; letter-spacing: var(--track-tight); }
+.rtab:hover:not(:disabled) { border-color: var(--border-lit); background: var(--surface-2); }
+.rtab.is-on {
+  border-color: rgba(124, 156, 255, 0.45);
+  background: var(--surface-2);
+  box-shadow: var(--glow);
+}
+
+/* The reader label. Green for the private one, matching the wording it
+   replaced on the old section headers -- students learned that colour there
+   and it should keep meaning the same thing. */
+.rtab-who { font-size: 12px; color: var(--muted); }
+.rtab-who.is-private { color: var(--pass); }

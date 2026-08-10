@@ -392,13 +392,24 @@ def delete_course(project_id: str, user: CurrentUser, db: DbSession) -> None:
             )
         )
     )
+    doomed = []
     for row in rows:
         exercise = db.get(Exercise, row.exercise_id)
         db.delete(row)
         # Only ever this learner's own generated lesson -- never the taught
         # curriculum, which has no author.
         if exercise is not None and exercise.created_by_user_id == user.id:
-            db.delete(exercise)
+            doomed.append(exercise)
+
+    # Send the row deletes before the exercises go, rather than letting one
+    # flush order both. project_course_lessons cascades from exercise_id, so an
+    # exercise deleted first takes its row with it in the database, and the
+    # ORM's own DELETE for that row then matches nothing. The end state is the
+    # same either way; this just stops the two layers racing to remove the same
+    # row, which SQLAlchemy warns about and which reads like a bug in a log.
+    db.flush()
+    for exercise in doomed:
+        db.delete(exercise)
     db.commit()
 
 

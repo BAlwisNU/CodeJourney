@@ -29,17 +29,26 @@ import random
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from ..auth import UNUSABLE_PASSWORD
 from ..models import (
+    Classroom,
+    Draft,
     Exercise,
     ExerciseSession,
+    HelpRequest,
+    HintEvent,
+    LessonProgress,
+    Mastery,
+    ParsonsAttempt,
+    Reflection,
     Role,
     RunMode,
     Submission,
     ThemeVariant,
+    TutorChatMessage,
     User,
 )
 
@@ -215,15 +224,59 @@ def purge_expired(db: Session, *, older_than_days: int = 7) -> int:
             )
         )
     )
-    for user in stale:
-        # Submissions and sessions have plain foreign keys rather than cascades,
-        # so they are removed explicitly; SQLite would not enforce it anyway.
-        for model in (Submission, ExerciseSession):
-            for row in db.scalars(select(model).where(model.user_id == user.id)):
-                db.delete(row)
-        db.delete(user)
-    if stale:
-        db.commit()
+    if not stale:
+        return 0
+
+    ids = [user.id for user in stale]
+
+    # Two columns are kept rather than followed, because deleting through them
+    # would take somebody else's work with them.
+    #
+    # A demo teacher can answer a real student's question, and that request is
+    # the student's row, not the teacher's -- so the answer loses its author and
+    # stays. An exercise the demo user had the tutor generate may already be
+    # referenced by whoever it was shared with, so it loses its author too. Both
+    # columns are nullable precisely because authorship is optional here.
+    db.execute(
+        update(HelpRequest)
+        .where(HelpRequest.answered_by_id.in_(ids))
+        .values(answered_by_id=None)
+    )
+    db.execute(
+        update(Exercise)
+        .where(Exercise.created_by_user_id.in_(ids))
+        .values(created_by_user_id=None)
+    )
+
+    # Everything else the user owns, children before parents.
+    #
+    # Order is the whole point: hint_events and submissions both point at
+    # exercise_sessions, so the sessions cannot go until they have. Postgres
+    # enforces this and always has. SQLite now does too (see db.py), which is
+    # how this was found -- the old version deleted submissions and sessions and
+    # left eleven other tables pointing at a user that was about to vanish, so
+    # on Postgres the purge raised IntegrityError, rolled back, and startup
+    # logged it and carried on. Demo accounts accumulated silently.
+    for model, column in (
+        (HintEvent, HintEvent.user_id),
+        (Submission, Submission.user_id),
+        (ParsonsAttempt, ParsonsAttempt.user_id),
+        (ExerciseSession, ExerciseSession.user_id),
+        (Reflection, Reflection.user_id),
+        (TutorChatMessage, TutorChatMessage.user_id),
+        (Draft, Draft.user_id),
+        (Mastery, Mastery.user_id),
+        (LessonProgress, LessonProgress.user_id),
+        (HelpRequest, HelpRequest.student_id),
+        (Classroom, Classroom.teacher_id),
+    ):
+        db.execute(delete(model).where(column.in_(ids)))
+
+    # The remaining references are ON DELETE CASCADE (intake, profiles,
+    # projects, oauth accounts, onboarding, roster rows, skips) and go with the
+    # user on their own.
+    db.execute(delete(User).where(User.id.in_(ids)))
+    db.commit()
     return len(stale)
 
 

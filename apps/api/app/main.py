@@ -30,8 +30,39 @@ from .routers import (
 logging.basicConfig(level=logging.INFO)
 settings = get_settings()
 
-if settings.environment != "development" and settings.secret_key.startswith("dev-only"):
-    raise RuntimeError("SECRET_KEY must be set outside development")
+def check_production_settings(settings) -> None:
+    """Refuse to boot on a configuration that would lose data or leak secrets.
+
+    Both checks are about failures that are silent at the time and expensive
+    later, which is why they stop the process rather than log a warning. A
+    warning in a deploy log is a warning nobody reads.
+
+    Called at import below, and directly by the tests -- module-level `raise`
+    can only be tested by reloading the module, and reloading this one rebuilds
+    the FastAPI app underneath every other test in the suite.
+    """
+    if settings.environment == "development":
+        return
+
+    if settings.secret_key.startswith("dev-only"):
+        raise RuntimeError("SECRET_KEY must be set outside development")
+
+    # Postgres in production, and nothing else. The tests and local development
+    # run SQLite deliberately -- no database to install, nothing to clean up --
+    # but a production deployment that reaches here on SQLite has its database
+    # living as a file inside the container, so every redeploy silently discards
+    # every account, submission and journal entry on the host. Nobody finds out
+    # until a student asks where their work went.
+    if not settings.database_url.startswith("postgresql"):
+        scheme = settings.database_url.split(":", 1)[0]
+        raise RuntimeError(
+            f"DATABASE_URL must be a postgresql:// URL outside development (got "
+            f"{scheme}://). SQLite in production keeps the database in the "
+            "container filesystem and loses it on the next redeploy."
+        )
+
+
+check_production_settings(settings)
 
 app = FastAPI(
     title="CodeJourney API",

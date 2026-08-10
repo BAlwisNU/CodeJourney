@@ -180,10 +180,151 @@ def test_stale_demo_accounts_are_purged_with_their_work(client):
 
         assert purge_expired(db, older_than_days=7) == 1
         assert db.get(User, user_id) is None
-        # And nothing of theirs is left orphaned behind them.
-        assert (
-            db.query(Submission).filter(Submission.user_id == user_id).count() == 0
+        assert _rows_still_pointing_at(db, user_id) == []
+
+
+def _rows_still_pointing_at(db, user_id: str) -> list[str]:
+    """Every table still holding this user's id, found from the schema itself.
+
+    Asked of the metadata rather than a hand-written list of tables, because a
+    hand-written list is exactly what went stale last time: the purge deleted
+    submissions and sessions and knew nothing of the eleven other tables that
+    had grown a user_id since it was written. A table added next term is covered
+    by this the day it is added, without anyone remembering to come back here.
+    """
+    from sqlalchemy import func, select
+
+    from app.models import Base
+
+    left = []
+    for table in Base.metadata.sorted_tables:
+        for fk in table.foreign_keys:
+            if fk.column.table.name != "users":
+                continue
+            column = fk.parent
+            count = db.scalar(
+                select(func.count()).select_from(table).where(column == user_id)
+            )
+            if count:
+                left.append(f"{table.name}.{column.name} ({count})")
+    return left
+
+
+def test_purging_removes_a_row_from_every_table_that_can_hold_one(client):
+    """The purge is exercised against a user who owns something everywhere.
+
+    The other purge test uses a demo account with the fixture's own activity in
+    it, which reaches two tables. That is not enough to prove a purge that has
+    to clear thirteen: the bug this guards against was a delete list written
+    when there were two such tables and never revisited as eleven more arrived.
+    So this one puts a row in each of them by hand first.
+
+    _rows_still_pointing_at then reads the schema rather than a list, and the
+    assertion below checks that this test itself stays honest -- if someone adds
+    a fourteenth table with a user_id, the count changes and this fails until
+    somebody has thought about whether the purge covers it.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import (
+        Classroom,
+        Concept,
+        Draft,
+        ExerciseSession,
+        HelpRequest,
+        HintEvent,
+        Lesson,
+        LessonProgress,
+        Mastery,
+        ParsonsAttempt,
+        ParsonsProblem,
+        Reflection,
+        TutorChatMessage,
+    )
+
+    headers = _start(client, with_progress=True)
+    user_id = client.get("/auth/me", headers=headers).json()["id"]
+
+    with client.session_factory() as db:
+        session = db.query(ExerciseSession).filter_by(user_id=user_id).first()
+        exercise_id = session.exercise_id
+        problem_id = db.query(ParsonsProblem).first().id
+        lesson_id = db.query(Lesson).first().id
+
+        db.add_all(
+            [
+                HintEvent(
+                    user_id=user_id,
+                    exercise_id=exercise_id,
+                    session_id=session.id,
+                    level=2,
+                    trigger="idle",
+                ),
+                ParsonsAttempt(user_id=user_id, problem_id=problem_id),
+                Reflection(user_id=user_id, exercise_id=exercise_id),
+                TutorChatMessage(
+                    user_id=user_id,
+                    exercise_id=exercise_id,
+                    role="user",
+                    content="why did that fail?",
+                ),
+                Draft(user_id=user_id, exercise_id=exercise_id),
+                Mastery(user_id=user_id, concept=Concept.LOOPS),
+                LessonProgress(user_id=user_id, lesson_id=lesson_id),
+                HelpRequest(student_id=user_id, body="stuck on this one"),
+                Classroom(teacher_id=user_id, name="Demo class", join_code="DEMO01"),
+            ]
         )
+        db.get(User, user_id).created_at = datetime.now(timezone.utc) - timedelta(
+            days=30
+        )
+        db.commit()
+
+        owned = _rows_still_pointing_at(db, user_id)
+        assert len(owned) == 11, f"expected every blocking table populated, got {owned}"
+
+        assert purge_expired(db, older_than_days=7) == 1
+        assert db.get(User, user_id) is None
+        assert _rows_still_pointing_at(db, user_id) == []
+
+
+def test_purging_a_demo_teacher_keeps_the_answer_it_gave_a_real_student(client):
+    """The demo account goes; the real student's question does not go with it.
+
+    answered_by_id is followed by nulling rather than by deleting, and this is
+    why. The help request belongs to the student who asked it, and a stranger
+    clicking "try it" on the landing page must not be able to take a real
+    student's work with them on the way out.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import HelpRequest
+
+    headers = _start(client)
+    demo_id = client.get("/auth/me", headers=headers).json()["id"]
+    student_id = client.get("/auth/me", headers=login(client)).json()["id"]
+
+    with client.session_factory() as db:
+        request = HelpRequest(
+            student_id=student_id,
+            body="Why does my loop stop early?",
+            answer="Look at where the counter changes.",
+            answered_by_id=demo_id,
+        )
+        db.add(request)
+        db.get(User, demo_id).created_at = datetime.now(timezone.utc) - timedelta(
+            days=30
+        )
+        db.commit()
+        request_id = request.id
+
+        assert purge_expired(db, older_than_days=7) == 1
+
+        db.expire_all()
+        kept = db.get(HelpRequest, request_id)
+        assert kept is not None, "a real student's question was deleted with a demo"
+        assert kept.answer == "Look at where the counter changes."
+        assert kept.answered_by_id is None
 
 
 def test_purging_leaves_fresh_demos_and_real_accounts_alone(client):

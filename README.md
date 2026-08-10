@@ -75,7 +75,13 @@ sandbox** — it refuses to start outside development and is replaced by
 
 ### With Postgres and the real sandbox (Week 3+)
 
-Needs Docker. Postgres is what you'll run the study on; SQLite is for local dev.
+Needs Docker. Postgres is what you'll run the study on; SQLite is for local dev
+and the test suite.
+
+Outside development the API refuses to start on anything but a `postgresql://`
+URL. SQLite there would keep the database inside the container and lose every
+account on the next redeploy, which is a failure you would only discover from a
+student asking where their work went.
 
 ```bash
 docker compose up -d db
@@ -187,10 +193,17 @@ in the same account, provided the provider says it verified their address.
 
 ### Tests
 
-No database or Docker needed — the suite runs on SQLite (see `tests/conftest.py`).
+No database or Docker needed — the suite runs on SQLite in memory (see
+`tests/conftest.py`).
+
+SQLite does not enforce foreign keys unless asked, so `app/db.py` turns them on
+for every SQLite connection. Without that the tests run against a database with
+no referential integrity and accept writes Postgres rejects — which is how the
+demo purge came to fail on production and pass here. Keep the schema in the
+subset both dialects share: no JSONB, no ARRAY, no Postgres-only defaults.
 
 ```bash
-.venv/bin/python -m pytest apps/api/tests -q   # 106 tests
+.venv/bin/python -m pytest apps/api/tests -q   # 629 tests
 cd apps/web && npm run typecheck && npm run build
 ```
 

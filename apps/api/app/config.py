@@ -48,24 +48,19 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-opus-5"
 
-    # --- becoming a teacher --------------------------------------------------
+    # --- the research dashboard ----------------------------------------------
     #
-    # A teacher account can read its students' progress, their hint depth, and
-    # their private journals. That last one is why this cannot be a checkbox on
-    # the signup form: anyone who ticked it would be able to read strangers'
-    # writing about struggling, which is exactly what routers/reflections.py
-    # exists to protect.
+    # /instructor is the study's analytics: every student in the database, their
+    # hint depth, and their private journals -- not one class, all of them. It
+    # used to be gated on "has the instructor role", which was tolerable only
+    # while becoming an instructor took a secret.
     #
-    # So signing up as a teacher requires a code the deployment holds. Unset =>
-    # the teacher option is not offered and /auth/register/teacher refuses, the
-    # same posture as the tutor and the OAuth providers: an unconfigured feature
-    # is absent, never half-open.
-    #
-    # This is a gate, not an identity check. It says "someone running this
-    # deployment gave you this code", which is the right claim for a class
-    # tool. An institution wanting real verification should put SSO in front of
-    # it -- see university_issuer below.
-    teacher_signup_code: str = ""
+    # Teachers now sign themselves up, so the role is no longer a credential and
+    # this needs its own. An allowlist of email addresses, and empty means
+    # nobody: a deployment that has not named its researchers does not have any,
+    # and teaching is entirely served by /teacher, which is scoped to a class.
+    research_emails: list[str] = []
+
 
     # --- "Continue with Google" / "Continue with Microsoft" -----------------
     #
@@ -133,9 +128,10 @@ class Settings(BaseSettings):
     def tutor_enabled(self) -> bool:
         return bool(self.anthropic_api_key.strip())
 
-    @property
-    def teacher_signup_enabled(self) -> bool:
-        return bool(self.teacher_signup_code.strip())
+    def is_researcher(self, email: str) -> bool:
+        """Whether this address may see the programme-wide study analytics."""
+        wanted = email.strip().lower()
+        return any(e.strip().lower() == wanted for e in self.research_emails if e.strip())
 
     def oauth_client(self, provider: str) -> tuple[str, str] | None:
         """The (client_id, secret) pair for a provider, or None if unconfigured.

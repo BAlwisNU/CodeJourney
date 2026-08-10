@@ -59,24 +59,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
   // the default and the teacher option is one click away rather than a decision
   // everyone has to make before they can start typing.
   const [asTeacher, setAsTeacher] = useState(false)
-  const [teacherCode, setTeacherCode] = useState('')
-
-  // Whether this deployment offers teacher accounts at all. Until the API says
-  // yes, the choice isn't drawn -- a server with it switched off shouldn't
-  // advertise a door that is locked.
-  const [teachersWelcome, setTeachersWelcome] = useState(false)
-  useEffect(() => {
-    let live = true
-    api
-      .teacherSignupAvailable()
-      .then((r) => live && setTeachersWelcome(r.enabled))
-      .catch(() => {
-        /* Not offered. The learner form below is unaffected. */
-      })
-    return () => {
-      live = false
-    }
-  }, [])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
@@ -108,8 +90,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
     if (isSignup) {
       if (!displayName.trim()) found.displayName = 'What should we call you?'
       if (confirm !== password) found.confirm = "These two don't match."
-      if (asTeacher && !teacherCode.trim())
-        found.teacherCode = 'Teacher accounts need the code for your school.'
     }
 
     return found
@@ -131,8 +111,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
         response = await api.registerTeacher(
           email.trim(),
           password,
-          displayName.trim(),
-          teacherCode.trim()
+          displayName.trim()
         )
       } else if (isSignup) {
         response = await api.register(email.trim(), password, displayName.trim())
@@ -172,8 +151,6 @@ export function AuthPage({ mode }: { mode: Mode }) {
         })
       } else if (message.includes('Invalid credentials')) {
         setErrors({ form: "That email and password don't match an account." })
-      } else if (message.includes('teacher code')) {
-        setErrors({ teacherCode: message })
       } else {
         setErrors({ form: message })
       }
@@ -199,7 +176,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
 
       {/* Only on signup, and only where the deployment offers it. Logging in
           needs no choice: the account already knows which it is. */}
-      {isSignup && teachersWelcome && (
+      {isSignup && (
         <div className="role-pick" role="radiogroup" aria-label="What are you here for?">
           <button
             type="button"
@@ -245,8 +222,8 @@ export function AuthPage({ mode }: { mode: Mode }) {
           nothing on screen explaining why. */}
       {isSignup && asTeacher && providers.length > 0 && (
         <p className="oauth-setup-note small">
-          Teacher accounts are made with an email address and your school&rsquo;s
-          code. Google, Microsoft and the rest sign you up as a student.
+          Teacher accounts are made with an email address. Google, Microsoft
+          and the rest sign you up as a student.
         </p>
       )}
 
@@ -379,22 +356,14 @@ export function AuthPage({ mode }: { mode: Mode }) {
         </Field>
       )}
 
-      {/* A teacher account can see its students' progress and read their
-          journals, so it cannot be a checkbox anyone can tick. The code comes
-          from whoever set CodeJourney up for the school. */}
+      {/* No code, and nobody to ask for one. A teacher signs themselves up and
+          makes their own class code on the other side; what they can see is
+          decided by which students type it, not by an administrator. */}
       {isSignup && asTeacher && (
-        <Field
-          label="Teacher code"
-          error={errors.teacherCode}
-          hint="From whoever set up CodeJourney for your school."
-        >
-          <input
-            value={teacherCode}
-            onChange={(e) => setTeacherCode(e.target.value)}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </Field>
+        <p className="muted small">
+          You&rsquo;ll make a class next and choose the code your students type.
+          You only ever see students who join with it.
+        </p>
       )}
 
       <button className="primary" disabled={busy}>

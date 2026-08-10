@@ -108,3 +108,33 @@ def require_instructor(user: CurrentUser) -> User:
 
 
 Instructor = Annotated[User, Depends(require_instructor)]
+
+
+def require_researcher(user: CurrentUser) -> User:
+    """For the programme-wide study analytics, which is not a teaching tool.
+
+    The instructor role stopped being a credential the day teachers could sign
+    themselves up. It is still exactly right for /teacher, which shows one
+    person their own class; it is nowhere near enough for /instructor, which
+    shows every student in the database and their private journals.
+
+    So that surface takes a named allowlist, and an unnamed deployment has no
+    researchers rather than all of them. Nothing about teaching depends on it.
+    """
+    # get_settings() per request rather than the module-level capture at the
+    # top of this file. That capture is taken once at import, so anything that
+    # rebuilds the settings cache leaves this holding a stale object -- and an
+    # access check answered from stale configuration is the wrong kind of bug
+    # to have. It is an lru_cache, so the call is a dict lookup.
+    if user.role is not Role.INSTRUCTOR or not get_settings().is_researcher(user.email):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "This is the study's own dashboard, and it is limited to the "
+                "people running the study. Your class is under Teaching."
+            ),
+        )
+    return user
+
+
+Researcher = Annotated[User, Depends(require_researcher)]

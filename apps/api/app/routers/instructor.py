@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..auth import Instructor
+from ..auth import Researcher
 from ..db import get_db
 from ..models import Exercise, Reflection, Role, RunMode, Submission, User
 from ..schemas import CommonError, InstructorOut, ReflectionOut, StudentRow
@@ -33,7 +33,7 @@ NEEDS_HELP_HINT_LEVEL = 4
 
 
 @router.get("", response_model=InstructorOut)
-def overview(instructor: Instructor, db: DbSession) -> InstructorOut:
+def overview(researcher: Researcher, db: DbSession) -> InstructorOut:
     students = list(db.scalars(select(User).where(User.role == Role.STUDENT)))
     total_exercises = db.scalar(select(func.count(Exercise.id))) or 0
 
@@ -104,7 +104,7 @@ def overview(instructor: Instructor, db: DbSession) -> InstructorOut:
 
 @router.get("/students/{user_id}/reflections", response_model=list[ReflectionOut])
 def student_reflections(
-    user_id: str, instructor: Instructor, db: DbSession
+    user_id: str, researcher: Researcher, db: DbSession
 ) -> list[Reflection]:
     """A student's journal.
 

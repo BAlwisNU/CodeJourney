@@ -11,32 +11,10 @@ import pytest
 from app.config import get_settings
 from conftest import CORRECT, WRONG, login, open_exercise, submit
 
-TEACHER_CODE = "let-me-teach"
-
-
-@pytest.fixture(autouse=True)
-def teacher_code_set():
-    """Turn teacher signup on for this module only.
-
-    Settings are lru_cached, so the cache is cleared on the way in and out --
-    otherwise a value set here leaks into every module that runs after it.
-    """
-    settings = get_settings()
-    original = settings.teacher_signup_code
-    settings.teacher_signup_code = TEACHER_CODE
-    yield
-    settings.teacher_signup_code = original
-
-
-def make_teacher(client, email="teacher@example.com", name="Ms Okafor", code=TEACHER_CODE):
+def make_teacher(client, email="teacher@example.com", name="Ms Okafor"):
     return client.post(
         "/auth/register/teacher",
-        json={
-            "email": email,
-            "password": "password123",
-            "display_name": name,
-            "teacher_code": code,
-        },
+        json={"email": email, "password": "password123", "display_name": name},
     )
 
 
@@ -60,23 +38,47 @@ def make_student(client, email, name="Sam"):
 # ---------------------------------------------------------------------------
 
 
-def test_teacher_signup_needs_the_code(client):
-    response = make_teacher(client, code="obviously-wrong")
-    assert response.status_code == 403
-    assert "teacher code" in response.json()["detail"].lower()
+def test_a_teacher_can_sign_themselves_up(client):
+    """No code, and nobody to ask for one. Signing up used to require a secret
+    held by whoever installed CodeJourney, which meant a teacher could not use
+    the signup page for its only purpose."""
+    assert make_teacher(client).status_code == 201
 
 
-def test_teacher_signup_is_refused_when_the_deployment_has_no_code(client):
-    """Absent configuration means the feature is off, never half-open."""
+def test_a_new_teacher_can_see_nobody(client):
+    """What makes self-signup safe. A teacher sees exactly the students who
+    typed their code into their class, so a fresh account starts with an empty
+    roster and only ever gains people who chose to join it."""
+    headers = teacher_headers(client)
+    home = client.get("/teacher", headers=headers).json()
+    assert home["total_students"] == 0
+    assert home["students"] == []
+
+
+def test_a_teacher_is_not_a_researcher(client):
+    """The role stopped being a credential the moment anyone could take it, so
+    the programme-wide study dashboard -- every student in the database, and
+    their private journals -- takes a named allowlist instead."""
+    headers = teacher_headers(client)
+    denied = client.get("/instructor", headers=headers)
+    assert denied.status_code == 403
+    assert "running the study" in denied.json()["detail"]
+
+
+def test_a_named_researcher_may_see_the_study_dashboard(client):
     settings = get_settings()
-    settings.teacher_signup_code = ""
+    original = list(settings.research_emails)
+    settings.research_emails = ["teacher@example.com"]
     try:
-        assert make_teacher(client, code="anything").status_code == 503
-        assert client.get("/auth/register/teacher/available").json() == {
-            "enabled": False
-        }
+        headers = teacher_headers(client)
+        assert client.get("/instructor", headers=headers).status_code == 200
     finally:
-        settings.teacher_signup_code = TEACHER_CODE
+        settings.research_emails = original
+
+
+def test_a_student_still_cannot_reach_the_study_dashboard(client):
+    headers = make_student(client, "pupil@example.com")
+    assert client.get("/instructor", headers=headers).status_code == 403
 
 
 def test_a_correct_code_creates_an_instructor(client):
@@ -108,7 +110,6 @@ def test_the_ordinary_signup_route_cannot_mint_a_teacher(client):
             "password": "password123",
             "display_name": "Sneaky",
             "role": "instructor",
-            "teacher_code": TEACHER_CODE,
         },
     )
     assert response.status_code == 201

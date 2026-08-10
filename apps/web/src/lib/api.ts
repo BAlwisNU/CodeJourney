@@ -357,20 +357,11 @@ export const api = {
   // them. `teacherHome` is one request on purpose: five would mean five
   // spinners resolving in an order nobody chose.
 
-  /** Whether this deployment offers teacher accounts. Says only yes or no —
-   *  a server with it switched off shouldn't advertise that it exists. */
-  teacherSignupAvailable: () =>
-    request<{ enabled: boolean }>('/auth/register/teacher/available'),
 
-  registerTeacher: (
-    email: string,
-    password: string,
-    display_name: string,
-    teacher_code: string
-  ) =>
+  registerTeacher: (email: string, password: string, display_name: string) =>
     request<{ access_token: string }>('/auth/register/teacher', {
       method: 'POST',
-      body: JSON.stringify({ email, password, display_name, teacher_code }),
+      body: JSON.stringify({ email, password, display_name }),
     }),
 
   /** The whole dashboard. Pass a classroom id to narrow to one class. */

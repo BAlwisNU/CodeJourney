@@ -59,14 +59,13 @@ class RegisterRequest(BaseModel):
 
 
 class TeacherRegisterRequest(RegisterRequest):
-    """Signing up as a teacher: the ordinary fields, plus the deployment's code.
+    """Signing up as a teacher: the same fields as a learner.
 
-    Inherits rather than repeats, so the email normalisation and the bcrypt
-    length ceiling stay in one place. `consent_to_research` comes along for the
-    ride and is ignored by the endpoint -- a teacher is not a participant.
+    Kept as its own type even though it adds nothing, because the route it
+    serves grants a different kind of account and a shared type invites
+    somebody to add a `role` field to the learner one. `consent_to_research`
+    comes along for the ride and is ignored -- a teacher is not a participant.
     """
-
-    teacher_code: str = Field(min_length=1, max_length=200)
 
 
 class LoginRequest(BaseModel):

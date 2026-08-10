@@ -1,6 +1,8 @@
 """The Plan stage, error translation, portfolio, and instructor analytics."""
 
 import pytest
+
+from app.config import get_settings
 from conftest import CORRECT, WRONG, login, open_exercise, submit  # noqa: F401
 
 from app.services import translate
@@ -332,15 +334,31 @@ def test_unsolved_work_shows_no_code(client):
 # --- instructor ------------------------------------------------------------
 
 
+#: The seeded instructor's address. The study dashboard now takes a named
+#: allowlist rather than the instructor role -- teachers sign themselves up,
+#: so the role stopped being a credential. These tests are about what a
+#: researcher sees, so they name one.
+RESEARCHER = "instructor@example.com"
+
+
+@pytest.fixture
+def as_researcher():
+    settings = get_settings()
+    original = list(settings.research_emails)
+    settings.research_emails = [RESEARCHER]
+    yield
+    settings.research_emails = original
+
+
 def instructor_headers(client) -> dict:
-    return login(client, email="instructor@example.com")
+    return login(client, email=RESEARCHER)
 
 
 def test_students_cannot_reach_the_instructor_dashboard(client):
     assert client.get("/instructor", headers=login(client)).status_code == 403
 
 
-def test_instructor_sees_the_class(client):
+def test_instructor_sees_the_class(client, as_researcher):
     student = login(client)
     exercise, session_id = open_exercise(client, student)
     submit(client, student, exercise, session_id, CORRECT)
@@ -352,7 +370,7 @@ def test_instructor_sees_the_class(client):
     assert row["solved"] == 1
 
 
-def test_struggling_students_are_flagged_and_sorted_first(client):
+def test_struggling_students_are_flagged_and_sorted_first(client, as_researcher):
     student = login(client)
     exercise, session_id = open_exercise(client, student)
     # Exhaust the ladder without solving it.
@@ -363,7 +381,7 @@ def test_struggling_students_are_flagged_and_sorted_first(client):
     assert data["students"][0]["needs_help"] is True
 
 
-def test_solving_it_clears_the_flag(client):
+def test_solving_it_clears_the_flag(client, as_researcher):
     student = login(client)
     exercise, session_id = open_exercise(client, student)
     for _ in range(7):
@@ -375,7 +393,7 @@ def test_solving_it_clears_the_flag(client):
     assert row["needs_help"] is False
 
 
-def test_common_errors_are_aggregated(client):
+def test_common_errors_are_aggregated(client, as_researcher):
     student = login(client)
     exercise, session_id = open_exercise(client, student)
     submit(
@@ -387,7 +405,7 @@ def test_common_errors_are_aggregated(client):
     assert any(e["error_type"] == "NameError" for e in data["common_errors"])
 
 
-def test_instructor_can_read_a_students_journal(client):
+def test_instructor_can_read_a_students_journal(client, as_researcher):
     """Allowed, and students are told so. What must never read them is a model."""
     student = login(client)
     exercise, _ = open_exercise(client, student)

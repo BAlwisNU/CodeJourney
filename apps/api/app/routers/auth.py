@@ -62,59 +62,38 @@ def register(body: RegisterRequest, db: DbSession) -> TokenResponse:
     return TokenResponse(access_token=create_access_token(user))
 
 
-class TeacherSignupOpen(BaseModel):
-    """Whether this deployment offers teacher accounts at all."""
-
-    enabled: bool
-
-
-@router.get("/register/teacher/available", response_model=TeacherSignupOpen)
-def teacher_signup_available() -> TeacherSignupOpen:
-    """Read by the signup page to decide whether to draw the teacher option.
-
-    Deliberately says only yes or no. A deployment with teacher signup switched
-    off should not advertise that it exists and would let you in with the right
-    string.
-    """
-    return TeacherSignupOpen(enabled=get_settings().teacher_signup_enabled)
-
 
 @router.post("/register/teacher", response_model=TokenResponse, status_code=201)
 def register_teacher(body: TeacherRegisterRequest, db: DbSession) -> TokenResponse:
-    """Create a teacher account.
+    """Create a teacher account. Anyone may.
 
-    A separate endpoint rather than a `role` field on /register, on purpose. The
-    privilege being granted here -- reading other people's progress, hint depth
-    and private journals -- should not be reachable by adding one key to the
-    body of the ordinary signup call. A distinct route means the check cannot be
-    skipped by a client that forgets it, and it keeps the student path, which is
-    the one almost everybody takes, free of a field almost nobody fills in.
+    This used to demand a code held by whoever installed CodeJourney, on the
+    grounds that a teacher can read student journals. That was the right worry
+    and the wrong lock: it meant a teacher could not sign themselves up, which
+    is the whole purpose of a signup page, and it sent them looking for an
+    administrator who in most deployments does not exist.
+
+    What makes it safe to remove is the classroom, which did not exist when the
+    lock was written. A teacher sees exactly the students who typed THEIR code
+    into THEIR class -- every teacher endpoint routes through
+    services/teaching.roster_ids -- so a self-registered account starts able to
+    see nobody, and only ever sees people who chose to join it. Consent is the
+    students', given by typing a code, which is a better gate than a shared
+    secret in an .env file.
+
+    The one genuinely programme-wide surface, /instructor, is now behind its
+    own allowlist rather than behind "has the instructor role". Opening this
+    door without closing that one would have handed every new account the whole
+    cohort's journals. See routers/instructor.py.
+
+    A separate endpoint rather than a `role` field on /register is still worth
+    keeping: it stops a client that forgets a check from minting teachers by
+    accident, and keeps the student path free of a field it does not need.
 
     No counterbalance group and no research consent: a teacher is not a study
     participant, and stamping them as one would put staff rows in the Week 8
     analysis.
     """
-    settings = get_settings()
-    if not settings.teacher_signup_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Teacher accounts aren't set up on this server. Whoever runs it "
-                "needs to set TEACHER_SIGNUP_CODE."
-            ),
-        )
-    # compare_digest so a wrong code cannot be narrowed down by timing it.
-    if not secrets.compare_digest(
-        body.teacher_code.strip(), settings.teacher_signup_code.strip()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "That teacher code isn't right. Ask whoever set up CodeJourney "
-                "for your school."
-            ),
-        )
-
     existing = db.scalar(select(User).where(User.email == body.email))
     if existing is not None:
         raise HTTPException(
